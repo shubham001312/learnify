@@ -65,9 +65,13 @@ function submit() {
       language: el('auth-lang').value
     };
     register(payload).then((d) => {
-      if (d && d.user) {
+      if (d && d.session) {
         toast('Account created. Welcome to Learnify!', 'ok');
         location.reload();
+      } else if (d && d.user) {
+        toast('Account created! Please confirm your email, then log in.', 'ok');
+        setMode('login');
+        done();
       } else {
         el('auth-err').textContent = 'Registration did not return a user.';
         done();

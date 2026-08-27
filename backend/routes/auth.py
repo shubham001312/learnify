@@ -152,23 +152,70 @@ def resolve_uid(authorization: Optional[str]):
 def register(req: RegisterReq):
     if db_available():
         client = _require_client()
-        resp = client.auth.sign_up(
-            {
-                "email": req.email,
-                "password": req.password,
-                "options": {
-                    "data": {
-                        "name": req.name,
-                        "language": req.language,
-                        "grade": req.grade,
+        svc = get_client()
+        email = req.email
+        user = None
+        try:
+            resp = client.auth.sign_up(
+                {
+                    "email": email,
+                    "password": req.password,
+                    "options": {
+                        "data": {
+                            "name": req.name,
+                            "language": req.language,
+                            "grade": req.grade,
+                        }
+                    },
+                }
+            )
+            user = resp.user
+        except Exception as e:
+            msg = str(e).lower()
+            if "already registered" in msg or "already exists" in msg:
+                # Account exists: confirm it (if needed) and sign in like a login.
+                _admin_confirm_email(email)
+                try:
+                    sess = client.auth.sign_in_with_password(
+                        {"email": email, "password": req.password}
+                    ).session
+                except Exception:
+                    sess = None
+                if sess:
+                    uid = _our_uid(client, email, req.name, req.language, req.grade)
+                    return {
+                        "user": {"id": uid, "email": email, "name": req.name},
+                        "session": {"access_token": sess.access_token},
                     }
-                },
-            }
-        )
-        user = resp.user
+                raise HTTPException(
+                    status_code=401, detail="Account exists but password is incorrect."
+                )
+            if "rate limit" in msg or "email rate" in msg:
+                # Supabase's free-tier email hourly quota is exhausted. Fall back
+                # to an admin-created, already-confirmed account so signup never
+                # blocks the user (no confirmation email is sent in this path).
+                try:
+                    user = svc.auth.admin.create_user(
+                        {
+                            "email": email,
+                            "password": req.password,
+                            "email_confirm": True,
+                            "user_metadata": {
+                                "name": req.name,
+                                "language": req.language,
+                                "grade": req.grade,
+                            },
+                        }
+                    ).user
+                except Exception:
+                    user = None
+            if user is None:
+                raise HTTPException(
+                    status_code=400, detail="Registration failed: " + str(e)
+                )
         if not user:
             raise HTTPException(status_code=400, detail="Registration failed")
-        email = getattr(user, "email", req.email)
+        email = getattr(user, "email", email)
         _admin_confirm_email(email)
         uid = _our_uid(client, email, req.name, req.language, req.grade)
         out = {
