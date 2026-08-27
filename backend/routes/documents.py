@@ -3,7 +3,14 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException
+
+try:
+    from fastapi import File, Form, UploadFile
+
+    _MULTIPART_OK = True
+except Exception:
+    _MULTIPART_OK = False
 
 from backend.database.client import db_available, get_client
 from backend.services.detector import detect_synthetic
@@ -40,46 +47,48 @@ def _extract_fields(text: str) -> dict:
     return fields
 
 
-@router.post("/upload")
-def upload(
-    file: UploadFile = File(...),
-    user_id: str = Form("demo"),
-):
-    try:
-        filename = file.filename or "document.bin"
-        contents = file.file.read()
-        text = _read_text(filename, contents)
+if _MULTIPART_OK:
 
-        detection = detect_synthetic(filename, text)
-        is_synthetic = detection.get("is_synthetic", False)
+    @router.post("/upload")
+    def upload(
+        file: UploadFile = File(...),
+        user_id: str = Form("demo"),
+    ):
+        try:
+            filename = file.filename or "document.bin"
+            contents = file.file.read()
+            text = _read_text(filename, contents)
 
-        if is_synthetic:
+            detection = detect_synthetic(filename, text)
+            is_synthetic = detection.get("is_synthetic", False)
+
+            if is_synthetic:
+                return {
+                    "document_id": None,
+                    "is_synthetic": True,
+                    "extracted": {},
+                    "message": "Please re-upload a genuine document.",
+                }
+
+            rag_ingest(text or filename, user_id, "document")
+            extracted = _extract_fields(text)
+
+            UPLOADS.append(
+                {
+                    "id": f"doc-{uuid.uuid4().hex[:12]}",
+                    "filename": filename,
+                    "is_synthetic": False,
+                    "extracted": extracted,
+                }
+            )
+
             return {
-                "document_id": None,
-                "is_synthetic": True,
-                "extracted": {},
-                "message": "Please re-upload a genuine document.",
-            }
-
-        rag_ingest(text or filename, user_id, "document")
-        extracted = _extract_fields(text)
-
-        UPLOADS.append(
-            {
-                "id": f"doc-{uuid.uuid4().hex[:12]}",
-                "filename": filename,
+                "document_id": UPLOADS[-1]["id"],
                 "is_synthetic": False,
                 "extracted": extracted,
             }
-        )
-
-        return {
-            "document_id": UPLOADS[-1]["id"],
-            "is_synthetic": False,
-            "extracted": extracted,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
 
 @router.get("")
