@@ -1,0 +1,30 @@
+# Secrets & environment
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+.ruff_cache/
+
+# Local database (ephemeral dev cache; production uses Supabase)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Build / tooling
+node_modules/
+.playwright-mcp/
+graphify-out/
+
+# Logs & temp
+uvicorn.log
+uvicorn.err
+*.log
+_syntax_check_tmp.py
+.DS_Store
