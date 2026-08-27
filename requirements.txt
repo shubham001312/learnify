@@ -4,3 +4,4 @@ python-dotenv
 requests
 pyyaml
 razorpay
+python-multipart
