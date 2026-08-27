@@ -80,6 +80,30 @@
     select option:checked,
     select option:focus { background-color: var(--gold); color: #0f172a; }
 
+    /* ── Unified text / number / email / password input + textarea styling ── */
+    input[type="text"], input[type="number"], input[type="email"],
+    input[type="password"], input[type="search"], input[type="tel"],
+    input[type="url"], input:not([type]), textarea {
+      width: 100%;
+      border: 1px solid var(--border-2);
+      border-radius: var(--r-sm);
+      padding: 11px 13px;
+      font: 500 14px var(--font-body);
+      background-color: var(--bg-soft);
+      color: var(--text);
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color .18s var(--ease), box-shadow .18s var(--ease), background-color .18s var(--ease);
+    }
+    input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
+    input[type="password"]:focus, input[type="search"]:focus, input[type="tel"]:focus,
+    input[type="url"]:focus, input:not([type]):focus, textarea:focus {
+      border-color: var(--gold);
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(224,165,38,0.18);
+    }
+    textarea { resize: vertical; line-height: 1.5; }
+
     ::-webkit-scrollbar { width: 0; height: 0; }
     ::selection { background: rgba(224,165,38,0.22); }
 

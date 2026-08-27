@@ -38,6 +38,27 @@ def health():
     return {"status": "ok", "app": "learnify"}
 
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException as _FastAPIHTTPException
+
+
+@app.exception_handler(Exception)
+async def _global_exception(request: Request, exc: Exception):
+    if isinstance(exc, _FastAPIHTTPException):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    import traceback as _tb
+
+    return JSONResponse(
+        {
+            "error": str(exc),
+            "type": type(exc).__name__,
+            "traceback": _tb.format_exc(),
+        },
+        status_code=500,
+    )
+
+
 @app.get("/")
 def root():
     index_path = os.path.join(PUBLIC_DIR, "index.html")
