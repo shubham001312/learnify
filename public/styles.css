@@ -40,6 +40,46 @@
     html { font-family: var(--font-body); background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
     body { min-height: 100vh; }
 
+    /* ── Unified select / dropdown styling (all selector boxes) ── */
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 100%;
+      background-color: #fff;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e0a526' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      border: 1px solid var(--border-2);
+      border-radius: var(--r-sm);
+      padding: 10px 38px 10px 14px;
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      transition: border-color .18s var(--ease), box-shadow .18s var(--ease), background-color .18s var(--ease);
+    }
+    select:hover { border-color: rgba(224,165,38,0.45); }
+    select:focus, select:focus-visible {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(224,165,38,0.18);
+    }
+    select:disabled { opacity: .55; cursor: not-allowed; }
+    select:invalid, select option[value=""] { color: var(--muted); }
+
+    /* Dropdown list items (honored by Chromium / Windows native picker) */
+    select option {
+      background-color: #fff;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 13.5px;
+    }
+    select option:hover,
+    select option:checked,
+    select option:focus { background-color: var(--gold); color: #0f172a; }
+
     ::-webkit-scrollbar { width: 0; height: 0; }
     ::selection { background: rgba(224,165,38,0.22); }
 
@@ -234,7 +274,7 @@
     .filters-panel { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-end; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 16px; }
     .filter-group { display: flex; flex-direction: column; gap: 6px; }
     .filter-group label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-    .filter-group select, .filter-group input { border: 1px solid var(--border-2); border-radius: 10px; padding: 9px 12px; font-size: 13px; background: #fff; color: var(--text); outline: none; min-width: 170px; }
+    .filter-group select, .filter-group input { border: 1px solid var(--border-2); border-radius: 10px; padding: 9px 36px 9px 12px; font-size: 13px; background-color: #fff; color: var(--text); outline: none; min-width: 170px; }
     .filter-group select:focus, .filter-group input:focus { border-color: rgba(224,165,38,0.5); }
     .toggle-set { display: flex; gap: 8px; flex-wrap: wrap; }
     .toggle-set .fpill { margin: 0; }
@@ -379,8 +419,8 @@
 .field { margin: 10px 0; }
 .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
 .field input, .field select, textarea, .auth-form input, .auth-form select {
-  width: 100%; padding: 11px 13px; border: 1px solid var(--border-2); border-radius: var(--r-sm);
-  font: 500 14px var(--font-body); background: var(--bg-soft); color: var(--text); outline: none;
+  width: 100%; padding: 11px 38px 11px 13px; border: 1px solid var(--border-2); border-radius: var(--r-sm);
+  font: 500 14px var(--font-body); background-color: var(--bg-soft); color: var(--text); outline: none;
 }
 .field input:focus, textarea:focus, .auth-form input:focus { border-color: var(--gold); background: #fff; }
 textarea { resize: vertical; }
@@ -426,7 +466,7 @@ textarea { resize: vertical; }
 .calc-btn.eq { background: var(--teal); color: #fff; }
 .calc-btn.zero { grid-column: span 2; }
 .conv { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
-.conv select, .conv input { width: auto; flex: 1; min-width: 80px; padding: 9px; }
+    .conv select, .conv input { width: auto; flex: 1; min-width: 80px; padding: 9px 36px 9px 12px; }
 .conv-out { width: 100%; font-weight: 600; color: var(--teal); margin-top: 4px; }
 
 /* ===== RESUME ===== */
@@ -518,7 +558,7 @@ textarea { resize: vertical; }
     .fp-back:hover { background: #e9edf2; }
     .fp-title { font-family: var(--font-head); font-weight: 800; font-size: 17px; flex: 1; }
     .fp-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .fp-select { border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; font-size: 13px; background: #fff; cursor: pointer; }
+    .fp-select { border: 1px solid var(--border); border-radius: 10px; padding: 7px 36px 7px 10px; font-size: 13px; background-color: #fff; cursor: pointer; }
     .fp-body { max-width: 1040px; margin: 0 auto; padding: 20px 18px 40px; }
 
     /* ───────── RESUME BUILDER ───────── */
@@ -534,7 +574,7 @@ textarea { resize: vertical; }
     .rf-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 6px; border: none; background: #fde8e8; color: #c0392b; font-weight: 700; cursor: pointer; }
     .dyn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; padding-top: 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; position: relative; }
     .dyn-row .exp-bullets { grid-column: 1 / -1; resize: vertical; }
-    .resume-form input, .resume-form textarea, .planner-form input, .planner-form select, .planner-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: var(--font-body); background: #fff; color: var(--text); outline: none; box-sizing: border-box; }
+    .resume-form input, .resume-form textarea, .planner-form input, .planner-form select, .planner-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 9px 38px 9px 11px; font-size: 13px; font-family: var(--font-body); background-color: #fff; color: var(--text); outline: none; box-sizing: border-box; }
     .resume-form input:focus, .resume-form textarea:focus, .planner-form input:focus, .planner-form select:focus { border-color: rgba(224,165,38,0.5); }
     .resume-preview-wrap { position: sticky; top: 0; }
 
@@ -604,7 +644,7 @@ textarea { resize: vertical; }
     .sch-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
     .sch-search { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; font-size: 14px; background: #fff; color: var(--text); outline: none; box-sizing: border-box; }
     .sch-search:focus { border-color: rgba(224,165,38,0.5); }
-    .sch-state, .sch-college { border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; font-size: 14px; background: #fff; color: var(--text); cursor: pointer; outline: none; box-sizing: border-box; max-width: 240px; }
+    .sch-state, .sch-college { border: 1px solid var(--border); border-radius: 12px; padding: 11px 38px 11px 12px; font-size: 14px; background-color: #fff; color: var(--text); cursor: pointer; outline: none; box-sizing: border-box; max-width: 240px; }
     .sch-state:focus, .sch-college:focus { border-color: rgba(224,165,38,0.5); }
     .sch-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
     .sch-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer; }
@@ -633,7 +673,7 @@ textarea { resize: vertical; }
     .sch-docs .doc-chip { display: inline-block; background: #f1f4f8; border-radius: 6px; padding: 2px 8px; margin: 3px 4px 0 0; font-size: 11.5px; color: #3b4658; }
 
     .sch-college-wrap { position: relative; flex: 1; min-width: 220px; }
-    .sch-college { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; font-size: 14px; background: #fff; color: var(--text); outline: none; box-sizing: border-box; }
+    .sch-college { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 11px 38px 11px 12px; font-size: 14px; background-color: #fff; color: var(--text); outline: none; box-sizing: border-box; }
     .sch-college:focus { border-color: rgba(224,165,38,0.5); }
     .sch-suggest { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md); max-height: 260px; overflow-y: auto; display: none; }
     .sch-suggest-item { padding: 9px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f2f5; }
