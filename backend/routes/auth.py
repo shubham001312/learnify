@@ -69,14 +69,44 @@ def _ensure_users_row(client, uid, email, name="", language="English", grade="")
         pass
 
 
+def _admin_confirm_email(email: str):
+    """Best-effort: mark a user's email confirmed via the service-role admin API
+    so newly registered (or previously unconfirmed) accounts can sign in immediately."""
+    try:
+        svc = get_client()
+        target = None
+        try:
+            resp = svc.auth.admin.get_user_by_email(email)
+            target = getattr(resp, "user", None)
+        except Exception:
+            target = None
+        if not target:
+            try:
+                listing = svc.auth.admin.list_users()
+                for u in getattr(listing, "users", []) or []:
+                    if (getattr(u, "email", "") or "").lower() == email.lower():
+                        target = u
+                        break
+            except Exception:
+                target = None
+        if target:
+            uid = getattr(target, "id", None)
+            if uid:
+                svc.auth.admin.update_user_by_id(uid, {"email_confirm": True})
+    except Exception:
+        pass
+
+
 def _our_uid(client, email, name="", language="English", grade=""):
     """Resolve our app-level unique id (exactly 7 chars) for a user.
 
     Looks up the existing row by email; if missing, generates a fresh,
-    non-repeating id and creates the users row.
+    non-repeating id and creates the users row. Uses the service client so
+    row-level security on `users` doesn't block the upsert.
     """
+    svc = get_client()
     try:
-        res = client.table("users").select("id").eq("email", email).limit(1).execute()
+        res = svc.table("users").select("id").eq("email", email).limit(1).execute()
         rows = res.data or []
         if rows:
             return rows[0]["id"]
@@ -85,13 +115,13 @@ def _our_uid(client, email, name="", language="English", grade=""):
 
     def taken(u):
         try:
-            r = client.table("users").select("id").eq("id", u).limit(1).execute()
+            r = svc.table("users").select("id").eq("id", u).limit(1).execute()
             return bool(r.data)
         except Exception:
             return False
 
     uid = generate_uid(taken)
-    _ensure_users_row(client, uid, email, name, language, grade)
+    _ensure_users_row(svc, uid, email, name, language, grade)
     return uid
 
 
@@ -139,14 +169,24 @@ def register(req: RegisterReq):
         if not user:
             raise HTTPException(status_code=400, detail="Registration failed")
         email = getattr(user, "email", req.email)
+        _admin_confirm_email(email)
         uid = _our_uid(client, email, req.name, req.language, req.grade)
-        return {
+        out = {
             "user": {
                 "id": uid,
                 "email": email,
                 "name": req.name,
             }
         }
+        try:
+            sess = client.auth.sign_in_with_password(
+                {"email": email, "password": req.password}
+            ).session
+        except Exception:
+            sess = None
+        if sess:
+            out["session"] = {"access_token": sess.access_token}
+        return out
 
     # Local fallback (Supabase not configured)
     try:
@@ -163,9 +203,19 @@ def register(req: RegisterReq):
 def login(req: LoginReq):
     if db_available():
         client = _require_client()
-        resp = client.auth.sign_in_with_password(
-            {"email": req.email, "password": req.password}
-        )
+        try:
+            resp = client.auth.sign_in_with_password(
+                {"email": req.email, "password": req.password}
+            )
+        except Exception as e:
+            msg = str(e).lower()
+            if "not confirmed" in msg or "email not confirm" in msg:
+                _admin_confirm_email(req.email)
+                resp = client.auth.sign_in_with_password(
+                    {"email": req.email, "password": req.password}
+                )
+            else:
+                raise HTTPException(status_code=401, detail="Invalid email or password")
         session = resp.session
         user = resp.user
         if not session or not user:

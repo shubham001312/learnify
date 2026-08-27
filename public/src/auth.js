@@ -18,6 +18,7 @@ export function register(data) {
     method: 'POST',
     body: JSON.stringify(data)
   }).then((d) => {
+    if (d && d.session && d.session.access_token) setToken(d.session.access_token);
     if (d && d.user) setUser(d.user);
     return d;
   });
