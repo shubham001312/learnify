@@ -69,6 +69,7 @@ def root():
     return {"status": "ok", "app": "learnify"}
 
 
+_IMPORT_ERROR = None
 try:
     from backend.routes import auth, veda, colleges, documents, premium, search, scanned
 
@@ -79,8 +80,19 @@ try:
     app.include_router(premium.router, prefix="/api/premium")
     app.include_router(search.router, prefix="/api")
     app.include_router(scanned.router, prefix="/api")
-except ImportError as e:
-    print(f"[learnify] router import skipped: {e}")
+except Exception as e:
+    _IMPORT_ERROR = repr(e)
+    import traceback as _tb
+
+    print(f"[learnify] router import skipped: {e}\n{_tb.format_exc()}")
+
+
+@app.get("/api/_debug")
+def _debug():
+    return {
+        "import_error": _IMPORT_ERROR,
+        "routes": sorted([getattr(r, "path", str(r)) for r in app.routes]),
+    }
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
