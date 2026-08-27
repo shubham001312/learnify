@@ -37,6 +37,52 @@ function closePage() {
   document.querySelectorAll('.fullpage').forEach((x) => x.classList.remove('open'));
   document.body.style.overflow = '';
 }
+
+/* ── Persistent, history-aware navigation ──
+   Tabs and full-page tools are tracked in the URL hash + localStorage so a
+   reload restores the last view, and the browser Back/Forward buttons move
+   within the app instead of leaving it. */
+const _TABS = ['home', 'veda', 'career', 'profile'];
+const _PAGES = ['resume', 'planner', 'scholarships'];
+
+function _savedTab() {
+  try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
+}
+function applyView(name) {
+  if (_PAGES.includes(name)) openPage(name);
+  else if (_TABS.includes(name)) switchTab(name);
+  else if (name) switchTab(name);
+}
+function setView(name, push = true) {
+  if (!name) return;
+  if (_TABS.includes(name)) closePage();
+  const prev = (location.hash || '').replace(/^#/, '');
+  applyView(name);
+  const h = '#' + name;
+  try {
+    if (push) { if (prev !== name) history.pushState({ view: name }, '', h); }
+    else history.replaceState({ view: name }, '', h);
+  } catch (e) { /* ignore */ }
+  if (_TABS.includes(name)) {
+    try { localStorage.setItem('learnify_tab', name); } catch (e) { /* ignore */ }
+  }
+}
+function _restoreView() {
+  const hash = (location.hash || '').replace(/^#/, '');
+  const view = (hash && (_TABS.includes(hash) || _PAGES.includes(hash)))
+    ? hash
+    : (_savedTab() && _TABS.includes(_savedTab()) ? _savedTab() : 'home');
+  setView(view, false);
+}
+window.addEventListener('popstate', () => {
+  const v = (location.hash || '').replace(/^#/, '');
+  if (_PAGES.includes(v)) openPage(v);
+  else {
+    closePage();
+    const t = _TABS.includes(v) ? v : (_savedTab() && _TABS.includes(_savedTab()) ? _savedTab() : 'home');
+    switchTab(t);
+  }
+});
 function extractJson(s) {
   if (!s) return null;
   s = s.trim();
@@ -62,25 +108,26 @@ function initTools() {
   document.querySelectorAll('[data-tool]').forEach((b) => {
     b.addEventListener('click', () => {
       const t = b.dataset.tool;
-      if (t === 'planner') { openPage('planner'); return; }
-      if (t === 'resume') { openPage('resume'); return; }
-      if (t === 'scholarships') { openPage('scholarships'); return; }
+      if (t === 'planner' || t === 'resume' || t === 'scholarships') { setView(t, true); return; }
       openModal(t + '-modal');
     });
   });
   document.querySelectorAll('[data-page-close]').forEach((b) => {
-    b.addEventListener('click', closePage);
+    b.addEventListener('click', () => {
+      if ((location.hash || '').replace(/^#/, '') && _PAGES.includes((location.hash || '').replace(/^#/, ''))) history.back();
+      else closePage();
+    });
   });
   document.querySelectorAll('[data-go]').forEach((b) => {
-    b.addEventListener('click', () => switchTab(b.dataset.go));
+    b.addEventListener('click', () => setView(b.dataset.go, true));
   });
   document.querySelectorAll('.tbtn').forEach((b) => {
-    b.addEventListener('click', () => switchTab(b.dataset.tab));
+    b.addEventListener('click', () => setView(b.dataset.tab, true));
   });
 
   const avatar = el('top-avatar');
   if (avatar) avatar.addEventListener('click', () => {
-    if (getToken()) switchTab('profile');
+    if (getToken()) setView('profile', true);
     else openLogin();
   });
 
@@ -639,7 +686,7 @@ function initMisc() {
       if (v) {
         const cs = el('college-search');
         if (cs) { cs.value = v; cs.dispatchEvent(new Event('input')); }
-        switchTab('career');
+        setView('career', true);
       }
     }
   });
@@ -665,9 +712,9 @@ function initMisc() {
     if (map[t]) a.addEventListener('click', (e) => {
       e.preventDefault();
       const target = map[t];
-      if (target === 'resume' || target === 'planner' || target === 'scholarships') openPage(target);
+      if (target === 'resume' || target === 'planner' || target === 'scholarships') setView(target, true);
       else if (target.endsWith('-modal')) openModal(target);
-      else switchTab(target);
+      else setView(target, true);
     });
   });
 }
@@ -690,7 +737,7 @@ const LOANS = [
 ];
 
 function askVeda(prompt) {
-  switchTab('veda');
+  setView('veda', true);
   const inp = el('chat-input');
   if (inp) inp.value = prompt;
   if (typeof window.sendMessage === 'function') window.sendMessage();
@@ -859,4 +906,5 @@ onReady(() => {
   initMisc();
   initNotifications();
   applyLanguage(getLang());
+  _restoreView();
 });
