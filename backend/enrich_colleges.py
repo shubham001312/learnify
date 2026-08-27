@@ -293,43 +293,38 @@ def make_pros_cons(c, ty, cat):
     return pros, cons
 
 
+NE_STATES = {
+    "arunachal pradesh",
+    "assam",
+    "manipur",
+    "meghalaya",
+    "mizoram",
+    "nagaland",
+    "tripura",
+    "sikkim",
+}
+
+
 def match_scholarships(c, schols):
+    """A scholarship is 'available' at a college when it is national in scope
+    (All India / Central) or targeted at the college's state/region. The
+    scholarship `category` (Government/State/Private) describes the provider,
+    not eligibility, so it isn't used as a filter."""
     out = []
-    st = (c.get("state") or "").lower()
-    n = c["name"].lower()
-    streams = [s.lower() for s in (c.get("streams") or [])]
-    is_women = any(w in n for w in ["women", "mahila", "girl"])
-    is_minority = "minority" in n
+    st = (c.get("state") or "").lower().strip()
     for s in schols:
-        sstate = (s.get("state") or "").lower()
-        cat = (s.get("category") or "").lower()
+        sstate = (s.get("state") or "").lower().strip()
         elig = (s.get("eligibility") or "").lower()
-        if sstate and st and sstate != st:
-            if not any(
-                k in elig for k in ["all india", "national", "any state", "pan india"]
-            ):
-                continue
-        if cat:
-            if ("girl" in cat or "women" in cat) and not is_women:
-                continue
-            if "minority" in cat and not is_minority:
-                continue
-            if cat not in (
-                "general",
-                "open",
-                "all",
-                "ews",
-                "obc",
-                "sc",
-                "st",
-                "physically",
-                "any",
-                "",
-            ):
-                if cat not in n and not any(cat in s2 for s2 in streams):
-                    continue
-        out.append(s["name"])
-        if len(out) >= 12:
+        if not sstate or sstate in ("all india", "central", "india", "national"):
+            out.append(s["name"])
+        elif sstate == "north east":
+            if st in NE_STATES:
+                out.append(s["name"])
+        elif st and sstate == st:
+            out.append(s["name"])
+        elif st and st in elig:
+            out.append(s["name"])
+        if len(out) >= 15:
             break
     return out
 
