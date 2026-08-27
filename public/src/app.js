@@ -780,6 +780,7 @@ function openCollegeModal(c) {
   const stats = [];
   if (c.nirf_rank != null) stats.push('<div class="dm-stat"><small>NIRF ' + esc(c.nirf_year || '2024') + '</small><b>#' + esc(c.nirf_rank) + '</b></div>');
   if (c.avg_package != null) stats.push('<div class="dm-stat"><small>Avg Package</small><b style="color:var(--green)">₹' + esc(c.avg_package) + ' LPA</b></div>');
+  if (c.highest_package != null) stats.push('<div class="dm-stat"><small>Highest Package</small><b style="color:var(--gold)">₹' + esc(c.highest_package) + ' LPA</b></div>');
   if (c.placement_pct != null) stats.push('<div class="dm-stat"><small>Placement</small><b>' + esc(c.placement_pct) + '%</b></div>');
   if (c.rating != null) stats.push('<div class="dm-stat"><small>Rating</small><b style="color:var(--gold)">' + esc(c.rating) + ' ★</b></div>');
 
@@ -787,11 +788,14 @@ function openCollegeModal(c) {
   const recruiters = (c.top_recruiters || []).map((s) => '<span class="dm-chip rec">' + esc(s) + '</span>').join('');
   const pros = (c.pros || []).map((s) => '<li>' + esc(s) + '</li>').join('');
   const cons = (c.cons || []).map((s) => '<li>' + esc(s) + '</li>').join('');
+  const tags = (c.tags || []).map((s) => '<span class="dm-chip tag">' + esc(s) + '</span>').join('');
+  const schols = (c.scholarships_applicable || []).map((s) => '<span class="dm-chip sch">' + esc(s) + '</span>').join('');
   const loans = LOANS.map((l) => '<div class="dm-loan"><b>' + esc(l.bank) + '</b> · <span style="color:var(--teal)">' + esc(l.rate) + '</span><small>' + esc(l.note) + '</small></div>').join('');
 
   const html =
     '<div class="dm-hero">' + typeBadge + '<h2 class="dm-name">' + esc(c.name) + '</h2>' +
       '<div class="dm-sub">' + esc(c.city || c.location || '') + (c.state ? ', ' + esc(c.state) : '') + '</div>' +
+      (tags ? '<div class="dm-chips">' + tags + '</div>' : '') +
     '</div>' +
     (stats.length ? '<div class="dm-stats">' + stats.join('') + '</div>' : '') +
     (loc ? '<div class="dm-sec"><h4>📍 Location</h4><p>' + esc(loc) + '</p>' +
@@ -808,6 +812,8 @@ function openCollegeModal(c) {
         (pros ? '<div class="dm-pros"><h5>✓ Pros</h5><ul>' + pros + '</ul></div>' : '') +
         (cons ? '<div class="dm-cons"><h5>✕ Cons</h5><ul>' + cons + '</ul></div>' : '') +
       '</div></div>' : '') +
+    (schols ? '<div class="dm-sec"><h4>🎓 Scholarships you may qualify for</h4><div class="dm-chips">' + schols + '</div>' +
+        '<p class="dm-note">Eligibility depends on your category, state, and course. Open the Scholarships tab for full details, amounts, and deadlines.</p></div>' : '') +
     '<div class="dm-sec"><h4>💸 Education Loans</h4>' + loans + '</div>' +
     '<div class="dm-sec"><h4>⭐ Student Reviews <span class="dm-live">live</span></h4>' +
         '<div id="dm-review-list"><div class="dm-noreviews">Loading reviews…</div></div>' +
@@ -824,7 +830,16 @@ function openCollegeModal(c) {
   openModalCard(html);
 
   const ask = el('dm-ask');
-  if (ask) ask.addEventListener('click', () => askVeda('Give me a clear, practical overview of ' + c.name + ': its strengths, typical placement scenario, and what CGPA / backlog criteria companies usually apply for campus interviews there.'));
+  if (ask) ask.addEventListener('click', () => {
+    const facts = [
+      'College: ' + c.name + (c.type ? ' (' + c.type + ')' : ''),
+      c.avg_package != null ? 'Average package ~₹' + c.avg_package + ' LPA' + (c.highest_package != null ? ', highest ~₹' + c.highest_package + ' LPA' : '') : null,
+      'Top recruiters: ' + ((c.top_recruiters || []).slice(0, 6).join(', ') || 'n/a'),
+      'Scholarships often applicable: ' + ((c.scholarships_applicable || []).slice(0, 5).join(', ') || 'n/a'),
+      c.description ? 'About: ' + c.description : null,
+    ].filter(Boolean).join('. ');
+    askVeda(facts + '. Give a clear, practical overview: strengths, typical placement scenario, and what CGPA/backlog criteria companies usually apply for campus interviews there.');
+  });
 
   const form = el('dm-review-form');
   const list = el('dm-review-list');
