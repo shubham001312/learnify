@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
 </head>
 <body>
 
@@ -220,26 +220,26 @@
         <div class="ce-txt">
           <div class="eyebrow">Career Paths</div>
           <h1>Find your direction</h1>
-          <p>Explore 28 Indian career paths, get an AI recommendation, and plan your journey.</p>
+          <p>Explore Indian career paths, get an AI recommendation, and plan your journey.</p>
         </div>
         <button class="btn primary" id="career-quiz-open">🎯 Find my career path</button>
       </div>
 
-      <div class="career-cats" id="career-cats"></div>
-
-      <div class="career-filters" id="career-filters">
-        <div class="cf-row">
-          <select id="cf-class" class="cf-sel" title="Filter by class"><option value="">Class — Any</option></select>
-          <select id="cf-stream" class="cf-sel" title="Filter by stream"><option value="">Stream — Any</option></select>
-          <select id="cf-domain" class="cf-sel" title="Filter by domain"><option value="">Domain — Any</option></select>
-          <input id="cf-q" class="cf-q" type="text" placeholder="Search careers…">
-        </div>
-        <div class="cf-row2">
-          <button class="btn ghost sm" id="cf-for-you" type="button">✨ For you</button>
-          <button class="btn ghost sm" id="cf-reset" type="button">Reset</button>
-          <span id="cf-note" class="cf-note"></span>
-        </div>
+      <div class="search-row">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="cf-q" placeholder="Search any career in India…">
       </div>
+
+      <div class="toolbar">
+        <button class="filter-trigger" id="career-filter-trigger">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></svg>
+          Filters
+          <span class="filter-count" id="career-filter-count" style="display:none">0</span>
+        </button>
+        <div class="active-filters" id="career-active-filters"></div>
+      </div>
+
+      <div class="career-cats" id="career-cats"></div>
 
       <div class="results-bar">
         <span id="career-count" class="college-count">Loading careers…</span>
@@ -766,6 +766,25 @@
       <div class="field"><label>Short bio / goal</label><textarea id="edit-bio" rows="2" placeholder="One line about your goal"></textarea></div>
       <button class="btn primary block" id="edit-save" data-i18n="save_changes">Save changes</button>
       <div class="doc-status" id="edit-status"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="career-filter-modal">
+    <div class="modal-card">
+      <button class="modal-x" data-close>&times;</button>
+      <h3 class="modal-title">Filter careers</h3>
+      <div class="field"><label>Class</label>
+        <select id="cf-class" class="cf-sel"><option value="">Any</option></select></div>
+      <div class="field"><label>Stream</label>
+        <select id="cf-stream" class="cf-sel"><option value="">Any</option></select></div>
+      <div class="field"><label>Domain</label>
+        <select id="cf-domain" class="cf-sel"><option value="">Any</option></select></div>
+      <div class="row gap" style="margin-top:6px">
+        <button class="btn ghost sm" id="cf-for-you" type="button">✨ For you</button>
+        <button class="btn ghost sm" id="cf-reset" type="button">Reset</button>
+      </div>
+      <span id="cf-note" class="cf-note"></span>
+      <button class="btn primary block" id="career-filter-apply" style="margin-top:10px">Apply filters</button>
     </div>
   </div>
 
@@ -1366,7 +1385,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=29"></script>
+  <script type="module" src="src/app.js?v=30"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

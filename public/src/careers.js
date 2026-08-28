@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=29';
-import { iconSvg, careerIcon } from './icons.js?v=29';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=30';
+import { iconSvg, careerIcon } from './icons.js?v=30';
 
 let _careerData = [];
 let _careerCats = [];
@@ -39,12 +39,16 @@ export function initCareers() {
     applyCareerFilters();
   });
 
-  // Filter bar wiring
-  ['cf-class', 'cf-stream', 'cf-domain', 'cf-q'].forEach((id) => {
+  // Filter bar wiring (college-style: search row + Filters modal)
+  const cfq = el('cf-q');
+  if (cfq) cfq.addEventListener('input', debounceInput(applyCareerFilters, 250));
+  const ftrig = el('career-filter-trigger');
+  if (ftrig) ftrig.addEventListener('click', () => openModal('career-filter-modal'));
+  const fapply = el('career-filter-apply');
+  if (fapply) fapply.addEventListener('click', () => { closeModal('career-filter-modal'); applyCareerFilters(); });
+  ['cf-class', 'cf-stream', 'cf-domain'].forEach((id) => {
     const node = el(id);
-    if (!node) return;
-    node.addEventListener('change', applyCareerFilters);
-    if (id === 'cf-q') node.addEventListener('input', applyCareerFilters);
+    if (node) node.addEventListener('change', applyCareerFilters);
   });
   const forYou = el('cf-for-you');
   if (forYou) forYou.addEventListener('click', toggleForYou);
@@ -121,6 +125,15 @@ function currentCareerFilter() {
   };
 }
 
+function debounceInput(fn, ms) {
+  let t = null;
+  return function () {
+    clearTimeout(t);
+    const args = arguments;
+    t = setTimeout(() => fn.apply(null, args), ms);
+  };
+}
+
 function applyCareerFilters() {
   const f = currentCareerFilter();
   let list = _careerData.filter((c) => {
@@ -142,6 +155,31 @@ function applyCareerFilters() {
     list = list.slice().sort((a, b) => forYouScore(b, us) - forYouScore(a, us));
   }
   renderCareerList(list);
+  renderActiveFilters();
+}
+
+function renderActiveFilters() {
+  const f = currentCareerFilter();
+  const chips = [];
+  if (f.cls) chips.push({ k: 'cls', label: f.cls });
+  if (f.stream) chips.push({ k: 'stream', label: f.stream });
+  if (f.domain) chips.push({ k: 'domain', label: f.domain });
+  if (_forYou) chips.push({ k: 'foryou', label: 'For you' });
+  const wrap = el('career-active-filters');
+  if (wrap) wrap.innerHTML = chips.map((c) =>
+    '<button class="af-chip" data-k="' + esc(c.k) + '">' + esc(c.label) + ' <span>&times;</span></button>'
+  ).join('');
+  if (wrap) wrap.querySelectorAll('.af-chip').forEach((b) => b.addEventListener('click', () => clearFilter(b.dataset.k)));
+  const cnt = el('career-filter-count');
+  if (cnt) { cnt.textContent = String(chips.length); cnt.style.display = chips.length ? '' : 'none'; }
+}
+
+function clearFilter(k) {
+  if (k === 'cls') { const n = el('cf-class'); if (n) n.value = ''; }
+  else if (k === 'stream') { const n = el('cf-stream'); if (n) n.value = ''; }
+  else if (k === 'domain') { const n = el('cf-domain'); if (n) n.value = ''; }
+  else if (k === 'foryou') { _forYou = false; const b = el('cf-for-you'); if (b) b.classList.remove('active'); const nt = el('cf-note'); if (nt) nt.textContent = ''; }
+  applyCareerFilters();
 }
 
 function forYouScore(c, userStream) {
