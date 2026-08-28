@@ -107,7 +107,15 @@ def list_cities(state=None):
         qb = qb.eq("state", state)
     res = qb.execute()
     cities = {r["city"] for r in (res.data or []) if r.get("city")}
-    clean = [c for c in cities if len(c) >= 2 and not c.isdigit()]
+    clean = [
+        c
+        for c in cities
+        if len(c) >= 2
+        and not c.isdigit()
+        and "#" not in c
+        and "%" not in c
+        and any(ch.isalpha() for ch in c)
+    ]
     return sorted(clean)
 
 

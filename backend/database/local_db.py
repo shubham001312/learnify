@@ -138,7 +138,12 @@ def list_cities(state=None):
     cities = [
         r["city"]
         for r in cur.fetchall()
-        if r["city"] and len(r["city"]) >= 2 and not r["city"].isdigit()
+        if r["city"]
+        and len(r["city"]) >= 2
+        and not r["city"].isdigit()
+        and "#" not in r["city"]
+        and "%" not in r["city"]
+        and any(ch.isalpha() for ch in r["city"])
     ]
     conn.close()
     return cities
