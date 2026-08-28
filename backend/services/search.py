@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 
 import requests
@@ -34,6 +35,46 @@ def _today():
     return time.strftime("%Y-%m-%d")
 
 
+def internal_scholarship_match(query, num=10):
+    """Free, key-less matching against our own scholarship database."""
+    try:
+        from backend.database.supabase_db import list_scholarships
+        rows = list_scholarships() or []
+    except Exception:
+        rows = []
+    if not rows:
+        try:
+            from backend.database.seed import SEED_SCHOLARSHIPS
+            rows = SEED_SCHOLARSHIPS
+        except Exception:
+            rows = []
+    ql = (query or "").lower()
+    qwords = {w for w in re.findall(r"[a-z0-9]+", ql) if len(w) > 2}
+    scored = []
+    for s in rows:
+        text = " ".join(str(s.get(k, "")) for k in
+                       ("name", "eligibility", "description", "category", "state", "provider", "amount")).lower()
+        score = sum(1 for w in qwords if w in text)
+        if s.get("state") and s.get("state").lower() in ql:
+            score += 3
+        if s.get("category") and s.get("category").lower() in ql:
+            score += 2
+        scored.append((score, s))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = [s for score, s in scored if score > 0][:num]
+    if not top:
+        top = [s for _, s in scored][:num]
+    items = []
+    for s in top:
+        items.append({
+            "title": s.get("name"),
+            "link": s.get("link") or "#",
+            "snippet": ((s.get("amount") or "") + " · " + (s.get("eligibility") or s.get("description") or ""))[:240],
+            "source": s.get("provider") or "Learnify DB",
+        })
+    return items, {"source": "database", "note": "Matched from our scholarship database."}
+
+
 def google_scholarship_search(query, num=10):
     """Search live scholarship announcements via Google Programmable Search Engine.
     Returns (results, meta). Falls back to cache / empty when unconfigured or quota hit."""
@@ -59,10 +100,7 @@ def google_scholarship_search(query, num=10):
             }
 
     if not key or not cx:
-        return [], {
-            "source": "unconfigured",
-            "note": "Set GOOGLE_CSE_KEY (API key) and GOOGLE_CSE_CX / GOOGLE_CSE_ID (engine ID) in .env to enable live search.",
-        }
+        return internal_scholarship_match(query, num)
 
     if state["count"] >= DAILY_QUOTA:
         cached = state["cache"].get(cache_key, {}).get("items", [])
