@@ -364,7 +364,7 @@ class AcadUpdate(BaseModel):
 def update_academic(
     record_id: str,
     req: AcadUpdate,
-    authorization: Optional[str] = None,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ):
     uid = resolve_uid(authorization)
     if not uid:

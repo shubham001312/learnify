@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=32';
-import { openLogin } from './auth.js?v=32';
-import { playChatDing } from './sound.js?v=32';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=33';
+import { openLogin } from './auth.js?v=33';
+import { playChatDing } from './sound.js?v=33';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -37,8 +37,21 @@ function appendBubble(who, text) {
   const bubble = row.querySelector('.bubble');
   if (who === 'v') bubble.innerHTML = renderMarkdown(text);
   else bubble.textContent = text;
+  if (who === 'v') addMsgActions(row, bubble);
   wrap.appendChild(row);
   return row.querySelector('.bubble');
+}
+
+function addMsgActions(row, bubble) {
+  const bar = document.createElement('div');
+  bar.className = 'msg-actions';
+  bar.innerHTML = '<button class="msg-copy" title="Copy reply">⧉ Copy</button>';
+  bar.querySelector('.msg-copy').addEventListener('click', () => {
+    const txt = (bubble.innerText || '').replace(/⧉\s*Copy/g, '').trim();
+    if (navigator.clipboard) navigator.clipboard.writeText(txt)
+      .then(() => toast('Copied to clipboard', 'ok')).catch(() => {});
+  });
+  row.appendChild(bar);
 }
 
 function beginStream() {
@@ -48,6 +61,7 @@ function beginStream() {
   row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v"></div>';
   wrap.appendChild(row);
   streamEl = row.querySelector('.bubble');
+  addMsgActions(row, streamEl);
   scrollDown();
   return streamEl;
 }
@@ -56,7 +70,7 @@ function showTyping() {
   const wrap = el('chat-messages');
   const row = document.createElement('div');
   row.className = 'msg'; row.id = 'typing-row';
-  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v typing"><span></span><span></span><span></span></div>';
+  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v typing"><span></span><span></span><span></span> <i class="t-label">Veda is typing…</i></div>';
   wrap.appendChild(row); scrollDown();
 }
 function removeTyping() {
@@ -178,6 +192,9 @@ function buildSuggestions() {
       sugs.push({ q: 'Save this roadmap as a PDF', tag: 'pdf' });
     if (last.includes('scholarship')) sugs.push({ q: 'What is the eligibility for these?' });
     if (last.includes('college')) sugs.push({ q: 'Compare the top 2 colleges you mentioned' });
+    let lastUser = null;
+    for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'user') { lastUser = messages[i].content; break; } }
+    if (lastUser) sugs.push({ q: '↻ Regenerate response', tag: 'regen' });
     sugs.push({ q: 'Give me a weekly study plan' });
     sugs.push({ q: 'Explain this more simply' });
   }
@@ -400,6 +417,13 @@ export function initVeda() {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.tag === 'pdf') { downloadLastRoadmap(); return; }
+    if (b.dataset.tag === 'regen') {
+      const input2 = el('chat-input');
+      let um = null;
+      for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'user') { um = messages[i].content; break; } }
+      if (um && input2) { input2.value = um; window.sendMessage(); }
+      return;
+    }
     input.value = b.dataset.q || b.textContent;
     window.sendMessage();
   });

@@ -347,6 +347,12 @@
 
     .chat-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 2px; padding-bottom: 16px; }
     .msg { display: flex; gap: 9px; align-items: flex-end; }
+    .msg-actions { align-self: center; opacity: 0; transition: opacity .15s var(--ease); flex-shrink: 0; }
+    .msg:hover .msg-actions { opacity: 1; }
+    .msg-copy { font-size: 11px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px 9px; cursor: pointer; transition: all .15s var(--ease); }
+    .msg-copy:hover { color: var(--teal); border-color: rgba(14,165,164,0.4); }
+    .t-label { font-style: normal; font-size: 12px; color: var(--sub); margin-left: 6px; }
+    @media (hover: none) { .msg-actions { opacity: 1; } }
     .msg.user { flex-direction: row-reverse; }
     .msg-av { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: var(--font-head); }
     .msg-av.v { background: rgba(224,165,38,0.16); color: var(--gold-deep); }

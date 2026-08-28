@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=32';
-import { applyLanguage } from './i18n.js?v=32';
-import { initNotifications, addNotification } from './notifications.js?v=32';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=33';
+import { applyLanguage } from './i18n.js?v=33';
+import { initNotifications, addNotification } from './notifications.js?v=33';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=32';
-import { initVeda } from './veda.js?v=32';
-import { initCareer } from './career.js?v=32';
-import { initCareers } from './careers.js?v=32';
-import { initProfile } from './profile.js?v=32';
-import { initPremium } from './premium.js?v=32';
-import { api, el, toast, esc } from './utils.js?v=32';
-import { iconSvg, suggestionIcon } from './icons.js?v=32';
-import { playClick } from './sound.js?v=32';
-import { initStudyTools } from './tools.js?v=32';
+import { initAuth, openLogin } from './auth.js?v=33';
+import { initVeda } from './veda.js?v=33';
+import { initCareer } from './career.js?v=33';
+import { initCareers } from './careers.js?v=33';
+import { initProfile } from './profile.js?v=33';
+import { initPremium } from './premium.js?v=33';
+import { api, el, toast, esc } from './utils.js?v=33';
+import { iconSvg, suggestionIcon } from './icons.js?v=33';
+import { playClick } from './sound.js?v=33';
+import { initStudyTools } from './tools.js?v=33';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -920,18 +920,6 @@ function initScholarships() {
 }
 
 function initMisc() {
-  const ts = document.querySelector('.top-search input');
-  if (ts) ts.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const v = ts.value.trim();
-      if (v) {
-        const cs = el('college-search');
-        if (cs) { cs.value = v; cs.dispatchEvent(new Event('input')); }
-        setView('career', true);
-      }
-    }
-  });
-
   const vu = el('veda-upgrade');
   if (vu) vu.addEventListener('click', (e) => { e.preventDefault(); openModal('premium-modal'); });
 
@@ -1358,7 +1346,8 @@ async function renderSuggestions() {
 
   s.innerHTML = forYou + popularHtml;
   s.querySelectorAll('.so-chip[data-q]').forEach((b) => b.addEventListener('click', () => {
-    input.value = b.dataset.q; showResults(); doSearch(b.dataset.q); input.focus();
+    const inp = el('search-input');
+    inp.value = b.dataset.q; showResults(); doSearch(b.dataset.q); inp.focus();
   }));
   s.querySelectorAll('.so-chip[data-gtype]').forEach((b) => b.addEventListener('click', () => {
     const type = b.dataset.gtype, id = b.dataset.gid;
