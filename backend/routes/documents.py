@@ -1,8 +1,14 @@
+import base64
+import gzip
+import io
+import json
+import mimetypes
 import re
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 try:
     from fastapi import File, Form, UploadFile
@@ -14,6 +20,7 @@ except Exception:
 from backend.database.client import db_available, get_client
 from backend.services.detector import detect_synthetic
 from backend.services.rag import ingest as rag_ingest
+from backend.services.ai import vision_extract
 from backend.routes.auth import resolve_uid
 
 router = APIRouter()
@@ -37,6 +44,7 @@ SUBJECT_WORDS = [
     "geography",
     "economics",
     "accountancy",
+    "accounts",
     "business",
     "computer",
     "informatics",
@@ -58,7 +66,50 @@ SUBJECT_WORDS = [
     "technology",
     "it",
     "ip",
+    "statistics",
+    "commerce",
 ]
+
+
+def _detect_file_type(filename: str, mime: Optional[str]) -> str:
+    fn = (filename or "").lower()
+    if mime:
+        if mime.startswith("image/"):
+            return "image"
+        if mime == "application/pdf":
+            return "pdf"
+    if fn.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+        return "image"
+    if fn.endswith(".pdf"):
+        return "pdf"
+    if fn.endswith((".txt", ".md")):
+        return "text"
+    return "other"
+
+
+def _extract_pdf_text(contents: bytes) -> str:
+    # Try several PDF text extractors; return best effort.
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(contents))
+        return "\n".join((p.extract_text() or "") for p in reader.pages)
+    except Exception:
+        pass
+    try:
+        from PyPDF2 import PdfReader as P2
+
+        reader = P2(io.BytesIO(contents))
+        return "\n".join((p.extract_text() or "") for p in reader.pages)
+    except Exception:
+        pass
+    try:
+        from pdfminer.high_level import extract_text
+
+        return extract_text(io.BytesIO(contents))
+    except Exception:
+        pass
+    return ""
 
 
 def _extract_academic(text: str) -> dict:
@@ -68,33 +119,32 @@ def _extract_academic(text: str) -> dict:
     lower = text.lower()
     rec: dict = {}
 
-    # Exam label
     if re.search(r"\b10th\b|\bclass 10\b|\bsslc\b|\bmatric|\bsecondary\b", lower):
         rec["exam"] = "10th"
     elif re.search(r"\b12th\b|\bclass 12\b|\binter\b|\bsenior secondary\b", lower):
         rec["exam"] = "12th"
     elif re.search(r"\bdiploma\b", lower):
         rec["exam"] = "Diploma"
+    elif re.search(r"\bbachelor|\bdegree|\bgraduation|\bb\.tech|\bbe\b|\bbsc\b", lower):
+        rec["exam"] = "Graduation"
 
-    # Board
     if "cbse" in lower:
         rec["board"] = "CBSE"
     elif "icse" in lower or "cisce" in lower:
         rec["board"] = "ICSE"
     elif "state" in lower:
         rec["board"] = "State Board"
+    elif "isc" in lower:
+        rec["board"] = "ISC"
 
-    # Year
     y = re.search(r"(20\d{2})", text)
     if y:
         rec["year"] = int(y.group(1))
 
-    # Subject -> marks. Heuristic: lines with a subject word and a 0-100 number.
     marks: dict = {}
     for line in text.splitlines():
         ll = line.lower()
         for subj in SUBJECT_WORDS:
-            # subject appears as a standalone word, followed by a number <=100
             m = re.search(r"\b" + re.escape(subj) + r"\b[^\d\n]{0,20}?(\d{1,3})\b", ll)
             if m:
                 val = int(m.group(1))
@@ -105,7 +155,6 @@ def _extract_academic(text: str) -> dict:
         rec["total"] = sum(marks.values())
         rec["percentage"] = round(rec["total"] / (len(marks) * 100) * 100, 2)
 
-    # Explicit percentage / total if present
     pct = re.search(r"percentage[^\d]{0,10}(\d{1,3}(?:\.\d{1,2})?)", lower)
     if pct:
         try:
@@ -113,6 +162,45 @@ def _extract_academic(text: str) -> dict:
         except Exception:
             pass
     return rec
+
+
+def _merge_vision(acad: dict, vision_text: str) -> dict:
+    try:
+        # Strip code fences if the model wrapped JSON.
+        raw = vision_text.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-zA-Z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            for k in ("exam", "board", "year", "marks", "total", "percentage"):
+                if parsed.get(k) not in (None, "", {}):
+                    acad[k] = parsed[k]
+    except Exception:
+        pass
+    return acad
+
+
+def _compress_file(contents: bytes, ftype: str, filename: str):
+    """Return (file_data_b64, file_type_tag) for owner preview. None if too big/unavailable."""
+    try:
+        if ftype == "image":
+            from PIL import Image
+
+            img = Image.open(io.BytesIO(contents))
+            img.thumbnail((1000, 1000))
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=80, optimize=True)
+            return base64.b64encode(buf.getvalue()).decode("ascii"), "image"
+        if ftype == "pdf":
+            gz = gzip.compress(contents, 6)
+            if len(gz) <= 700_000:
+                return base64.b64encode(gz).decode("ascii"), "pdf"
+    except Exception:
+        pass
+    return None, ftype
 
 
 if _MULTIPART_OK:
@@ -126,25 +214,52 @@ if _MULTIPART_OK:
             uid = resolve_uid(authorization) or "demo"
             filename = file.filename or "document.bin"
             contents = file.file.read()
-            try:
-                text = contents.decode("utf-8", errors="ignore")
-            except Exception:
-                text = filename
+            mime = file.content_type or mimetypes.guess_type(filename)[0]
+            ftype = _detect_file_type(filename, mime)
 
-            detection = detect_synthetic(filename, text)
-            is_synthetic = detection.get("is_synthetic", False)
-            if is_synthetic:
-                return {
-                    "document_id": None,
-                    "is_synthetic": True,
-                    "extracted": {},
-                    "message": "Please re-upload a genuine document.",
-                }
+            # synthetic detection only for text-like files
+            text = ""
+            if ftype in ("pdf", "text"):
+                if ftype == "pdf":
+                    text = _extract_pdf_text(contents)
+                else:
+                    text = contents.decode("utf-8", errors="ignore")
+                detection = detect_synthetic(filename, text)
+                if detection.get("is_synthetic", False):
+                    return {
+                        "document_id": None,
+                        "is_synthetic": True,
+                        "extracted": {},
+                        "message": "Please re-upload a genuine document.",
+                    }
 
-            rag_ingest(text or filename, uid, "document")
+            acad: dict = {}
+            if ftype == "image":
+                b64 = base64.b64encode(contents).decode("ascii")
+                prompt = (
+                    "Read this academic marksheet / result image. Reply with ONLY a JSON "
+                    "object (no markdown) of this exact shape: "
+                    '{"exam":"10th|12th|Diploma|Graduation|Other",'
+                    '"board":"CBSE|ICSE|State Board|ISC|Other",'
+                    '"year":YYYY,"marks":{"Subject":score_number},'
+                    '"total":number,"percentage":number}. '
+                    "If no marks are visible, return "
+                    '{"exam":null,"board":null,"marks":{}}. Only output JSON.'
+                )
+                try:
+                    vision_text = vision_extract(b64, mime or "image/jpeg", prompt)
+                    acad = _merge_vision({}, vision_text)
+                except Exception:
+                    acad = {}
+            elif ftype == "pdf":
+                acad = _extract_academic(text)
+            elif ftype == "text":
+                acad = _extract_academic(text)
 
-            acad = _extract_academic(text)
+            rag_ingest((text or filename), uid, "document")
+
             doc_id = f"doc-{uuid.uuid4().hex[:12]}"
+            file_data, stored_type = _compress_file(contents, ftype, filename)
 
             client = get_client() if db_available() else None
             if client:
@@ -154,6 +269,8 @@ if _MULTIPART_OK:
                             "id": doc_id if _is_uuid(doc_id) else None,
                             "user_id": uid,
                             "filename": filename,
+                            "file_type": stored_type,
+                            "file_data": file_data,
                             "is_synthetic": False,
                             "extracted": acad or {},
                         }
@@ -165,13 +282,15 @@ if _MULTIPART_OK:
                         client.table("academic_records").insert(
                             {
                                 "user_id": uid,
+                                "doc_id": doc_id,
                                 "exam": acad.get("exam"),
                                 "board": acad.get("board"),
                                 "year": acad.get("year"),
                                 "marks": acad.get("marks"),
                                 "total": acad.get("total"),
                                 "percentage": acad.get("percentage"),
-                                "raw_text": text[:4000],
+                                "raw_text": (text or "")[:4000],
+                                "verified": True,
                             }
                         ).execute()
                     except Exception:
@@ -181,6 +300,7 @@ if _MULTIPART_OK:
                 {
                     "id": doc_id,
                     "filename": filename,
+                    "file_type": stored_type,
                     "is_synthetic": False,
                     "extracted": acad,
                 }
@@ -198,13 +318,50 @@ def _is_uuid(v: str) -> bool:
     return bool(re.match(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-", v or ""))
 
 
+class AcadUpdate(BaseModel):
+    exam: Optional[str] = None
+    board: Optional[str] = None
+    year: Optional[int] = None
+    marks: Optional[dict] = None
+    total: Optional[float] = None
+    percentage: Optional[float] = None
+
+
+@router.patch("/academic/{record_id}")
+def update_academic(
+    record_id: str,
+    req: AcadUpdate,
+    authorization: Optional[str] = None,
+):
+    uid = resolve_uid(authorization)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not db_available():
+        raise HTTPException(status_code=503, detail="Storage unavailable")
+    client = get_client()
+    existing = (
+        client.table("academic_records")
+        .select("user_id")
+        .eq("id", record_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data or existing.data[0]["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    update = {k: v for k, v in req.dict(exclude_unset=True).items() if v is not None}
+    if not update:
+        return {"ok": True}
+    res = client.table("academic_records").update(update).eq("id", record_id).execute()
+    return {"ok": True, "record": (res.data or [{}])[0]}
+
+
 @router.get("")
 def list_documents(user_id: Optional[str] = None):
     if db_available():
         try:
             client = get_client()
             query = client.table("documents").select(
-                "id, filename, is_synthetic, extracted, created_at"
+                "id, filename, file_type, file_data, is_synthetic, extracted, created_at"
             )
             if user_id:
                 query = query.eq("user_id", user_id)

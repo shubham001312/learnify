@@ -694,8 +694,11 @@ function initMisc() {
   const vu = el('veda-upgrade');
   if (vu) vu.addEventListener('click', (e) => { e.preventDefault(); openModal('premium-modal'); });
 
-  const nb = document.querySelector('.icon-btn[title="Notifications"]');
-  if (nb) nb.addEventListener('click', () => toast('No new notifications', 'info'));
+  const avatar = el('top-avatar');
+  if (avatar) avatar.addEventListener('click', () => {
+    if (getToken()) setView('profile');
+    else openLogin();
+  });
 
   const map = {
     'Resume Builder': 'resume',

@@ -68,9 +68,8 @@ function submit() {
       if (d && d.session) {
         toast('Account created. Welcome to Learnify!', 'ok');
         location.reload();
-      } else if (d && d.user) {
-        toast('Account created! Please confirm your email, then log in.', 'ok');
-        setMode('login');
+      } else if (d && d.needs_confirmation) {
+        showConfirm(email);
         done();
       } else {
         el('auth-err').textContent = 'Registration did not return a user.';
@@ -103,6 +102,58 @@ export function initAuth() {
   document.querySelectorAll('.modal').forEach((m) => {
     m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
   });
+
+  const cb = document.getElementById('confirm-back');
+  if (cb) cb.addEventListener('click', (e) => {
+    e.preventDefault();
+    const cm = document.getElementById('confirm-modal');
+    if (cm) cm.classList.remove('open');
+    openLogin();
+  });
+
+  handleConfirmRedirect();
+}
+
+function showConfirm(email) {
+  const box = document.getElementById('confirm-modal');
+  if (!box) return;
+  const em = document.getElementById('confirm-email');
+  if (em) em.textContent = email || '';
+  const am = document.getElementById('auth-modal');
+  if (am) am.classList.remove('open');
+  box.classList.add('open');
+  const g = document.getElementById('confirm-gmail');
+  if (g && email) {
+    g.href = 'https://mail.google.com/mail/u/0/#search/' + encodeURIComponent(email);
+  }
+}
+
+export function handleConfirmRedirect() {
+  try {
+    const url = new URL(location.href);
+    const code = url.searchParams.get('code');
+    let token = null;
+    if (location.hash && location.hash.includes('access_token')) {
+      const params = new URLSearchParams(location.hash.slice(1));
+      token = params.get('access_token');
+    }
+    if (!code && !token) return;
+    const q = code
+      ? ('?code=' + encodeURIComponent(code))
+      : ('?access_token=' + encodeURIComponent(token));
+    api('/auth/confirm' + q).then((d) => {
+      if (d && d.session) {
+        setToken(d.session.access_token);
+        setUser(d.user);
+        history.replaceState({}, '', location.pathname);
+        location.hash = '';
+        toast('Email confirmed — you are logged in!', 'ok');
+        setTimeout(() => location.reload(), 600);
+      } else {
+        toast('Confirmation incomplete. Please log in.', 'info');
+      }
+    }).catch(() => toast('Confirmation failed. Please log in.', 'info'));
+  } catch (_) {}
 }
 
 export function openLogin() {

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 
@@ -230,6 +230,11 @@
           <div id="doc-list" class="slist" style="margin-top:8px"></div>
         </div>
 
+        <div class="academic">
+          <div class="docs-head"><span>My Marks</span> <span id="acad-count" class="end"></span></div>
+          <div id="academic-list" class="slist" style="margin-top:8px"></div>
+        </div>
+
         <div class="menu">
           <button class="mitem" id="btn-edit">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>
@@ -347,6 +352,17 @@
         <button type="submit" class="btn primary block" id="auth-submit">Login</button>
         <div class="auth-err" id="auth-err"></div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal" id="confirm-modal">
+    <div class="modal-card confirm-card">
+      <div class="confirm-ic">✉️</div>
+      <h3 class="modal-title">Confirm your email</h3>
+      <p class="confirm-text">We sent a confirmation link to <b id="confirm-email"></b>.<br>
+      Open it to verify your account — you'll be logged in automatically.</p>
+      <a class="btn primary block" id="confirm-gmail" href="https://mail.google.com" target="_blank" rel="noopener">Open Gmail</a>
+      <p class="confirm-note">Already confirmed? <a href="#" id="confirm-back">Log in</a></p>
     </div>
   </div>
 
@@ -558,6 +574,21 @@
     </div>
   </div>
 
+  <div class="modal" id="academic-modal">
+    <div class="modal-card">
+      <button class="modal-x" data-close>&times;</button>
+      <h3 class="modal-title">✏️ Edit Marks</h3>
+      <input type="hidden" id="acad-id">
+      <div class="field"><label>Exam</label><input type="text" id="acad-exam" placeholder="10th / 12th / Diploma"></div>
+      <div class="field"><label>Board</label><input type="text" id="acad-board" placeholder="CBSE / ICSE / State"></div>
+      <div class="field"><label>Year</label><input type="number" id="acad-year" placeholder="2024"></div>
+      <div class="field"><label>Percentage</label><input type="number" step="0.01" id="acad-pct" placeholder="85.5"></div>
+      <div class="field"><label>Marks (JSON)</label><textarea id="acad-marks" rows="3" placeholder='{"Math":90,"Science":85}'></textarea></div>
+      <button class="btn primary block" id="acad-save">Save</button>
+      <div class="doc-status" id="acad-status"></div>
+    </div>
+  </div>
+
   <div class="modal" id="sgpa-modal">
     <div class="modal-card">
       <button class="modal-x" data-close>&times;</button>
@@ -647,7 +678,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=4"></script>
+  <script type="module" src="src/app.js?v=5"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

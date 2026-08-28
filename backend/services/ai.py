@@ -5,8 +5,12 @@ import requests
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-OPENROUTER_API_KEY_1 = os.environ.get("OPENROUTER_API_KEY_1")
-OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2")
+OPENROUTER_API_KEY_1 = os.environ.get("OPENROUTER_API_KEY_1") or os.environ.get(
+    "OPENROUTER_KEY"
+)
+OPENROUTER_API_KEY_2 = os.environ.get("OPENROUTER_API_KEY_2") or os.environ.get(
+    "OPENROUTER_KEY"
+)
 
 # Free models, best-first. OpenRouter free tiers are intermittently available,
 # so we fall through to the next one on failure.
@@ -162,3 +166,52 @@ def embed(text: str) -> list[float] | None:
         return None
     # OpenRouter has no universal embedding endpoint; keep simple, return None.
     return None
+
+
+VISION_MODELS = [
+    "openai/gpt-4o-mini",
+    "google/gemini-2.0-flash-001",
+    "anthropic/claude-3.5-sonnet",
+]
+
+
+def vision_extract(b64: str, mime: str, prompt: str) -> str:
+    """Return text extracted from an image using a vision-capable model via OpenRouter."""
+    key = OPENROUTER_API_KEY_1 or OPENROUTER_API_KEY_2
+    if not key:
+        raise RuntimeError("OPENROUTER key is not configured")
+    for mdl in VISION_MODELS:
+        try:
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://learnify.app",
+                "X-Title": "Learnify",
+            }
+            payload = {
+                "model": mdl,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{mime};base64,{b64}"},
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }
+                ],
+                "temperature": 0.2,
+            }
+            resp = requests.post(
+                OPENROUTER_URL, headers=headers, json=payload, timeout=45
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            if content and content.strip():
+                return content
+        except Exception:
+            continue
+    raise RuntimeError("Vision extraction failed on all models")

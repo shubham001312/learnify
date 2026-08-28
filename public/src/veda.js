@@ -6,6 +6,8 @@ let currentChatId = null;
 let chatList = [];
 let greetingHTML = '';
 let streamEl = null;
+let user = null;
+let userId = 'demo';
 
 const CHAT_KEY = "learnify_chat";
 
@@ -121,6 +123,19 @@ function newChat() {
   renderChatList();
 }
 
+function syncVedaUser() {
+  user = getUser();
+  userId = (user && (user.id || user.email)) || (getToken() ? 'auth-user' : 'demo');
+  updateQuota();
+  const upg = el('veda-upgrade');
+  if (upg) upg.style.display = (user && user.premium) ? 'none' : '';
+  const cav = document.querySelector('.veda-av');
+  if (cav) {
+    const ini = (((user && user.name) || 'S').charAt(0) || 'S').toUpperCase();
+    cav.textContent = (user && (user.id || user.email)) ? ini : 'V';
+  }
+}
+
 export function initVeda() {
   const input = el('chat-input');
   const wrap = el('chat-messages');
@@ -128,15 +143,15 @@ export function initVeda() {
   const sendBtn = document.querySelector('.chat-input button.send');
   let busy = false;
 
-  const user = getUser();
-  const userId = (user && (user.id || user.email)) || (getToken() ? 'auth-user' : 'demo');
+  syncVedaUser();
   greetingHTML = wrap.innerHTML;
-  updateQuota();
-
-  const upg = el('veda-upgrade');
-  if (upg && user && user.premium) upg.style.display = 'none';
 
   loadChatList();
+  window.addEventListener('learnify:login', () => {
+    syncVedaUser();
+    newChat();
+    loadChatList();
+  });
 
   const newBtn = el('veda-new');
   if (newBtn) newBtn.addEventListener('click', newChat);
@@ -149,6 +164,7 @@ export function initVeda() {
 
   window.sendMessage = async function sendMessage() {
     if (busy) return;
+    syncVedaUser();
     const msg = input.value.trim();
     if (!msg) return;
     if (!getToken()) { toast('Please log in to chat with Veda.', 'info'); openLogin(); return; }

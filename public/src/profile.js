@@ -3,6 +3,7 @@ import { applyLanguage } from './i18n.js';
 import { logout, openLogin } from './auth.js';
 
 const SGPA_KEY = 'learnify_sgpa';
+let academicRecs = [];
 
 function getSgpa() {
   try { return JSON.parse(localStorage.getItem(SGPA_KEY) || '[]'); } catch (_) { return []; }
@@ -77,11 +78,13 @@ export function initProfile() {
           status.textContent = '⚠️ ' + (d.message || 'Please re-upload a genuine document.');
           status.style.color = '#c0392b';
         } else {
-          status.textContent = '✓ Uploaded. Extracted: ' + JSON.stringify(d.extracted || {});
+          const ex = d.extracted || {};
+          status.textContent = '✓ Uploaded. ' + (ex.exam ? ex.exam + ' marks saved.' : 'Document processed.');
           status.style.color = 'var(--green)';
-          if (d.extracted && d.extracted.cgpa) el('stat-cgpa').textContent = d.extracted.cgpa;
-          if (d.extracted && d.extracted.marks) el('stat-12th').textContent = d.extracted.marks + '%';
+          if (ex.percentage != null) el('stat-12th').textContent = ex.percentage + '%';
+          if (ex.cgpa != null) el('stat-cgpa').textContent = ex.cgpa;
           loadDocs();
+          loadAcademic();
           if (window.addNotification) window.addNotification('Document "' + fname + '" processed successfully.');
         }
       }).catch((err) => { status.textContent = '⚠️ ' + err.message; status.style.color = '#c0392b'; });
@@ -192,8 +195,11 @@ export function initProfile() {
   });
 
   loadDocs();
+  loadAcademic();
   loadSgpa();
 }
+
+const PERSON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 
 function applyUser(u) {
   const name = u.name || 'Student';
@@ -207,7 +213,16 @@ function applyUser(u) {
     el('profile-role').textContent = parts.length ? parts.join(' · ') : (u.email || 'Student');
   }
   if (el('profile-uid')) el('profile-uid').textContent = u.id || '—';
-  if (el('top-avatar')) el('top-avatar').classList.add('is-auth');
+  const av = el('top-avatar');
+  if (av) {
+    if (u && (u.id || u.email)) {
+      av.classList.add('is-auth');
+      av.innerHTML = '<span class="av-init">' + initial + '</span>';
+    } else {
+      av.classList.remove('is-auth');
+      av.innerHTML = PERSON_SVG;
+    }
+  }
   if (el('home-name')) el('home-name').textContent = name;
   if (el('profile-badge')) el('profile-badge').style.display = u.premium ? '' : 'none';
   if (el('sub-label')) el('sub-label').textContent = u.premium ? 'Pro ⚡' : 'Free';
@@ -233,12 +248,83 @@ function loadDocs() {
     const docs = (data && data.documents) || [];
     if (el('stat-docs')) el('stat-docs').textContent = docs.length;
     if (el('doc-count')) el('doc-count').textContent = docs.length + '/3';
-    list.innerHTML = docs.map((d) => '' +
-      '<div class="sitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="info"><b>' + esc(d.filename || 'document') + '</b>' +
-      '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + '</small></div></div>'
-    ).join('');
+    list.innerHTML = docs.map((d) => {
+      const preview = (d.file_type === 'image' && d.file_data)
+        ? '<div class="doc-thumb-wrap"><img class="doc-thumb" src="data:image/jpeg;base64,' + esc(d.file_data) + '" alt="doc"></div>'
+        : '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>';
+      return '<div class="sitem">' + preview +
+        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' +
+        '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + (d.file_type ? (' · ' + esc(d.file_type)) : '') + '</small></div></div>';
+    }).join('');
   }).catch(() => { list.innerHTML = ''; });
 }
+
+function loadAcademic() {
+  const list = el('academic-list');
+  if (!list) return;
+  api('/documents/academic').then((data) => {
+    const recs = (data && data.records) || [];
+    academicRecs = recs;
+    if (el('acad-count')) el('acad-count').textContent = recs.length ? recs.length + ' record' + (recs.length > 1 ? 's' : '') : '';
+    if (!recs.length) { list.innerHTML = '<small style="color:var(--sub)">No marks yet — upload your marksheet.</small>'; return; }
+    list.innerHTML = recs.map((r) => {
+      const marks = (r.marks && typeof r.marks === 'object')
+        ? Object.entries(r.marks).map(([k, v]) => esc(k) + ': ' + esc(v)).join(', ')
+        : '';
+      return '<div class="sitem acad-item">' +
+        '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></div>' +
+        '<div class="info"><b>' + esc(r.exam || 'Exam') + (r.board ? ' · ' + esc(r.board) : '') + '</b>' +
+        '<small>' + (r.percentage != null ? r.percentage + '%' : '') + (marks ? ' · ' + marks : '') + (r.verified ? ' · ✓ verified' : '') + '</small></div>' +
+        '<button class="acad-edit" data-edit="' + esc(r.id) + '">Edit</button></div>';
+    }).join('');
+    list.querySelectorAll('.acad-edit').forEach((b) =>
+      b.addEventListener('click', () => openAcadEdit(b.dataset.edit)));
+  }).catch(() => { list.innerHTML = ''; });
+}
+
+function openAcadEdit(id) {
+  const r = (academicRecs || []).find((x) => x.id === id);
+  if (!r) return;
+  el('acad-id').value = r.id || '';
+  el('acad-exam').value = r.exam || '';
+  el('acad-board').value = r.board || '';
+  el('acad-year').value = r.year || '';
+  el('acad-pct').value = r.percentage != null ? r.percentage : '';
+  el('acad-marks').value = (r.marks && typeof r.marks === 'object') ? JSON.stringify(r.marks) : '';
+  el('acad-status').textContent = '';
+  import('./utils.js').then((m) => m.openModal('academic-modal'));
+}
+
+if (el('acad-save')) el('acad-save').addEventListener('click', () => {
+  const id = el('acad-id').value;
+  if (!id) return;
+  let marks = null;
+  const mraw = el('acad-marks').value.trim();
+  if (mraw) {
+    try { marks = JSON.parse(mraw); } catch (_) {
+      el('acad-status').textContent = 'Marks must be valid JSON, e.g. {"Math":90,"Science":85}';
+      el('acad-status').style.color = '#c0392b';
+      return;
+    }
+  }
+  const payload = {};
+  if (el('acad-exam').value.trim()) payload.exam = el('acad-exam').value.trim();
+  if (el('acad-board').value.trim()) payload.board = el('acad-board').value.trim();
+  if (el('acad-year').value.trim()) payload.year = parseInt(el('acad-year').value, 10);
+  if (el('acad-pct').value.trim()) payload.percentage = parseFloat(el('acad-pct').value);
+  if (marks) payload.marks = marks;
+  const st = el('acad-status');
+  st.textContent = 'Saving…';
+  st.style.color = 'var(--sub)';
+  api('/documents/academic/' + id, { method: 'PATCH', body: JSON.stringify(payload) })
+    .then(() => {
+      st.textContent = '✓ Saved.';
+      st.style.color = 'var(--green)';
+      loadAcademic();
+      setTimeout(() => import('./utils.js').then((m) => m.closeModal('academic-modal')), 600);
+    })
+    .catch((e) => { st.textContent = '⚠ ' + (e && e.message ? e.message : 'failed'); st.style.color = '#c0392b'; });
+});
 
 function loadSgpa() {
   api('/sgpa').then((data) => {

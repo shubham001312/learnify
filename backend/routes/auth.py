@@ -264,6 +264,7 @@ def register(req: RegisterReq):
                     "email": email,
                     "password": req.password,
                     "options": {
+                        "emailRedirectTo": "https://learnify.hosteler.shop/",
                         "data": {
                             "name": req.name,
                             "language": req.language,
@@ -272,7 +273,7 @@ def register(req: RegisterReq):
                             "board": req.board,
                             "college": req.college,
                             "dob": req.dob,
-                        }
+                        },
                     },
                 }
             )
@@ -337,28 +338,46 @@ def register(req: RegisterReq):
         if not user:
             raise HTTPException(status_code=400, detail="Registration failed")
         email = getattr(user, "email", email)
-        _admin_confirm_email(email)
-        uid = _our_uid(
-            client,
-            email,
-            req.name,
-            req.language,
-            req.grade,
-            req.school,
-            req.board,
-            req.college,
-            req.dob,
+
+        # If the account is already confirmed (e.g. rate-limit admin fallback),
+        # sign in immediately. Otherwise require email confirmation.
+        confirmed = bool(
+            getattr(user, "email_confirmed_at", None)
+            or getattr(user, "confirmed_at", None)
         )
-        out = {"user": _full_user(client, uid, email, req.name)}
-        try:
-            sess = client.auth.sign_in_with_password(
-                {"email": email, "password": req.password}
-            ).session
-        except Exception:
-            sess = None
-        if sess:
-            out["session"] = {"access_token": sess.access_token}
-        return out
+        if confirmed:
+            _admin_confirm_email(email)
+            uid = _our_uid(
+                client,
+                email,
+                req.name,
+                req.language,
+                req.grade,
+                req.school,
+                req.board,
+                req.college,
+                req.dob,
+            )
+            out = {"user": _full_user(client, uid, email, req.name)}
+            try:
+                sess = client.auth.sign_in_with_password(
+                    {"email": email, "password": req.password}
+                ).session
+            except Exception:
+                sess = None
+            if sess:
+                out["session"] = {"access_token": sess.access_token}
+            return out
+
+        # New, unconfirmed account — ask the user to confirm via email.
+        return {
+            "user": {
+                "id": getattr(user, "id", ""),
+                "email": email,
+                "name": req.name,
+            },
+            "needs_confirmation": True,
+        }
 
     # Local fallback (Supabase not configured)
     try:
@@ -409,6 +428,45 @@ def login(req: LoginReq):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = local_auth.issue_token(u)
     return {"session": {"access_token": token}, "user": local_auth.public_user(u)}
+
+
+@router.get("/confirm")
+def confirm(
+    code: Optional[str] = None,
+    access_token: Optional[str] = None,
+):
+    """Complete email confirmation and return a session (auto-login).
+
+    Supabase's confirm-email link redirects back to the app with ?code= (PKCE)
+    or an implicit #access_token. We exchange it for a session here.
+    """
+    if not db_available():
+        raise HTTPException(status_code=503, detail="Auth unavailable")
+    client = _require_client()
+    user = None
+    token = None
+    try:
+        if code:
+            res = client.auth.exchange_code_for_session({"code": code})
+            sess = getattr(res, "session", None)
+            user = getattr(res, "user", None)
+            token = getattr(sess, "access_token", None) if sess else None
+        elif access_token:
+            ur = client.auth.get_user(access_token)
+            user = getattr(ur, "user", None)
+            token = access_token
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Confirmation failed: " + str(e))
+    if not user or not token:
+        raise HTTPException(status_code=400, detail="Confirmation incomplete")
+    email = getattr(user, "email", "")
+    name = getattr(user, "user_metadata", {}).get("name", "") or ""
+    _admin_confirm_email(email)
+    uid = _our_uid(client, email, name)
+    return {
+        "session": {"access_token": token},
+        "user": _full_user(client, uid, email, name),
+    }
 
 
 @router.get("/me")
