@@ -331,4 +331,3 @@ async function startQuiz() {
     body.innerHTML = '<p style="color:var(--sub)">Quiz failed: ' + esc(e && e.message ? e.message : 'error') + '</p>';
   }
 }
-}
