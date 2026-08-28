@@ -155,7 +155,11 @@ SYSTEM_BASE = (
     "Once you have enough, give a precise, structured answer with real names/examples.\n"
     "FORMATTING: Use clean, readable markdown to structure answers — short ## headings when "
     "helpful, **bold** key terms, bullet lists (-) for options/steps, and numbered lists for "
-    "sequences. Keep paragraphs short and friendly. Do not use horizontal rules."
+    "sequences. Keep paragraphs short and friendly. Do not use horizontal rules.\n"
+    "ATTRIBUTE ANSWERS: When a question asks about the traits, features, pros/cons, steps, "
+    "options, or comparison of a person/college/exam/topic, NEVER reply in one dense paragraph. "
+    "Break it into **bullet or numbered points** (one idea per line), keep each point short, and "
+    "lead with a one-line summary. This is the preferred style for all explanatory answers."
 )
 
 

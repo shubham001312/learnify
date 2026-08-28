@@ -329,7 +329,6 @@ if _MULTIPART_OK:
                 "document_id": doc_id,
                 "is_synthetic": False,
                 "extracted": acad,
-                "db_note": db_note,
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Upload failed: {e}")

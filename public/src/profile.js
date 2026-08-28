@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=12';
-import { applyLanguage } from './i18n.js?v=12';
-import { logout, openLogin } from './auth.js?v=12';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=13';
+import { applyLanguage } from './i18n.js?v=13';
+import { logout, openLogin } from './auth.js?v=13';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -16,6 +16,14 @@ export function initProfile() {
   const token = getToken();
   const loggedOut = el('profile-loggedout');
   const main = el('profile-main');
+
+  const modal = el('doc-preview-modal');
+  if (modal) {
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeDocPreview(); });
+    const closeBtn = modal.querySelector('.modal-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeDocPreview);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('show')) closeDocPreview(); });
+  }
 
   if (!token) {
     if (loggedOut) loggedOut.style.display = 'flex';
@@ -288,22 +296,95 @@ function docQuotaLeft() {
   return Math.max(0, limit - used);
 }
 
+let currentDocs = [];
+
 function loadDocs() {
   const list = el('doc-list');
   if (!list) return;
   api('/documents').then((data) => {
     const docs = (data && data.documents) || [];
+    currentDocs = docs;
     if (el('stat-docs')) el('stat-docs').textContent = docs.length;
     if (el('doc-count')) el('doc-count').textContent = docs.length + '/3';
-    list.innerHTML = docs.map((d) => {
+    if (!docs.length) {
+      list.innerHTML = '<small style="color:var(--sub)">No documents yet. Upload your marksheet to get started.</small>';
+      return;
+    }
+    list.innerHTML = docs.map((d, i) => {
       const preview = (d.file_type === 'image' && d.file_data)
         ? '<div class="doc-thumb-wrap"><img class="doc-thumb" src="data:image/jpeg;base64,' + esc(d.file_data) + '" alt="doc"></div>'
         : '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>';
-      return '<div class="sitem">' + preview +
-        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' +
-        '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + (d.file_type ? (' · ' + esc(d.file_type)) : '') + '</small></div></div>';
+      const meta = (d.extracted && d.extracted.percentage)
+        ? '<small>' + esc(d.extracted.exam || '') + ' · ' + esc(d.extracted.percentage) + '%</small>'
+        : '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + (d.file_type ? (' · ' + esc(d.file_type)) : '') + '</small>';
+      return '<div class="sitem" data-idx="' + i + '" role="button" tabindex="0">' + preview +
+        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' + meta + '</div></div>';
     }).join('');
+    list.querySelectorAll('.sitem').forEach((node) => {
+      node.addEventListener('click', () => openDocPreview(Number(node.dataset.idx)));
+      node.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDocPreview(Number(node.dataset.idx)); }
+      });
+    });
   }).catch(() => { list.innerHTML = ''; });
+}
+
+function openDocPreview(i) {
+  const d = currentDocs[i];
+  if (!d) return;
+  const body = el('doc-preview-body');
+  let html = '';
+  if (d.file_type === 'image' && d.file_data) {
+    html += '<img class="doc-full" src="data:image/jpeg;base64,' + esc(d.file_data) + '" alt="document">';
+  } else if (d.file_type === 'pdf' && d.file_data) {
+    html += '<div class="pdf-mount"><small>Loading PDF…</small></div>';
+  } else {
+    html += '<p style="color:var(--sub)">Preview not available for this file.</p>';
+  }
+  const ex = d.extracted || {};
+  if (ex.exam || ex.board || ex.percentage || (ex.marks && Object.keys(ex.marks).length)) {
+    let meta = '<div class="doc-meta">';
+    if (ex.exam) meta += '<span><b>Exam:</b> ' + esc(ex.exam) + '</span>';
+    if (ex.board) meta += '<span><b>Board:</b> ' + esc(ex.board) + '</span>';
+    if (ex.year) meta += '<span><b>Year:</b> ' + esc(ex.year) + '</span>';
+    if (ex.percentage) meta += '<span><b>Percentage:</b> ' + esc(ex.percentage) + '%</span>';
+    meta += '</div>';
+    if (ex.marks && Object.keys(ex.marks).length) {
+      meta += '<div class="doc-marks"><b>Marks:</b><ul>';
+      for (const [k, v] of Object.entries(ex.marks)) meta += '<li>' + esc(k) + ': ' + esc(v) + '</li>';
+      meta += '</ul></div>';
+    }
+    html += meta;
+  }
+  body.innerHTML = html;
+  el('doc-preview-modal').classList.add('show');
+  if (d.file_type === 'pdf' && d.file_data) {
+    decompressPdfInto(body.querySelector('.pdf-mount'), d.file_data);
+  }
+}
+
+async function decompressPdfInto(mount, b64) {
+  if (!mount) return;
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
+    const stream = new Response(bytes).body.pipeThrough(new DecompressionStream('gzip'));
+    const ab = await new Response(stream).arrayBuffer();
+    const url = URL.createObjectURL(new Blob([ab], { type: 'application/pdf' }));
+    mount.innerHTML = '<iframe class="pdf-frame" src="' + url + '" title="document"></iframe>';
+  } catch (e) {
+    mount.innerHTML = '<small style="color:var(--sub)">PDF preview unavailable.</small>';
+  }
+}
+
+function closeDocPreview() {
+  const m = el('doc-preview-modal');
+  if (!m) return;
+  m.classList.remove('show');
+  const frame = m.querySelector('iframe');
+  if (frame && frame.src) { try { URL.revokeObjectURL(frame.src); } catch (e) {} }
+  el('doc-preview-body').innerHTML = '';
 }
 
 function loadAcademic() {

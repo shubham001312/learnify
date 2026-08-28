@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
 
@@ -118,6 +118,9 @@
             <div class="status"><span class="dot"></span> <span data-i18n="veda_online">Online</span></div>
           </div>
           <div class="meta" id="veda-quota">10 questions left today</div>
+          <button class="icon-btn" id="veda-quiz" title="Quiz me">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 4.3 2.4c-.8.5-1.5.9-1.5 2.1"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+          </button>
           <button class="icon-btn" id="veda-new" title="New chat">+
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           </button>
@@ -253,6 +256,26 @@
           </form>
           <div id="doc-status" class="doc-status"></div>
           <div id="doc-list" class="slist" style="margin-top:8px"></div>
+        </div>
+
+        <div id="doc-preview-modal" class="modal-overlay">
+          <div class="modal-card">
+            <div class="modal-head">
+              <b>Document Preview</b>
+              <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div id="doc-preview-body" class="modal-body"></div>
+          </div>
+        </div>
+
+        <div id="quiz-modal" class="modal-overlay">
+          <div class="modal-card">
+            <div class="modal-head">
+              <b>Quiz Mode</b>
+              <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div id="quiz-body" class="modal-body"></div>
+          </div>
         </div>
 
         <div class="academic">
@@ -837,7 +860,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=12"></script>
+  <script type="module" src="src/app.js?v=13"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=12';
-import { openLogin } from './auth.js?v=12';
-import { playChatDing } from './sound.js?v=12';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=13';
+import { openLogin } from './auth.js?v=13';
+import { playChatDing } from './sound.js?v=13';
 
 let messages = [];
 let currentChatId = null;
@@ -193,6 +193,7 @@ export function initVeda() {
     messages.push({ role: 'user', content: msg });
     appendBubble('user', msg);
     input.value = '';
+    input.blur();
     scrollDown();
     showTyping();
     busy = true;
@@ -262,4 +263,72 @@ export function initVeda() {
     });
   });
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendMessage(); });
+
+  const quizBtn = el('veda-quiz');
+  if (quizBtn) quizBtn.addEventListener('click', startQuiz);
+  const qModal = el('quiz-modal');
+  if (qModal) {
+    qModal.addEventListener('click', (e) => { if (e.target === qModal) closeQuiz(); });
+    const qClose = qModal.querySelector('.modal-close');
+    if (qClose) qClose.addEventListener('click', closeQuiz);
+  }
+}
+
+function closeQuiz() {
+  const m = el('quiz-modal');
+  if (m) m.classList.remove('show');
+  const body = el('quiz-body');
+  if (body) body.innerHTML = '';
+}
+
+async function startQuiz() {
+  const user = getUser();
+  const defTopic = (user && (user.target_exam || user.grade)) ? (user.target_exam || user.grade) : 'General studies for Indian students';
+  const topic = (window.prompt ? window.prompt('Quiz topic (e.g. Photosynthesis, Indian History, Algebra):', defTopic) : '') || defTopic;
+  const body = el('quiz-body');
+  if (!body) return;
+  body.innerHTML = '<p style="color:var(--sub)">Generating quiz on “' + esc(topic) + '”…</p>';
+  el('quiz-modal').classList.add('show');
+  try {
+    const data = await api('/veda/quiz', {
+      method: 'POST',
+      body: JSON.stringify({ topic, count: 5, difficulty: 'Mixed', language: getLang() })
+    });
+    const qs = (data && data.questions) || [];
+    if (!qs.length) { body.innerHTML = '<p style="color:var(--sub)">Could not generate a quiz right now. Try again.</p>'; return; }
+    body.innerHTML = '';
+    qs.forEach((q, qi) => {
+      const card = document.createElement('div');
+      card.className = 'quiz-q';
+      let opts = '';
+      (q.options || []).forEach((o, oi) => {
+        opts += '<button class="quiz-opt" data-q="' + qi + '" data-o="' + oi + '">' + esc(o) + '</button>';
+      });
+      card.innerHTML = '<div class="quiz-n">Q' + (qi + 1) + '. ' + esc(q.question) + '</div><div class="quiz-opts">' + opts + '</div><div class="quiz-fb" data-fb="' + qi + '"></div>';
+      body.appendChild(card);
+    });
+    body.querySelectorAll('.quiz-opt').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const qi = Number(btn.dataset.q);
+        const oi = Number(btn.dataset.o);
+        const q = qs[qi];
+        const fb = body.querySelector('.quiz-fb[data-fb="' + qi + '"]');
+        if (fb.dataset.done) return;
+        fb.dataset.done = '1';
+        const correct = oi === q.answer_index;
+        btn.classList.add(correct ? 'correct' : 'wrong');
+        if (!correct) {
+          const right = body.querySelector('.quiz-opt[data-q="' + qi + '"][data-o="' + q.answer_index + '"]');
+          if (right) right.classList.add('correct');
+        }
+        body.querySelectorAll('.quiz-opt[data-q="' + qi + '"]').forEach((b) => { b.disabled = true; });
+        fb.innerHTML = (correct ? '✅ Correct! ' : '❌ Correct answer: ' + esc(q.options[q.answer_index]) + '. ')
+          + (q.explanation ? '<span>' + esc(q.explanation) + '</span>' : '');
+        fb.classList.add(correct ? 'ok' : 'no');
+      });
+    });
+  } catch (e) {
+    body.innerHTML = '<p style="color:var(--sub)">Quiz failed: ' + esc(e && e.message ? e.message : 'error') + '</p>';
+  }
+}
 }
