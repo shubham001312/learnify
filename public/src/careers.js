@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal, siteUrl } from './utils.js?v=44';
-import { iconSvg, careerIcon } from './icons.js?v=44';
+import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=45';
+import { iconSvg, careerIcon } from './icons.js?v=45';
 
 let _careerData = [];
 let _careerCats = [];
@@ -256,12 +256,15 @@ function renderCareerList(list) {
 }
 
 export function openCareer(id) {
+  const title = el('career-page-title');
+  if (title) title.innerHTML = '';
+  const body = el('career-page-body');
+  if (body) body.innerHTML = '<div class="detail-skel">' + skRows(6) + '</div>';
+  window.openPage('career-detail');
   api('/careers/' + id).then((d) => {
     const c = d && d.career;
     if (!c) { toast('Career not found', 'info'); return; }
-    const title = el('career-page-title');
     if (title) title.innerHTML = iconSvg(careerIcon(c.category, c.title)) + ' ' + esc(c.title);
-    const body = el('career-page-body');
     if (body) body.innerHTML = careerHTML(c);
     body.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => openCareer(b.dataset.id)));
     body.querySelectorAll('[data-company]').forEach((b) => b.addEventListener('click', () => openCompany(b.dataset.company)));
@@ -277,7 +280,6 @@ export function openCareer(id) {
     if (window.openCollegeForCourse) window.openCollegeForCourse(c.title, stream);
     else window.setViewNav('college', true);
   });
-  window.openPage('career-detail');
   }).catch(() => toast('Could not open career', 'info'));
 }
 window.openCareer = openCareer;
@@ -414,7 +416,7 @@ function renderGuidance(g) {
 /* ── Company detail pop-up ── */
 export function openCompany(id) {
   const card = el('company-card');
-  if (card) card.innerHTML = '<div class="dm-sec"><div class="slot-skeleton">Loading company…</div></div>';
+  if (card) card.innerHTML = '<div class="dm-skel"><div class="sk" style="height:22px;width:50%;border-radius:6px"></div><div class="sk-box"></div><div class="sk" style="height:14px;width:85%"></div><div class="sk" style="height:14px;width:75%"></div><div class="sk" style="height:14px;width:65%"></div></div>';
   openModal('company-modal');
   api('/careers/companies/' + id).then((d) => {
     const co = d && d.company;

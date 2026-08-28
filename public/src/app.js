@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=44';
-import { applyLanguage } from './i18n.js?v=44';
-import { initNotifications, addNotification } from './notifications.js?v=44';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=45';
+import { applyLanguage } from './i18n.js?v=45';
+import { initNotifications, addNotification } from './notifications.js?v=45';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=44';
-import { initVeda } from './veda.js?v=44';
-import { initCareer } from './career.js?v=44';
-import { initCareers } from './careers.js?v=44';
-import { initProfile } from './profile.js?v=44';
-import { initPremium } from './premium.js?v=44';
-import { api, el, toast, esc, siteUrl } from './utils.js?v=44';
-import { iconSvg, suggestionIcon } from './icons.js?v=44';
-import { playClick } from './sound.js?v=44';
-import { initStudyTools } from './tools.js?v=44';
+import { initAuth, openLogin } from './auth.js?v=45';
+import { initVeda } from './veda.js?v=45';
+import { initCareer } from './career.js?v=45';
+import { initCareers } from './careers.js?v=45';
+import { initProfile } from './profile.js?v=45';
+import { initPremium } from './premium.js?v=45';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=45';
+import { iconSvg, suggestionIcon } from './icons.js?v=45';
+import { playClick } from './sound.js?v=45';
+import { initStudyTools } from './tools.js?v=45';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1301,7 +1301,7 @@ function initGlobalSearch() {
     if (v.length < 2) { showSuggestions(); return; }
     showResults();
     const results = el('search-results');
-    if (results) results.innerHTML = '<div class="so-loading">Searching…</div>';
+    if (results) results.innerHTML = skRows(8);
     _searchTimer = setTimeout(() => doSearch(v), 250);
   });
   input.addEventListener('keydown', (e) => {
@@ -1339,7 +1339,8 @@ function showResults() {
 async function renderSuggestions() {
   const s = el('search-suggestions');
   if (!s) return;
-  s.innerHTML = '<div class="so-loading">Loading suggestions…</div>';
+  s.innerHTML = '<div class="so-sec"><div class="so-sec-head">✨ Suggested for you</div><div class="so-skel-chips">' + skChips(6) + '</div></div>' +
+    '<div class="so-sec"><div class="so-sec-head">🔥 Popular searches</div><div class="so-skel-chips">' + skChips(6) + '</div></div>';
   const popular = [
     { q: 'Engineering', ic: '🎯' }, { q: 'Software companies', ic: '💼' },
     { q: 'Government jobs', ic: '🎯' }, { q: 'Medical colleges', ic: '🎓' },
@@ -1393,7 +1394,7 @@ function doSearch(q) {
   const results = el('search-results');
   if (!results) return;
   if (q.length < 2) { results.innerHTML = '<div class="so-empty">Type at least 2 characters to search.</div>'; return; }
-  results.innerHTML = '<div class="so-loading">Searching…</div>';
+  results.innerHTML = skRows(8);
   api('/search/global?q=' + encodeURIComponent(q) + '&num=10').then((d) => {
     results.innerHTML = renderSearchResults(d || {});
     results.querySelectorAll('.so-row[data-gtype]').forEach((b) => b.addEventListener('click', () => {
@@ -1435,6 +1436,9 @@ function renderSearchResults(d) {
 
 function openCollegeFromSearch(id) {
   if (window.openCollegeModal) {
+    openModalCard('<div class="dm-skel"><div class="sk" style="height:24px;width:55%;border-radius:6px"></div>' +
+      '<div class="sk-box"></div><div class="sk" style="height:14px;width:80%"></div>' +
+      '<div class="sk" style="height:14px;width:70%"></div><div class="sk" style="height:14px;width:60%"></div></div>');
     api('/colleges/' + encodeURIComponent(id)).then((c) => {
       if (c) window.openCollegeModal(c);
       else toast('College details unavailable', 'info');

@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=44';
-import { openLogin } from './auth.js?v=44';
-import { playChatDing } from './sound.js?v=44';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=45';
+import { openLogin } from './auth.js?v=45';
+import { playChatDing } from './sound.js?v=45';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -92,7 +92,7 @@ function showTyping() {
   const wrap = el('chat-messages');
   const row = document.createElement('div');
   row.className = 'msg'; row.id = 'typing-row';
-  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v typing"><span></span><span></span><span></span> <i class="t-label">Veda is typing…</i></div>';
+  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v typing"><span></span><span></span><span></span></div>';
   wrap.appendChild(row); scrollDown();
   setVedaStatus('typing');
 }

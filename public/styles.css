@@ -148,7 +148,7 @@
     /* Search dropdown panel */
     .search-overlay {
       position: fixed; inset: 0; z-index: 300; background: var(--bg);
-      display: none; flex-direction: column;
+      display: none; flex-direction: column; overflow: hidden;
     }
     .search-overlay.open { display: flex; animation: fade .15s ease; }
     .so-head {
@@ -167,7 +167,7 @@
     .so-clear:hover { color: var(--text); }
     .so-close { background: none; border: none; font-size: 14px; font-weight: 600; color: var(--teal); cursor: pointer; padding: 6px 8px; flex-shrink: 0; }
     .so-close:hover { color: var(--teal-deep); }
-    .so-body { flex: 1; overflow-y: auto; width: 100%; max-width: 100%; background: var(--bg); margin: 0; padding: 20px 22px 48px; }
+    .so-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; width: 100%; max-width: 100%; background: var(--bg); margin: 0; padding: 20px 22px 48px; }
     .so-sec { margin-bottom: 26px; }
     .so-sec-head { font: 700 13px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 14px; }
     .so-chips { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -183,25 +183,40 @@
     .so-group { margin-bottom: 20px; }
     .so-group-head { font: 700 12px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 10px; }
     .so-row {
-      display: flex; align-items: center; gap: 13px; width: 100%; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 14px; padding: 13px 15px; cursor: pointer;
-      text-align: left; transition: all .12s var(--ease); margin-bottom: 10px; min-height: 58px;
+      display: flex; align-items: center; gap: 14px; width: 100%; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; cursor: pointer;
+      text-align: left; transition: all .14s var(--ease); margin-bottom: 10px; min-height: 60px;
       box-shadow: 0 1px 2px rgba(15,23,42,0.04);
     }
     .so-row:hover { border-color: var(--teal); background: var(--surface-2); transform: translateY(-1px); box-shadow: var(--shadow); }
-    .so-row-ic { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .so-row-ic { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
     .so-row-ic.career { background: rgba(224,165,38,0.12); color: var(--gold-deep); }
     .so-row-ic.company { background: rgba(14,165,164,0.12); color: var(--teal); }
     .so-row-ic.college { background: rgba(99,102,241,0.12); color: #6366f1; }
     .so-row-info { flex: 1; min-width: 0; }
-    .so-row-name { font: 600 15px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .so-row-sub { font: 400 12.5px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .so-row-arrow { color: var(--sub); font-size: 20px; flex-shrink: 0; transition: transform .12s; }
+    .so-row-name { font: 600 15.5px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .so-row-sub { font: 400 13px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+    .so-row-arrow { color: var(--sub); font-size: 22px; flex-shrink: 0; transition: transform .12s; }
     .so-row:hover .so-row-arrow { transform: translateX(3px); }
     .so-empty, .so-loading { text-align: center; padding: 48px 16px; color: var(--sub); font-size: 14px; }
     @media (max-width: 600px) {
       .so-chip { flex: 1 1 calc(50% - 10px); justify-content: flex-start; }
     }
+
+    /* ---- Skeleton loaders ---- */
+    .sk { position: relative; overflow: hidden; background: var(--surface-2); border-radius: 8px; }
+    .sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent); animation: shimmer 1.25s infinite; }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+    .so-skel { display: flex; align-items: center; gap: 13px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+    .so-skel .sk-ic { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; }
+    .so-skel .sk-lines { flex: 1; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+    .so-skel .sk-line { height: 11px; border-radius: 6px; }
+    .so-skel-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+    .so-skel-chip { height: 46px; flex: 1 1 calc(50% - 10px); max-width: 240px; border-radius: 14px; }
+    .detail-skel { padding: 6px 0; }
+    .dm-skel { display: flex; flex-direction: column; gap: 14px; padding: 6px 0; }
+    .dm-skel .sk { height: 14px; border-radius: 6px; }
+    .dm-skel .sk-box { height: 56px; border-radius: 12px; }
 
     .top-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .icon-btn {
@@ -317,8 +332,9 @@
 
     /* ───────── VEDA CHAT ───────── */
     .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 64px - var(--dock-h) - 24px); min-height: 420px; max-height: calc(100vh - 64px - var(--dock-h) - 24px); }
-    .chat-topbar { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-    .veda-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .chat-topbar { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .veda-brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+    .icon-btn { flex-shrink: 0; }
     .veda-av {
       width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
       background: linear-gradient(135deg, var(--gold), var(--gold-soft));
@@ -328,7 +344,7 @@
     }
     .veda-id { display: flex; flex-direction: column; min-width: 0; }
     .veda-name { font-family: var(--font-head); font-weight: 700; font-size: 14.5px; line-height: 1.15; }
-    .cb-spacer { flex: 1; }
+    .cb-spacer { flex: 0 0 auto; }
     .veda-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); font-weight: 600; }
     .veda-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
     .veda-status.typing { color: var(--gold-deep); }
@@ -364,6 +380,7 @@
     .msg-pdf { color: var(--gold-deep); border-color: rgba(224,165,38,0.35); }
     .msg-pdf:hover { color: var(--gold-deep); border-color: rgba(224,165,38,0.6); background: rgba(224,165,38,0.1); }
     .t-label { font-style: normal; font-size: 12px; color: var(--sub); margin-left: 6px; }
+    .bubble.v.typing { display: inline-flex; align-items: center; padding: 13px 15px; }
     @media (hover: none) { .msg-actions { opacity: 1; } }
     .msg.user { flex-direction: row-reverse; }
     .msg-av { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: var(--font-head); }
@@ -813,9 +830,10 @@ textarea { resize: vertical; }
 .toast.ok { background: var(--green); } .toast.info { background: var(--teal); }
 
 /* ===== TYPING ===== */
-.typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--sub); animation: blink 1.2s infinite; }
-.typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }
-@keyframes blink { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+.typing span { display: inline-block; width: 8px; height: 8px; margin: 0 3px; border-radius: 50%; background: var(--teal); animation: tdot 1.2s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: .18s; }
+.typing span:nth-child(3) { animation-delay: .36s; }
+@keyframes tdot { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-5px); opacity: 1; } }
 
 /* ===== PER-COLLEGE DETAIL ===== */
 .cd-toggle {

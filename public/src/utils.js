@@ -251,3 +251,30 @@ export function renderMarkdown(src) {
   closeList();
   return html;
 }
+
+export function skRows(n = 8) {
+  let h = '';
+  for (let i = 0; i < n; i++) {
+    const w1 = 55 + (i % 3) * 13;
+    const w2 = 32 + (i % 4) * 9;
+    h += '<div class="so-skel"><div class="sk sk-ic"></div><div class="sk-lines">' +
+      '<div class="sk sk-line" style="width:' + w1 + '%"></div>' +
+      '<div class="sk sk-line" style="width:' + w2 + '%"></div></div></div>';
+  }
+  return h;
+}
+
+export function skChips(n = 6) {
+  let h = '';
+  for (let i = 0; i < n; i++) h += '<div class="so-skel-chip sk"></div>';
+  return h;
+}
+
+export function skBlock(lines = 6) {
+  let h = '';
+  for (let i = 0; i < lines; i++) {
+    const w = 70 + (i % 3) * 10;
+    h += '<div class="sk sk-line" style="width:' + w + '%"></div>';
+  }
+  return h;
+}
