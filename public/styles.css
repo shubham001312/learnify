@@ -225,6 +225,11 @@
     .ai-card { background: linear-gradient(135deg, rgba(224,165,38,0.08), rgba(14,165,164,0.06)); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--text); }
     .ai-card p { margin: 6px 0 0; } .ai-card p:first-child { margin-top: 0; }
     .ai-card strong { color: var(--gold-deep); }
+    .web-card { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--teal); border-radius: 12px; padding: 14px 16px; transition: border-color .14s, box-shadow .14s; }
+    .web-card:hover { border-color: var(--teal); box-shadow: var(--shadow); }
+    .web-title { font: 700 16px var(--font-head); color: var(--text); margin-bottom: 6px; }
+    .web-extract { font: 400 13.5px var(--font-body); color: var(--sub); line-height: 1.55; }
+    .web-src { margin-top: 10px; font-size: 11.5px; color: var(--teal-deep); font-weight: 600; letter-spacing: .02em; }
     .dm-stat.sal { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); border-radius: 12px; padding: 10px 12px; }
     .dm-stat.sal b { color: var(--green); }
     @media (max-width: 600px) {

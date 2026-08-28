@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=50';
-import { applyLanguage } from './i18n.js?v=50';
-import { initNotifications, addNotification } from './notifications.js?v=50';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=51';
+import { applyLanguage } from './i18n.js?v=51';
+import { initNotifications, addNotification } from './notifications.js?v=51';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=50';
-import { initVeda } from './veda.js?v=50';
-import { initCareer } from './career.js?v=50';
-import { initCareers } from './careers.js?v=50';
-import { initProfile } from './profile.js?v=50';
-import { initPremium } from './premium.js?v=50';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=50';
-import { iconSvg, suggestionIcon } from './icons.js?v=50';
-import { playClick } from './sound.js?v=50';
-import { initStudyTools } from './tools.js?v=50';
+import { initAuth, openLogin } from './auth.js?v=51';
+import { initVeda } from './veda.js?v=51';
+import { initCareer } from './career.js?v=51';
+import { initCareers } from './careers.js?v=51';
+import { initProfile } from './profile.js?v=51';
+import { initPremium } from './premium.js?v=51';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=51';
+import { iconSvg, suggestionIcon } from './icons.js?v=51';
+import { playClick } from './sound.js?v=51';
+import { initStudyTools } from './tools.js?v=51';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1423,12 +1423,20 @@ function renderSearchResults(d) {
   const colleges = d.colleges || [];
   const ai = d.ai_answer;
   const suggestion = d.suggestion;
+  const web = d.web;
   const hasDb = careers.length || companies.length || colleges.length;
-  if (!hasDb && !ai)
+  if (!hasDb && !ai && !web)
     return '<div class="so-empty">No matches found. Try a different search.</div>';
   let html = '';
   if (suggestion) {
     html += '<div class="so-dym">Did you mean <button class="so-dym-btn" data-fix="' + esc(suggestion) + '">' + esc(suggestion) + '</button>?</div>';
+  }
+  if (web && web.title) {
+    html += '<div class="so-group"><div class="so-group-head">🌐 From the web</div>' +
+      '<a class="web-card" href="' + esc(web.url) + '" target="_blank" rel="noopener noreferrer">' +
+      '<div class="web-title">' + esc(web.title) + '</div>' +
+      '<div class="web-extract">' + esc(web.extract) + '</div>' +
+      '<div class="web-src">Source: Wikipedia ↗</div></a></div>';
   }
   const group = (title, icon, items, type, subFn) => {
     if (!items.length) return '';

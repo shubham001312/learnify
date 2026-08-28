@@ -1,7 +1,10 @@
+import asyncio
+
 from fastapi import APIRouter, Query
 
 from backend.services.search import google_scholarship_search, smart_global_search
 from backend.services.ai import chat
+from backend.services.web import web_lookup
 from backend.database.seed_careers import list_careers
 from backend.database.seed_companies import list_companies
 from backend.database.client import db_available, get_client
@@ -66,7 +69,7 @@ def _search_colleges(q, num):
 
 
 @router.get("/search/global")
-def global_search(q: str = Query(..., min_length=2), num: int = 8):
+async def global_search(q: str = Query(..., min_length=2), num: int = 8):
     """Typo-tolerant, relevance-ranked search across careers, companies and
     colleges. When nothing in the database matches, an AI-generated answer is
     returned so the user never hits a dead end."""
@@ -128,6 +131,14 @@ def global_search(q: str = Query(..., min_length=2), num: int = 8):
         except Exception:
             ai_answer = None
 
+    # Google-style live knowledge panel for entities / sparse or fresh queries.
+    web = None
+    if (total <= 6) or _need_ai:
+        try:
+            web = await asyncio.to_thread(web_lookup, q)
+        except Exception:
+            web = None
+
     return {
         "query": q,
         "careers": careers,
@@ -135,4 +146,5 @@ def global_search(q: str = Query(..., min_length=2), num: int = 8):
         "colleges": colleges,
         "suggestion": res["suggestion"],
         "ai_answer": ai_answer,
+        "web": web,
     }
