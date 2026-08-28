@@ -34,8 +34,8 @@ def _today():
 def google_scholarship_search(query, num=10):
     """Search live scholarship announcements via Google Programmable Search Engine.
     Returns (results, meta). Falls back to cache / empty when unconfigured or quota hit."""
-    key = os.environ.get("GOOGLE_CSE_KEY")
-    cx = os.environ.get("GOOGLE_CSE_CX")
+    key = os.environ.get("GOOGLE_CSE_KEY") or os.environ.get("GOOGLE_API_KEY")
+    cx = os.environ.get("GOOGLE_CSE_CX") or os.environ.get("GOOGLE_CSE_ID")
     sites = os.environ.get(
         "GOOGLE_CSE_SITES",
         "scholarships.gov.in,buddy4study.com,national scholarship portal,education.gov.in",
@@ -58,7 +58,7 @@ def google_scholarship_search(query, num=10):
     if not key or not cx:
         return [], {
             "source": "unconfigured",
-            "note": "Set GOOGLE_CSE_KEY and GOOGLE_CSE_CX in .env to enable live search.",
+            "note": "Set GOOGLE_CSE_KEY (API key) and GOOGLE_CSE_CX / GOOGLE_CSE_ID (engine ID) in .env to enable live search.",
         }
 
     if state["count"] >= DAILY_QUOTA:
