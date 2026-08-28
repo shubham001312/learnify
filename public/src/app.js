@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=33';
-import { applyLanguage } from './i18n.js?v=33';
-import { initNotifications, addNotification } from './notifications.js?v=33';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=34';
+import { applyLanguage } from './i18n.js?v=34';
+import { initNotifications, addNotification } from './notifications.js?v=34';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=33';
-import { initVeda } from './veda.js?v=33';
-import { initCareer } from './career.js?v=33';
-import { initCareers } from './careers.js?v=33';
-import { initProfile } from './profile.js?v=33';
-import { initPremium } from './premium.js?v=33';
-import { api, el, toast, esc } from './utils.js?v=33';
-import { iconSvg, suggestionIcon } from './icons.js?v=33';
-import { playClick } from './sound.js?v=33';
-import { initStudyTools } from './tools.js?v=33';
+import { initAuth, openLogin } from './auth.js?v=34';
+import { initVeda } from './veda.js?v=34';
+import { initCareer } from './career.js?v=34';
+import { initCareers } from './careers.js?v=34';
+import { initProfile } from './profile.js?v=34';
+import { initPremium } from './premium.js?v=34';
+import { api, el, toast, esc } from './utils.js?v=34';
+import { iconSvg, suggestionIcon } from './icons.js?v=34';
+import { playClick } from './sound.js?v=34';
+import { initStudyTools } from './tools.js?v=34';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1253,7 +1253,8 @@ function initGlobalSearch() {
   const wrap = document.getElementById('top-search-wrap');
   if (!gs || !overlay || !input) return;
 
-  function openSearch() {
+  function openSearch(e) {
+    if (e && e.preventDefault) e.preventDefault();
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     input.value = gs.value.trim();
@@ -1268,9 +1269,17 @@ function initGlobalSearch() {
   }
   window.__closeSearch = closeSearch;
 
+  // Open on any interaction with the search bar / icon (stop propagation so the
+  // document-level close handler never sees — and immediately reverts — the open).
   gs.addEventListener('focus', openSearch);
-  gs.addEventListener('click', (e) => { e.preventDefault(); openSearch(); });
-  if (wrap) wrap.addEventListener('click', (e) => { e.preventDefault(); openSearch(); });
+  gs.addEventListener('mousedown', (e) => { e.stopPropagation(); openSearch(e); });
+  gs.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); });
+  if (wrap) {
+    wrap.addEventListener('mousedown', (e) => { if (e.target !== input) { e.stopPropagation(); openSearch(e); } });
+    wrap.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); });
+    const icon = wrap.querySelector('svg');
+    if (icon) { icon.style.cursor = 'pointer'; icon.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); }); }
+  }
 
   input.addEventListener('input', () => {
     clearTimeout(_searchTimer);
@@ -1289,7 +1298,11 @@ function initGlobalSearch() {
   if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); showSuggestions(); });
 
   document.addEventListener('click', (e) => {
-    if (overlay.classList.contains('open') && !overlay.contains(e.target) && !(wrap && wrap.contains(e.target))) closeSearch();
+    if (!overlay.classList.contains('open')) return;
+    if (overlay.contains(e.target)) return;
+    if (wrap && wrap.contains(e.target)) return;
+    if (e.target === gs || (gs && gs.contains(e.target))) return;
+    closeSearch();
   });
 }
 
