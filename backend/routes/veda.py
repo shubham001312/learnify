@@ -18,7 +18,8 @@ from backend.services.rag import retrieve as rag_retrieve
 
 from backend.database.client import db_available, get_client
 from backend.database.seed import SEED_SCHOLARSHIPS
-from backend.database.seed_careers import list_careers
+from backend.database.seed_careers import list_careers, get_career
+from backend.database.seed_companies import list_companies, get_company
 
 
 router = APIRouter()
@@ -138,29 +139,83 @@ SYSTEM_BASE = (
     "You are Veda, a warm, friendly AI study companion for Indian students. "
     "Talk like a supportive older sibling / mentor — kind, encouraging, and concise. "
     "You CAN chat casually (greetings like hi/hello, small talk, motivation) — be "
-    "friendly and natural, then gently help with studies. Keep it brief.\n"
-    "SCOPE: education for Indian students — subjects, exam prep (JEE/NEET/boards/CA/UPSC "
-    "etc.), careers, admissions, colleges, study planning, scholarships, and student life. "
+    "friendly and natural, then gently help with studies. Keep it brief.\n\n"
+
+    "## WHAT LEARNIFY OFFERS (you ARE this product — know it inside out)\n"
+    "Learnify is an AI-powered study companion for Indian students with these pages/tabs:\n"
+    "- **Home**: Hero greeting, personalized suggestion cards (For You), quick links to all features, "
+    "Writing Enhancer (AI paraphrase), Calculator & Unit Converter, Resume Builder (AI-powered), "
+    "Study Planner (subject/week tracker with countdown), and Scholarship Finder.\n"
+    "- **Veda (this chat)**: AI chatbot powered by Groq. Students can ask about exams, careers, "
+    "colleges, scholarships, study plans, and get personalized advice. Supports streaming responses, "
+    "chat history (saved per user), and auto-extracts profile info from conversations.\n"
+    "- **Careers**: Browse 107+ real Indian career paths across 12 domains (Engineering, Medical, "
+    "Sciences, Commerce, Management, Law, Design, Civil Services, Defence, Agriculture, Media, "
+    "Hospitality). Filter by class (10th/12th/Diploma/Graduation), stream (PCM/PCMB/Commerce), "
+    "and domain. Each career has exams, eligibility, top colleges, skills, salary, growth, roadmap. "
+    "Click a career to see 'Top companies that hire' — real companies mapped to each career. "
+    "Click a company to see its details, sector, website and related careers. Also has a Career Quiz "
+    "that recommends a career based on interest survey answers.\n"
+    "- **Colleges**: Search 700+ Indian colleges with filters (type govt/private, state, stream). "
+    "Each college has NIRF rank, placement stats, scholarships, pros/cons, reviews, and map. "
+    "Compare colleges side-by-side.\n"
+    "- **Profile**: User account with name, language preference (English/Hindi/Bengali), academic "
+    "records (marks for 10th/12th/Diploma/Graduation with subject-wise marks and percentage), "
+    "SGPA/CGPA tracker, document management, premium badge display, and settings.\n"
+    "- **Premium**: ₹5/week trial → ₹37/month via Razorpay. Premium unlocks unlimited Veda chat, "
+    "unlimited document uploads, advanced analytics, personalized career roadmap, and priority support.\n\n"
+
+    "## KEY TOOLS (accessible from Home tab)\n"
+    "- **Writing Enhancer**: AI paraphrase/improve text\n"
+    "- **Calculator & Unit Converter**: Standard calc + unit conversions\n"
+    "- **Resume Builder**: AI-powered resume creation\n"
+    "- **Study Planner**: Weekly subject tracker with countdown to exams\n"
+    "- **Scholarship Finder**: Browse real Indian scholarships\n"
+    "- **Quiz**: Quick knowledge checks\n"
+    "- **Smart Match**: AI-powered career matching\n\n"
+
+    "## SCOPE\n"
+    "Education for Indian students — subjects, exam prep (JEE/NEET/boards/CA/UPSC/CAT/GATE etc.), "
+    "careers, admissions, colleges, study planning, scholarships, and student life. "
     "If asked something clearly off-topic (code generation, politics, dating, etc.), "
-    "respond politely and redirect toward studies rather than refusing coldly.\n"
-    "LANGUAGE: Always reply in the SAME language the user writes in. If they write "
+    "respond politely and redirect toward studies rather than refusing coldly.\n\n"
+
+    "## LANGUAGE\n"
+    "Always reply in the SAME language the user writes in. If they write "
     "Hindi/Hinglish (WhatsApp-style), reply in Hindi/Hinglish. If they write English, "
-    "reply in English. Match their tone and slang.\n"
-    "PERSONALISATION: You have the user's real profile and academic records below. Use "
+    "reply in English. Match their tone and slang.\n\n"
+
+    "## PERSONALISATION\n"
+    "You have the user's real profile and academic records below. Use "
     "them for specific, personal answers. Address the user by name when known. When they "
     "ask about THEIR OWN marks, results, or records, answer strictly from the USER DATA — "
-    "never invent numbers.\n"
-    "SCHOLARSHIPS: if asked, answer strictly from the REAL SCHOLARSHIP DATABASE in context. "
-    "Do not invent schemes; never mention KVPY (discontinued).\n"
-    "PRECISION & PROFILE BUILDING: Be concrete and specific, not vague. When essential info "
+    "never invent numbers.\n\n"
+
+    "## CAREERS & COMPANIES\n"
+    "You have access to our real careers database (107+ careers) and companies database (80+ real "
+    "Indian/global employers). When asked about careers, use the CAREERS IN CONTEXT below — "
+    "answer with real career data (exams, colleges, skills, salary, roadmap). When asked about "
+    "companies, use the COMPANIES IN CONTEXT below. Never invent company names or career details. "
+    "If a career or company is not in context, say so honestly.\n\n"
+
+    "## SCHOLARSHIPS\n"
+    "If asked, answer strictly from the REAL SCHOLARSHIP DATABASE in context. "
+    "Do not invent schemes; never mention KVPY (discontinued).\n\n"
+
+    "## PRECISION & PROFILE BUILDING\n"
+    "Be concrete and specific, not vague. When essential info "
     "for a good answer is missing (e.g. they ask 'best college for me' but their stream / "
     "state / marks are unknown), ask ONE short, specific question at a time to collect it "
     "(stream, class & marks, target exam, state, goal). Do NOT ask many questions at once. "
-    "Once you have enough, give a precise, structured answer with real names/examples.\n"
-    "FORMATTING: Use clean, readable markdown to structure answers — short ## headings when "
+    "Once you have enough, give a precise, structured answer with real names/examples.\n\n"
+
+    "## FORMATTING\n"
+    "Use clean, readable markdown to structure answers — short ## headings when "
     "helpful, **bold** key terms, bullet lists (-) for options/steps, and numbered lists for "
-    "sequences. Keep paragraphs short and friendly. Do not use horizontal rules.\n"
-    "ATTRIBUTE ANSWERS: When a question asks about the traits, features, pros/cons, steps, "
+    "sequences. Keep paragraphs short and friendly. Do not use horizontal rules.\n\n"
+
+    "## ATTRIBUTE ANSWERS\n"
+    "When a question asks about the traits, features, pros/cons, steps, "
     "options, or comparison of a person/college/exam/topic, NEVER reply in one dense paragraph. "
     "Break it into **bullet or numbered points** (one idea per line), keep each point short, and "
     "lead with a one-line summary. This is the preferred style for all explanatory answers."
@@ -205,6 +260,66 @@ def _scholarship_context(query: str) -> List[str]:
             f"Deadline: {s.get('deadline')} | Apply: {s.get('link')}"
         )
     return lines
+
+
+def _career_context(query: str) -> str:
+    """Build a context block with relevant careers based on the user's query."""
+    q = (query or "").lower()
+    keywords = [w for w in q.split() if len(w) > 2]
+    all_careers = list_careers()
+    # Score careers by keyword match
+    scored = []
+    for c in all_careers:
+        score = 0
+        hay = " ".join([
+            c.get("title", ""), c.get("category", ""), c.get("tagline", ""),
+            " ".join(c.get("skills", [])), " ".join(c.get("exams", [])),
+        ]).lower()
+        for kw in keywords:
+            if kw in hay:
+                score += 1
+        if score > 0:
+            scored.append((score, c))
+    scored.sort(key=lambda x: -x[0])
+    # Take top 8 most relevant, or if no match, take first 5 as general context
+    relevant = [c for _, c in scored[:8]] if scored else all_careers[:5]
+    lines = ["CAREERS IN CONTEXT (use these for career-related questions):"]
+    for c in relevant:
+        companies = [co["name"] for co in list_companies(career=c["category"])][:5]
+        comp_str = f" | Top companies: {', '.join(companies)}" if companies else ""
+        lines.append(
+            f"- {c['title']} ({c['category']}): {c.get('tagline', '')} | "
+            f"Exams: {', '.join(c.get('exams', [])[:3])} | "
+            f"Salary: {c.get('salary', 'N/A')} | "
+            f"Eligibility: {c.get('eligibility', 'N/A')}"
+            + comp_str
+        )
+    return "\n".join(lines)
+
+
+def _company_context(query: str) -> str:
+    """Build a context block with relevant companies based on the user's query."""
+    q = (query or "").lower()
+    keywords = [w for w in q.split() if len(w) > 2]
+    # Search companies by name, sector, description
+    matches = []
+    for co in list_companies():
+        hay = f"{co['name']} {co['sector']} {co.get('description', '')}".lower()
+        score = sum(1 for kw in keywords if kw in hay)
+        if score > 0:
+            matches.append((score, co))
+    matches.sort(key=lambda x: -x[0])
+    relevant = [co for _, co in matches[:10]]
+    if not relevant:
+        return ""
+    lines = ["COMPANIES IN CONTEXT (use these for company-related questions):"]
+    for co in relevant:
+        lines.append(
+            f"- {co['name']} | Sector: {co['sector']} | "
+            f"{co.get('description', '')} | Website: {co.get('website', '')} | "
+            f"Hires for: {', '.join(co.get('careers', []))}"
+        )
+    return "\n".join(lines)
 
 
 def _user_context(user_id: str) -> str:
@@ -484,6 +599,20 @@ def chat(req: ChatReq):
         except Exception:
             scholarship_block = ""
 
+    # Career context: inject relevant careers based on the query
+    career_block = ""
+    try:
+        career_block = _with_timeout(lambda: _career_context(last_msg), 2) or ""
+    except Exception:
+        career_block = ""
+
+    # Company context: inject relevant companies based on the query
+    company_block = ""
+    try:
+        company_block = _with_timeout(lambda: _company_context(last_msg), 2) or ""
+    except Exception:
+        company_block = ""
+
     try:
         user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
     except Exception:
@@ -493,7 +622,11 @@ def chat(req: ChatReq):
     if user_block:
         context_block += user_block + "\n"
     if scholarship_block:
-        context_block += scholarship_block
+        context_block += scholarship_block + "\n"
+    if career_block:
+        context_block += career_block + "\n"
+    if company_block:
+        context_block += company_block + "\n"
     if ctx:
         context_block += "Other relevant context:\n" + "\n".join(
             f"- {c}" for c in ctx[:3]
@@ -630,7 +763,7 @@ def _default_slots():
         {
             "icon": "🎯",
             "title": "Explore Careers",
-            "text": "Discover 25+ career paths and find what fits you best.",
+            "text": "Discover 107+ career paths across 12 domains and find what fits you.",
             "cta_label": "Career Paths",
             "cta_go": "career",
             "cta_arg": "",
@@ -793,11 +926,23 @@ def create_chat(req: ChatCreate):
 
 
 @router.get("/chats/{chat_id}")
-def get_chat(chat_id: str):
+def get_chat(chat_id: str, user_id: str = ""):
     if not db_available():
         return {"id": chat_id, "messages": []}
     try:
         client = get_client()
+        # Verify the chat belongs to this user (cross-user privacy)
+        if user_id:
+            owner = (
+                client.table("chats")
+                .select("user_id")
+                .eq("id", chat_id)
+                .limit(1)
+                .execute()
+            )
+            owner_id = (owner.data or [{}])[0].get("user_id") if owner.data else None
+            if owner_id and owner_id != user_id:
+                return {"id": chat_id, "messages": [], "error": "unauthorized"}
         res = (
             client.table("conversations")
             .select("role,content,created_at")
@@ -820,10 +965,22 @@ def get_chat(chat_id: str):
 
 
 @router.delete("/chats/{chat_id}")
-def delete_chat(chat_id: str):
+def delete_chat(chat_id: str, user_id: str = ""):
     if db_available():
         try:
             client = get_client()
+            # Verify ownership before deleting
+            if user_id:
+                owner = (
+                    client.table("chats")
+                    .select("user_id")
+                    .eq("id", chat_id)
+                    .limit(1)
+                    .execute()
+                )
+                owner_id = (owner.data or [{}])[0].get("user_id") if owner.data else None
+                if owner_id and owner_id != user_id:
+                    return {"ok": False, "error": "unauthorized"}
             client.table("conversations").delete().eq("chat_id", chat_id).execute()
             client.table("chats").delete().eq("id", chat_id).execute()
         except Exception:

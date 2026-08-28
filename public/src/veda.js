@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=30';
-import { openLogin } from './auth.js?v=30';
-import { playChatDing } from './sound.js?v=30';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=31';
+import { openLogin } from './auth.js?v=31';
+import { playChatDing } from './sound.js?v=31';
 
 let messages = [];
 let currentChatId = null;
@@ -107,7 +107,7 @@ function renderChatList() {
     b.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = b.dataset.del;
-      try { await api('/veda/chats/' + id, { method: 'DELETE' }); } catch (_) {}
+      try { await api('/veda/chats/' + id + '?user_id=' + encodeURIComponent(userId), { method: 'DELETE' }); } catch (_) {}
       if (id === currentChatId) newChat();
       await loadChatList();
     });
@@ -117,7 +117,7 @@ function renderChatList() {
 async function openChat(id) {
   currentChatId = id;
   try {
-    const data = await api('/veda/chats/' + id);
+    const data = await api('/veda/chats/' + id + '?user_id=' + encodeURIComponent(userId));
     const msgs = (data && data.messages) || [];
     messages = msgs.slice();
     const wrap = el('chat-messages');
