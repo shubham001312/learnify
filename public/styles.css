@@ -182,19 +182,20 @@
     .so-group { margin-bottom: 20px; }
     .so-group-head { font: 700 12px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 10px; }
     .so-row {
-      display: flex; align-items: center; gap: 12px; width: 100%; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; cursor: pointer;
-      text-align: left; transition: all .12s var(--ease); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 14px; width: 100%; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px; padding: 15px 16px; cursor: pointer;
+      text-align: left; transition: all .12s var(--ease); margin-bottom: 10px; min-height: 64px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
     }
-    .so-row:hover { border-color: var(--teal); background: var(--surface-2); transform: translateY(-1px); }
-    .so-row-ic { width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .so-row:hover { border-color: var(--teal); background: var(--surface-2); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .so-row-ic { width: 50px; height: 50px; border-radius: 13px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
     .so-row-ic.career { background: rgba(224,165,38,0.12); color: var(--gold-deep); }
     .so-row-ic.company { background: rgba(14,165,164,0.12); color: var(--teal); }
     .so-row-ic.college { background: rgba(99,102,241,0.12); color: #6366f1; }
     .so-row-info { flex: 1; min-width: 0; }
-    .so-row-name { font: 600 14px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .so-row-sub { font: 400 12px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .so-row-arrow { color: var(--sub); font-size: 18px; flex-shrink: 0; transition: transform .12s; }
+    .so-row-name { font: 600 16px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .so-row-sub { font: 400 13px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+    .so-row-arrow { color: var(--sub); font-size: 22px; flex-shrink: 0; transition: transform .12s; }
     .so-row:hover .so-row-arrow { transform: translateX(3px); }
     .so-empty, .so-loading { text-align: center; padding: 48px 16px; color: var(--sub); font-size: 14px; }
 
@@ -578,31 +579,34 @@
       .feature { grid-template-columns: 1fr; }
       .tabbar {
         left: 0; right: 0; bottom: 0; transform: none;
-        justify-content: space-around; border-radius: 0;
+        justify-content: space-around; align-items: stretch; border-radius: 0;
         border: none; border-top: 1px solid var(--border);
-        padding: 5px 0 calc(4px + env(safe-area-inset-bottom, 0px));
-        background: rgba(255,255,255,0.96); backdrop-filter: blur(20px);
-        box-shadow: 0 -2px 14px rgba(15,23,42,0.07); z-index: 120;
+        padding: 6px 0 calc(5px + env(safe-area-inset-bottom, 0px));
+        background: rgba(255,255,255,0.97); backdrop-filter: blur(20px);
+        box-shadow: 0 -2px 14px rgba(15,23,42,0.07); z-index: 120; min-height: 60px;
       }
       .tbtn {
-        min-width: 0; flex: 1; flex-direction: column; gap: 2px;
+        min-width: 0; flex: 1; flex-direction: column; justify-content: center; gap: 3px;
         padding: 4px 4px calc(2px + env(safe-area-inset-bottom, 0px));
-        font-size: 10px; border-radius: 12px; color: var(--sub);
+        font-size: 10.5px; border-radius: 12px; color: var(--sub);
       }
-      .tbtn svg { width: 23px; height: 23px; }
+      .tbtn svg { width: 24px; height: 24px; }
       .tbtn.active { background: rgba(224,165,38,0.12); color: var(--gold-deep); }
       .tbtn:active { transform: scale(0.94); }
 
-      /* Chat input pinned above the native tab bar on mobile */
-      #tab-veda .chat-wrap { height: calc(100dvh - 60px - var(--dock-h) - 8px); }
+      /* Chat frame fills the area between the top bar and the tab bar;
+         input stays pinned at the very bottom, flush above the nav. */
+      #tab-veda .chat-wrap {
+        position: fixed; top: 60px; left: 0; right: 0; bottom: var(--tabbar-h, 72px);
+        height: auto; max-height: none; display: flex; flex-direction: column; z-index: 10;
+      }
       #tab-veda .chat-bar {
-        position: fixed; left: 0; right: 0; bottom: var(--dock-h);
-        margin-top: 0; border-radius: 0; z-index: 95; flex-shrink: 0;
+        position: static; margin-top: 0; border-radius: 0; flex-shrink: 0;
         background: var(--surface); border: 1px solid var(--border);
         border-left: none; border-right: none; border-bottom: none;
         box-shadow: 0 -4px 16px rgba(15,23,42,0.06);
       }
-      #tab-veda .chat-scroll { padding-bottom: 110px; }
+      #tab-veda .chat-scroll { padding-bottom: 16px; flex: 1; min-height: 0; }
       .foot { padding-top: 22px; }
       .foot-grid { grid-template-columns: 1fr 1fr; gap: 18px; }
       .foot-brand { grid-column: 1 / -1; }
@@ -1396,8 +1400,7 @@ textarea { resize: vertical; }
 
     @media (min-width: 760px) {
       .fullpage.open {
-        background: rgba(8, 12, 22, 0.55);
-        backdrop-filter: blur(6px);
+        background: var(--bg);
         padding: 30px 16px 44px;
       }
       .fullpage.open .fp-head {
@@ -1457,8 +1460,8 @@ textarea { resize: vertical; }
     .cd-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .cd-hero h2 { font-family: var(--font-head); font-weight: 800; font-size: 22px; margin: 2px 0 4px; }
     .cd-tag { font-size: 13.5px; color: var(--muted); margin: 0; }
-    .career-page-title { display: flex; align-items: center; gap: 10px; }
-    .career-page-title svg { width: 28px; height: 28px; flex: 0 0 auto; color: var(--gold-deep); }
+    #career-page-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    #career-page-title svg { width: 22px; height: 22px; flex: 0 0 22px; color: var(--gold-deep); }
     .dm-sec { margin: 14px 0; }
     .dm-sec h4 { font-family: var(--font-head); font-size: 14px; color: var(--text); margin: 0 0 6px; }
     .dm-sec p { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }

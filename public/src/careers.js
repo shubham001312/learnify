@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal, siteUrl } from './utils.js?v=39';
-import { iconSvg, careerIcon } from './icons.js?v=39';
+import { api, el, toast, esc, openModal, closeModal, siteUrl } from './utils.js?v=40';
+import { iconSvg, careerIcon } from './icons.js?v=40';
 
 let _careerData = [];
 let _careerCats = [];
@@ -289,10 +289,9 @@ function careerHTML(c) {
     '<button class="rel-chip" data-id="' + esc(r.id) + '">' + iconSvg(careerIcon(r.category, r.title)) + ' ' + esc(r.title) + '</button>'
   ).join('');
   return (
-    '<div class="career-detail">' +
+      '<div class="career-detail">' +
       '<div class="cd-hero">' +
         '<div><div class="cd-cat">' + esc(c.category) + '</div>' +
-        '<h2>' + esc(c.title) + '</h2>' +
         '<p class="cd-tag">' + esc(c.tagline || '') + '</p></div>' +
       '</div>' +
 

@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=39';
-import { applyLanguage } from './i18n.js?v=39';
-import { initNotifications, addNotification } from './notifications.js?v=39';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=40';
+import { applyLanguage } from './i18n.js?v=40';
+import { initNotifications, addNotification } from './notifications.js?v=40';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=39';
-import { initVeda } from './veda.js?v=39';
-import { initCareer } from './career.js?v=39';
-import { initCareers } from './careers.js?v=39';
-import { initProfile } from './profile.js?v=39';
-import { initPremium } from './premium.js?v=39';
-import { api, el, toast, esc, siteUrl } from './utils.js?v=39';
-import { iconSvg, suggestionIcon } from './icons.js?v=39';
-import { playClick } from './sound.js?v=39';
-import { initStudyTools } from './tools.js?v=39';
+import { initAuth, openLogin } from './auth.js?v=40';
+import { initVeda } from './veda.js?v=40';
+import { initCareer } from './career.js?v=40';
+import { initCareers } from './careers.js?v=40';
+import { initProfile } from './profile.js?v=40';
+import { initPremium } from './premium.js?v=40';
+import { api, el, toast, esc, siteUrl } from './utils.js?v=40';
+import { iconSvg, suggestionIcon } from './icons.js?v=40';
+import { playClick } from './sound.js?v=40';
+import { initStudyTools } from './tools.js?v=40';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1240,7 +1240,16 @@ onReady(() => {
   applyLanguage(getLang());
   _restoreView();
   initGlobalSearch();
+  syncTabbarHeight();
+  window.addEventListener('resize', syncTabbarHeight);
+  window.addEventListener('orientationchange', () => setTimeout(syncTabbarHeight, 200));
+  setTimeout(syncTabbarHeight, 400);
 });
+
+function syncTabbarHeight() {
+  const tb = document.querySelector('.tabbar');
+  if (tb) document.documentElement.style.setProperty('--tabbar-h', tb.offsetHeight + 'px');
+}
 
 /* ── Header global search (dropdown panel) ── */
 let _searchTimer = null;
