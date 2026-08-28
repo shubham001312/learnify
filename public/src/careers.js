@@ -1,8 +1,23 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=23';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=24';
 
 let _careerData = [];
 let _careerCats = [];
 let _activeCat = null;
+
+const CAREER_STREAM_MAP = {
+  'Engineering': 'Engineering',
+  'Medical & Health': 'Medical',
+  'Sciences': 'Science',
+  'Commerce & Finance': 'Commerce',
+  'Management': 'Management',
+  'Law': 'Law',
+  'Design & Creative': 'Design',
+  'Civil Services & Government': 'Arts',
+  'Defence': 'Engineering',
+  'Agriculture': 'Agriculture',
+  'Media & Communication': 'Arts',
+  'Hospitality & Sports': 'Management',
+};
 
 export function initCareers() {
   const openBtn = el('career-quiz-open');
@@ -100,7 +115,11 @@ export function openCareer(id) {
     else window.setViewNav('veda', true);
   });
   const explore = el('career-explore-colleges');
-  if (explore) explore.addEventListener('click', () => window.setViewNav('college', true));
+  if (explore) explore.addEventListener('click', () => {
+    const stream = CAREER_STREAM_MAP[c.category] || '';
+    if (window.openCollegeForCourse) window.openCollegeForCourse(c.title, stream);
+    else window.setViewNav('college', true);
+  });
   window.openPage('career-detail');
   }).catch(() => toast('Could not open career', 'info'));
 }

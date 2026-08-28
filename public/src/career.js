@@ -1,4 +1,4 @@
-import { api, el, qs, esc } from './utils.js?v=23';
+import { api, el, qs, esc } from './utils.js?v=24';
 
 let scholarships = [];
 
@@ -28,6 +28,39 @@ export function initCareer() {
   let allLoaded = false;
   let reqToken = 0;
   const colMap = {};
+
+  // ---- Explore colleges from a career/course (banner + stream filter) ----
+  const courseBanner = el('course-banner');
+  const cbTitle = el('cb-title');
+  const cbSub = el('cb-sub');
+  const cbClear = el('cb-clear');
+  let courseContext = null;
+
+  function showCourseBanner() {
+    if (!courseBanner || !courseContext) return;
+    cbTitle.textContent = 'Best colleges for ' + courseContext.title;
+    cbSub.textContent = courseContext.stream
+      ? 'Filtered by ' + courseContext.stream + ' · sorted by NIRF rank'
+      : 'Top recommendations across India';
+    courseBanner.style.display = 'flex';
+  }
+  function hideCourseBanner() {
+    courseContext = null;
+    if (courseBanner) courseBanner.style.display = 'none';
+  }
+  if (cbClear) cbClear.addEventListener('click', () => { hideCourseBanner(); resetFilters(); });
+
+  window.openCollegeForCourse = function (title, stream) {
+    currentStream = stream || '';
+    currentSort = stream ? 'nirf' : currentSort;
+    currentType = ''; currentState = ''; currentDistrict = '';
+    currentMinPkg = null; currentMinRank = null; currentQ = '';
+    if (search) search.value = '';
+    courseContext = { title: title, stream: stream };
+    if (window.setViewNav) window.setViewNav('college', true);
+    showCourseBanner();
+    loadInitial();
+  };
 
   // Populate state dropdown with ALL Indian states & UTs
   const ALL_STATES = [
@@ -230,6 +263,7 @@ export function initCareer() {
   }
 
   function applyFiltersFromModal() {
+    hideCourseBanner();
     const active = document.querySelector('#f-type .fpill.active');
     currentType = (active && active.dataset.type) || '';
     currentState = stateSel ? stateSel.value : '';
@@ -245,6 +279,7 @@ export function initCareer() {
   }
 
   function resetFilters() {
+    hideCourseBanner();
     currentType = ''; currentState = ''; currentStream = ''; currentDistrict = '';
     currentMinPkg = null; currentMinRank = null; currentSort = 'default';
     syncFilterModal();
@@ -278,7 +313,7 @@ export function initCareer() {
   if (search) {
     search.addEventListener('input', () => {
       clearTimeout(debounce);
-      debounce = setTimeout(() => { currentQ = search.value.trim(); loadInitial(); }, 350);
+      debounce = setTimeout(() => { hideCourseBanner(); currentQ = search.value.trim(); loadInitial(); }, 350);
     });
   }
   if (loadMore) loadMore.addEventListener('click', loadMoreClick);
