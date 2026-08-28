@@ -167,7 +167,7 @@
     .so-clear:hover { color: var(--text); }
     .so-close { background: none; border: none; font-size: 14px; font-weight: 600; color: var(--teal); cursor: pointer; padding: 6px 8px; flex-shrink: 0; }
     .so-close:hover { color: var(--teal-deep); }
-    .so-body { flex: 1; overflow-y: auto; width: 100%; max-width: 760px; margin: 0 auto; padding: 18px 16px 40px; }
+    .so-body { flex: 1; overflow-y: auto; width: 100%; max-width: min(1100px, 96vw); margin: 0 auto; padding: 18px 16px 40px; }
     .so-sec { margin-bottom: 26px; }
     .so-sec-head { font: 700 13px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 14px; }
     .so-chips { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -199,6 +199,10 @@
     .so-row-arrow { color: var(--sub); font-size: 22px; flex-shrink: 0; transition: transform .12s; }
     .so-row:hover .so-row-arrow { transform: translateX(3px); }
     .so-empty, .so-loading { text-align: center; padding: 48px 16px; color: var(--sub); font-size: 14px; }
+    @media (min-width: 760px) {
+      #search-results .so-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+      #search-results .so-group-head { grid-column: 1 / -1; }
+    }
     @media (max-width: 600px) {
       .so-chip { flex: 1 1 calc(50% - 10px); justify-content: flex-start; }
     }
