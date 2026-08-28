@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=38';
-import { openLogin } from './auth.js?v=38';
-import { playChatDing } from './sound.js?v=38';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=39';
+import { openLogin } from './auth.js?v=39';
+import { playChatDing } from './sound.js?v=39';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -328,8 +328,14 @@ function generateRoadmapPDF(markdown, title) {
       draw(stripMd(line), 11, 'normal', 0, '');
     }
 
-    const safe = cleanTitle.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-    doc.save((safe || 'roadmap') + '-veda.pdf');
+    const stamp = new Date().toISOString().slice(0, 10);
+    const isRoadmap = /roadmap|phase|milestone|## /i.test(markdown || '');
+    let base = title && !/^veda response$/i.test((title || '').trim())
+      ? sanitizePdf(title).trim()
+      : (isRoadmap ? 'Veda Learning Roadmap' : 'Veda Response');
+    const safe = ('Learnify-' + base + '-' + stamp)
+      .replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+    doc.save((safe || 'learnify-veda') + '.pdf');
     toast('✅ PDF downloaded', 'success');
   } catch (e) {
     console.error('PDF generation failed', e);
