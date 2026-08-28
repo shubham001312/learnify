@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=28">
+  <link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body>
 
@@ -31,7 +31,7 @@
     </div>
     <div class="top-search">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input type="text" placeholder="Search colleges, careers, ask Veda…">
+      <input type="text" id="global-search" placeholder="Search colleges, careers, companies, ask Veda…">
     </div>
       <div class="top-right">
         <button class="icon-btn" title="Notifications">
@@ -226,6 +226,20 @@
       </div>
 
       <div class="career-cats" id="career-cats"></div>
+
+      <div class="career-filters" id="career-filters">
+        <div class="cf-row">
+          <select id="cf-class" class="cf-sel" title="Filter by class"><option value="">Class — Any</option></select>
+          <select id="cf-stream" class="cf-sel" title="Filter by stream"><option value="">Stream — Any</option></select>
+          <select id="cf-domain" class="cf-sel" title="Filter by domain"><option value="">Domain — Any</option></select>
+          <input id="cf-q" class="cf-q" type="text" placeholder="Search careers…">
+        </div>
+        <div class="cf-row2">
+          <button class="btn ghost sm" id="cf-for-you" type="button">✨ For you</button>
+          <button class="btn ghost sm" id="cf-reset" type="button">Reset</button>
+          <span id="cf-note" class="cf-note"></span>
+        </div>
+      </div>
 
       <div class="results-bar">
         <span id="career-count" class="college-count">Loading careers…</span>
@@ -752,6 +766,19 @@
       <div class="field"><label>Short bio / goal</label><textarea id="edit-bio" rows="2" placeholder="One line about your goal"></textarea></div>
       <button class="btn primary block" id="edit-save" data-i18n="save_changes">Save changes</button>
       <div class="doc-status" id="edit-status"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="company-modal">
+    <div class="modal-card wide" id="company-card"></div>
+  </div>
+
+  <div class="modal" id="search-modal">
+    <div class="modal-card wide">
+      <button class="modal-x" data-close>&times;</button>
+      <h3 class="modal-title">🔍 Search</h3>
+      <input id="search-input" class="cf-q" type="text" placeholder="Search careers, companies, colleges…">
+      <div id="search-results" class="search-results"></div>
     </div>
   </div>
 
@@ -1339,7 +1366,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=28"></script>
+  <script type="module" src="src/app.js?v=29"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

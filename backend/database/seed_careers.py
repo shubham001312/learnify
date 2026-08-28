@@ -1089,11 +1089,108 @@ CAREERS = [
     },
 ]
 
+# Maps each career category to the academic context it relates to. Used to power
+# class / stream / domain filtering without hand-editing every career entry.
+CATEGORY_META = {
+    "Engineering": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["PCM", "PCMB", "PCMc"],
+        "domain": "Engineering & Technology",
+    },
+    "Medical & Health": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["PCMB"],
+        "domain": "Healthcare & Medicine",
+    },
+    "Sciences": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["PCM", "PCMB"],
+        "domain": "Pure & Applied Sciences",
+    },
+    "Commerce & Finance": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["Commerce"],
+        "domain": "Commerce, Finance & Accounting",
+    },
+    "Management": {
+        "classes": ["Graduation"],
+        "streams": [],
+        "domain": "Management & Business Administration",
+    },
+    "Law": {
+        "classes": ["12th", "Graduation"],
+        "streams": [],
+        "domain": "Law & Legal Studies",
+    },
+    "Design & Creative": {
+        "classes": ["12th", "Graduation"],
+        "streams": [],
+        "domain": "Design & Creative Arts",
+    },
+    "Civil Services & Government": {
+        "classes": ["Graduation", "12th"],
+        "streams": [],
+        "domain": "Civil Services & Public Administration",
+    },
+    "Defence": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["PCM"],
+        "domain": "Defence & Armed Forces",
+    },
+    "Agriculture": {
+        "classes": ["12th", "Graduation"],
+        "streams": ["PCM", "PCMB"],
+        "domain": "Agriculture & Agri-Tech",
+    },
+    "Media & Communication": {
+        "classes": ["12th", "Graduation"],
+        "streams": [],
+        "domain": "Media, Journalism & Communication",
+    },
+    "Hospitality & Sports": {
+        "classes": ["12th", "Graduation"],
+        "streams": [],
+        "domain": "Hospitality, Travel & Sports",
+    },
+}
 
-def list_careers(category=None):
+
+def _enrich():
+    for c in CAREERS:
+        meta = CATEGORY_META.get(
+            c["category"],
+            {"classes": ["12th", "Graduation"], "streams": [], "domain": c["category"]},
+        )
+        c["classes"] = meta["classes"]
+        c["streams"] = meta["streams"]
+        c["domains"] = [meta["domain"]]
+
+
+_enrich()
+
+
+def list_careers(category=None, cls=None, stream=None, domain=None, q=None):
     out = CAREERS
     if category:
         out = [c for c in out if c["category"].lower() == str(category).lower()]
+    if cls:
+        out = [c for c in out if cls in c.get("classes", [])]
+    if stream:
+        out = [
+            c for c in out if (not c.get("streams")) or (stream in c.get("streams", []))
+        ]
+    if domain:
+        out = [c for c in out if domain in c.get("domains", [])]
+    if q:
+        ql = str(q).lower()
+        out = [
+            c
+            for c in out
+            if ql in c["title"].lower()
+            or ql in c["category"].lower()
+            or ql in c.get("tagline", "").lower()
+            or any(ql in d.lower() for d in c.get("domains", []))
+        ]
     return out
 
 
@@ -1110,3 +1207,25 @@ def list_categories():
         if c["category"] not in seen:
             seen.append(c["category"])
     return seen
+
+
+def list_domains():
+    seen = []
+    for c in CAREERS:
+        for d in c.get("domains", []):
+            if d not in seen:
+                seen.append(d)
+    return seen
+
+
+def list_streams():
+    seen = []
+    for c in CAREERS:
+        for s in c.get("streams", []):
+            if s not in seen:
+                seen.append(s)
+    return seen
+
+
+def list_classes():
+    return ["10th", "12th", "Diploma", "Graduation"]

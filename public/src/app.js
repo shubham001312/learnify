@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=28';
-import { applyLanguage } from './i18n.js?v=28';
-import { initNotifications, addNotification } from './notifications.js?v=28';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=29';
+import { applyLanguage } from './i18n.js?v=29';
+import { initNotifications, addNotification } from './notifications.js?v=29';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=28';
-import { initVeda } from './veda.js?v=28';
-import { initCareer } from './career.js?v=28';
-import { initCareers } from './careers.js?v=28';
-import { initProfile } from './profile.js?v=28';
-import { initPremium } from './premium.js?v=28';
-import { api, el, toast, esc } from './utils.js?v=28';
-import { iconSvg, suggestionIcon } from './icons.js?v=28';
-import { playClick } from './sound.js?v=28';
-import { initStudyTools } from './tools.js?v=28';
+import { initAuth, openLogin } from './auth.js?v=29';
+import { initVeda } from './veda.js?v=29';
+import { initCareer } from './career.js?v=29';
+import { initCareers } from './careers.js?v=29';
+import { initProfile } from './profile.js?v=29';
+import { initPremium } from './premium.js?v=29';
+import { api, el, toast, esc } from './utils.js?v=29';
+import { iconSvg, suggestionIcon } from './icons.js?v=29';
+import { playClick } from './sound.js?v=29';
+import { initStudyTools } from './tools.js?v=29';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1251,4 +1251,81 @@ onReady(() => {
   initStudyTools();
   applyLanguage(getLang());
   _restoreView();
+  initGlobalSearch();
 });
+
+/* ── Header global search (careers + companies + colleges) ── */
+function initGlobalSearch() {
+  const gs = document.getElementById('global-search');
+  if (gs) gs.addEventListener('keydown', (e) => { if (e.key === 'Enter') runGlobalSearch(gs.value); });
+  const si = document.getElementById('search-input');
+  if (si) {
+    let t = null;
+    si.addEventListener('input', () => {
+      clearTimeout(t);
+      const v = si.value;
+      t = setTimeout(() => doSearch(v), 280);
+    });
+  }
+}
+
+function runGlobalSearch(q) {
+  q = (q || '').trim();
+  if (!q) return;
+  openModal('search-modal');
+  const si = document.getElementById('search-input');
+  if (si) si.value = q;
+  doSearch(q);
+}
+
+function doSearch(q) {
+  q = (q || '').trim();
+  const box = document.getElementById('search-results');
+  if (!box) return;
+  if (q.length < 2) { box.innerHTML = '<div class="dm-note">Type at least 2 characters to search.</div>'; return; }
+  box.innerHTML = '<div class="slot-skeleton">Searching…</div>';
+  api('/search/global?q=' + encodeURIComponent(q) + '&num=8').then((d) => {
+    box.innerHTML = renderGlobalResults(d || {});
+    box.querySelectorAll('[data-gtype]').forEach((b) => b.addEventListener('click', () => {
+      const type = b.dataset.gtype;
+      const id = b.dataset.gid;
+      if (type === 'career') { closeModal('search-modal'); if (window.openCareer) window.openCareer(id); }
+      else if (type === 'company') { closeModal('search-modal'); if (window.openCompany) window.openCompany(id); }
+      else if (type === 'college') { openCollegeFromSearch(id); }
+    }));
+  }).catch(() => { box.innerHTML = '<div class="dm-note">Search failed. Please try again.</div>'; });
+}
+
+function renderGlobalResults(d) {
+  const careers = d.careers || [];
+  const companies = d.companies || [];
+  const colleges = d.colleges || [];
+  if (!careers.length && !companies.length && !colleges.length)
+    return '<div class="dm-note">No matches found.</div>';
+  const block = (title, items, typeGetter, subGetter) => {
+    if (!items.length) return '';
+    const rows = items.map((it) =>
+      '<button class="sr-row" data-gtype="' + typeGetter(it) + '" data-gid="' + esc(it.id) + '">' +
+        '<span class="sr-ic">' + iconSvg(typeGetter(it) === 'company' ? 'briefcase' : (typeGetter(it) === 'college' ? 'graduation' : 'target')) + '</span>' +
+        '<span class="sr-meta"><span class="sr-nm">' + esc(it.title || it.name) + '</span>' +
+        '<span class="sr-sub">' + esc(subGetter(it) || '') + '</span></span>' +
+      '</button>'
+    ).join('');
+    return '<div class="sr-group"><div class="sr-head">' + esc(title) + '</div>' + rows + '</div>';
+  };
+  return (
+    block('Careers', careers, () => 'career', (c) => c.tagline || c.category) +
+    block('Companies', companies, () => 'company', (c) => c.sector || '') +
+    block('Colleges', colleges, () => 'college', (c) => [c.city, c.state].filter(Boolean).join(', '))
+  );
+}
+
+function openCollegeFromSearch(id) {
+  closeModal('search-modal');
+  if (window.openCollegeModal) {
+    api('/colleges/' + encodeURIComponent(id)).then((c) => {
+      if (c) window.openCollegeModal(c);
+      else toast('College details unavailable', 'info');
+    }).catch(() => toast('College details unavailable', 'info'));
+  }
+}

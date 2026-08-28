@@ -1,9 +1,14 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=28';
-import { iconSvg, careerIcon } from './icons.js?v=28';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=29';
+import { iconSvg, careerIcon } from './icons.js?v=29';
 
 let _careerData = [];
 let _careerCats = [];
 let _activeCat = null;
+let _careerDomains = [];
+let _careerStreams = [];
+let _careerClasses = [];
+let _forYou = false;
+let _userAcad = null;
 
 const CAREER_STREAM_MAP = {
   'Engineering': 'Engineering',
@@ -31,8 +36,20 @@ export function initCareers() {
     if (!b) return;
     _activeCat = (b.dataset.cat === '__all') ? null : b.dataset.cat;
     document.querySelectorAll('#career-cats .cat-chip').forEach((x) => x.classList.toggle('active', x === b));
-    renderCareers(_careerData);
+    applyCareerFilters();
   });
+
+  // Filter bar wiring
+  ['cf-class', 'cf-stream', 'cf-domain', 'cf-q'].forEach((id) => {
+    const node = el(id);
+    if (!node) return;
+    node.addEventListener('change', applyCareerFilters);
+    if (id === 'cf-q') node.addEventListener('input', applyCareerFilters);
+  });
+  const forYou = el('cf-for-you');
+  if (forYou) forYou.addEventListener('click', toggleForYou);
+  const reset = el('cf-reset');
+  if (reset) reset.addEventListener('click', resetCareerFilters);
 
   // Quiz option selection (single-select per group)
   document.querySelectorAll('#career-quiz-modal .cq-opts').forEach((group) => {
@@ -63,8 +80,12 @@ export function loadCareers() {
   api('/careers').then((d) => {
     _careerData = (d && d.careers) || [];
     _careerCats = (d && d.categories) || [];
+    _careerDomains = (d && d.domains) || [];
+    _careerStreams = (d && d.streams) || [];
+    _careerClasses = (d && d.classes) || [];
     renderCatChips();
-    renderCareers(_careerData);
+    populateFilters();
+    applyCareerFilters();
     const c = el('career-count');
     if (c) c.textContent = _careerData.length + ' career paths';
   }).catch(() => {
@@ -74,6 +95,101 @@ export function loadCareers() {
 }
 window.loadCareers = loadCareers;
 
+function populateFilters() {
+  const fill = (id, items, label) => {
+    const s = el(id);
+    if (!s) return;
+    if (s.options.length <= 1) {
+      items.forEach((v) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        s.appendChild(o);
+      });
+    }
+  };
+  fill('cf-class', _careerClasses);
+  fill('cf-stream', _careerStreams);
+  fill('cf-domain', _careerDomains);
+}
+
+function currentCareerFilter() {
+  return {
+    cls: (el('cf-class') && el('cf-class').value) || null,
+    stream: (el('cf-stream') && el('cf-stream').value) || null,
+    domain: (el('cf-domain') && el('cf-domain').value) || null,
+    q: (el('cf-q') && el('cf-q').value || '').trim().toLowerCase(),
+  };
+}
+
+function applyCareerFilters() {
+  const f = currentCareerFilter();
+  let list = _careerData.filter((c) => {
+    if (_activeCat && c.category !== _activeCat) return false;
+    if (f.cls && !(c.classes || []).includes(f.cls)) return false;
+    if (f.stream) {
+      const s = c.streams || [];
+      if (s.length && !s.includes(f.stream)) return false;
+    }
+    if (f.domain && !(c.domains || []).includes(f.domain)) return false;
+    if (f.q) {
+      const hay = (c.title + ' ' + c.category + ' ' + (c.tagline || '') + ' ' + (c.domains || []).join(' ')).toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+    return true;
+  });
+  if (_forYou && _userAcad) {
+    const us = (_userAcad.stream || '').trim();
+    list = list.slice().sort((a, b) => forYouScore(b, us) - forYouScore(a, us));
+  }
+  renderCareerList(list);
+}
+
+function forYouScore(c, userStream) {
+  const s = c.streams || [];
+  if (userStream && s.length && s.includes(userStream)) return 2;
+  if (!s.length) return 1;
+  return 0;
+}
+
+async function toggleForYou() {
+  _forYou = !_forYou;
+  const btn = el('cf-for-you');
+  if (btn) btn.classList.toggle('active', _forYou);
+  const note = el('cf-note');
+  if (_forYou) {
+    try {
+      const a = await api('/documents/academic');
+      _userAcad = (a && a.exam) ? a : null;
+    } catch (e) { _userAcad = null; }
+    if (_userAcad && _userAcad.exam) {
+      const cs = el('cf-class'); if (cs) cs.value = _userAcad.exam;
+      const st = el('cf-stream');
+      if (st && _userAcad.stream) {
+        const opt = Array.from(st.options).some((o) => o.value === _userAcad.stream);
+        if (opt) st.value = _userAcad.stream;
+      }
+      if (note) note.textContent = 'Personalized for your ' + _userAcad.exam +
+        (_userAcad.stream ? ' (' + _userAcad.stream + ')' : '') + ' profile';
+    } else if (note) {
+      note.textContent = 'Add your marks (Profile → Marks) to personalize this list.';
+    }
+  } else if (note) {
+    note.textContent = '';
+  }
+  applyCareerFilters();
+}
+
+function resetCareerFilters() {
+  ['cf-class', 'cf-stream', 'cf-domain'].forEach((id) => { const n = el(id); if (n) n.value = ''; });
+  const q = el('cf-q'); if (q) q.value = '';
+  _forYou = false;
+  const btn = el('cf-for-you'); if (btn) btn.classList.remove('active');
+  const note = el('cf-note'); if (note) note.textContent = '';
+  _activeCat = null;
+  document.querySelectorAll('#career-cats .cat-chip').forEach((x) => x.classList.toggle('active', x.dataset.cat === '__all'));
+  applyCareerFilters();
+}
+
 function renderCatChips() {
   const wrap = el('career-cats');
   if (!wrap) return;
@@ -82,12 +198,11 @@ function renderCatChips() {
   wrap.innerHTML = chips.join('');
 }
 
-function renderCareers(list) {
+function renderCareerList(list) {
   const grid = el('careers-grid');
   if (!grid) return;
-  const shown = _activeCat ? list.filter((c) => c.category === _activeCat) : list;
-  if (!shown.length) { grid.innerHTML = '<div class="slot-skeleton">No careers in this category.</div>'; return; }
-  grid.innerHTML = shown.map((c) =>
+  if (!list.length) { grid.innerHTML = '<div class="slot-skeleton">No careers match these filters.</div>'; return; }
+  grid.innerHTML = list.map((c) =>
     '<button class="career-card" data-id="' + esc(c.id) + '">' +
       '<div class="cc-ic">' + iconSvg(careerIcon(c.category, c.title)) + '</div>' +
       '<div class="cc-cat">' + esc(c.category) + '</div>' +
@@ -98,6 +213,8 @@ function renderCareers(list) {
   grid.querySelectorAll('.career-card').forEach((b) => {
     b.addEventListener('click', () => openCareer(b.dataset.id));
   });
+  const cnt = el('career-count');
+  if (cnt) cnt.textContent = list.length + ' of ' + _careerData.length + ' career paths';
 }
 
 export function openCareer(id) {
@@ -109,6 +226,7 @@ export function openCareer(id) {
     const body = el('career-page-body');
     if (body) body.innerHTML = careerHTML(c);
     body.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => openCareer(b.dataset.id)));
+    body.querySelectorAll('[data-company]').forEach((b) => b.addEventListener('click', () => openCompany(b.dataset.company)));
     const ask = el('career-ask-veda');
     if (ask) ask.addEventListener('click', () => {
       const prompt = 'Give me a clear roadmap to become a ' + c.title + ' in India: required exams, top colleges, skills to build, and the first 3 steps I should take now.';
@@ -149,17 +267,28 @@ function careerHTML(c) {
       section('About', '<p>' + esc(c.description || '') + '</p>') +
       twoCol('Entrance Exams', list(c.exams), 'Eligibility', esc(c.eligibility || '—')) +
       section('Top Colleges', '<div class="dm-chips">' + (c.top_colleges || []).map((x) => '<span class="dm-chip">' + esc(x) + '</span>').join('') + '</div>') +
-      section('Key Skills', '<div class="dm-chips">' + (c.skills || []).map((x) => '<span class="dm-chip">' + esc(x) + '</span>').join('') + '</div>') +
-      twoCol('Scope', esc(c.scope || '—'), 'Salary', esc(c.salary || '—')) +
-      section('Growth', '<p>' + esc(c.growth || '') + '</p>') +
-      section('Your Roadmap', '<ol class="cd-steps">' + steps + '</ol>') +
-      (related ? section('Related careers', '<div class="rel-wrap">' + related + '</div>') : '') +
+       section('Key Skills', '<div class="dm-chips">' + (c.skills || []).map((x) => '<span class="dm-chip">' + esc(x) + '</span>').join('') + '</div>') +
+       twoCol('Scope', esc(c.scope || '—'), 'Salary', esc(c.salary || '—')) +
+       section('Growth', '<p>' + esc(c.growth || '') + '</p>') +
+       (companiesHTML(c.companies) ? section('Top companies that hire', companiesHTML(c.companies)) : '') +
+       section('Your Roadmap', '<ol class="cd-steps">' + steps + '</ol>') +
+       (related ? section('Related careers', '<div class="rel-wrap">' + related + '</div>') : '') +
     '</div>'
   );
 }
 
 function section(title, inner) {
   return '<div class="dm-sec"><h4>' + esc(title) + '</h4>' + inner + '</div>';
+}
+function companiesHTML(companies) {
+  if (!companies || !companies.length) return '';
+  return '<div class="co-wrap">' + companies.map((co) =>
+    '<button class="co-chip" data-company="' + esc(co.id) + '">' +
+      '<span class="co-ic">' + iconSvg('briefcase') + '</span>' +
+      '<span class="co-meta"><span class="co-nm">' + esc(co.name) + '</span>' +
+      '<span class="co-sec">' + esc(co.sector || '') + '</span></span>' +
+    '</button>'
+  ).join('') + '</div>';
 }
 function twoCol(a, av, b, bv) {
   return '<div class="dm-grid2">' +
@@ -245,3 +374,45 @@ function renderGuidance(g) {
     '</div>'
   );
 }
+
+/* ── Company detail pop-up ── */
+export function openCompany(id) {
+  const card = el('company-card');
+  if (card) card.innerHTML = '<div class="dm-sec"><div class="slot-skeleton">Loading company…</div></div>';
+  openModal('company-modal');
+  api('/careers/companies/' + id).then((d) => {
+    const co = d && d.company;
+    if (!co) { if (card) card.innerHTML = '<div class="dm-sec">Company not found.</div>'; return; }
+    if (card) card.innerHTML = companyHTML(co);
+    card.querySelectorAll('[data-go-career]').forEach((b) => b.addEventListener('click', () => {
+      closeModal('company-modal');
+      openCareer(b.dataset.goCareer);
+    }));
+    const w = card.querySelector('#co-open-site');
+    if (w) w.addEventListener('click', () => window.open('https://' + co.website, '_blank', 'noopener'));
+  }).catch(() => {
+    if (card) card.innerHTML = '<div class="dm-sec">Could not load company details.</div>';
+  });
+}
+window.openCompany = openCompany;
+
+function companyHTML(co) {
+  const rel = (co.related_careers || []).map((r) =>
+    '<button class="rel-chip" data-go-career="' + esc(r.id) + '">' + esc(r.title) + '</button>'
+  ).join('');
+  return (
+    '<button class="modal-x" data-close onclick="closeCompany()">&times;</button>' +
+    '<div class="company-detail">' +
+      '<div class="cd-hero">' +
+        '<div class="cd-ic">' + iconSvg('briefcase') + '</div>' +
+        '<div><div class="cd-cat">' + esc(co.sector || 'Company') + '</div>' +
+        '<h2>' + esc(co.name) + '</h2></div>' +
+      '</div>' +
+      (co.description ? '<div class="dm-sec"><h4>About</h4><p>' + esc(co.description) + '</p></div>' : '') +
+      (co.website ? '<div class="dm-sec"><button class="btn primary" id="co-open-site">🌐 Visit official website ↗</button></div>' : '') +
+      (rel ? '<div class="dm-sec"><h4>Careers here relate to</h4><div class="rel-wrap">' + rel + '</div></div>' : '') +
+    '</div>'
+  );
+}
+
+window.closeCompany = function () { closeModal('company-modal'); };
