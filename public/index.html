@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 
@@ -162,14 +162,8 @@
           </div>
         </div>
 
-        <div class="chat-bar">
-          <div class="suggest">
-            <button data-q="Compare JU and NIT Durgapur">Compare top 2</button>
-            <button data-q="What scholarships can I apply for?">Scholarships</button>
-            <button data-q="Which stream should I pick?">Pick a stream</button>
-          </div>
-
-          <div class="chat-input">
+          <div class="chat-bar">
+            <div class="chat-input">
             <input type="text" id="chat-input" placeholder="Ask Veda anything…">
             <button class="send" onclick="sendMessage()">
               <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4z"/></svg>
@@ -1389,8 +1383,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=36"></script>
-  <script type="module" src="src/app.js?v=36"></script>
+  <script src="vendor/jspdf.umd.min.js?v=37"></script>
+  <script type="module" src="src/app.js?v=37"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

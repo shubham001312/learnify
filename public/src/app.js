@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=36';
-import { applyLanguage } from './i18n.js?v=36';
-import { initNotifications, addNotification } from './notifications.js?v=36';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=37';
+import { applyLanguage } from './i18n.js?v=37';
+import { initNotifications, addNotification } from './notifications.js?v=37';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=36';
-import { initVeda } from './veda.js?v=36';
-import { initCareer } from './career.js?v=36';
-import { initCareers } from './careers.js?v=36';
-import { initProfile } from './profile.js?v=36';
-import { initPremium } from './premium.js?v=36';
-import { api, el, toast, esc, siteUrl } from './utils.js?v=36';
-import { iconSvg, suggestionIcon } from './icons.js?v=36';
-import { playClick } from './sound.js?v=36';
-import { initStudyTools } from './tools.js?v=36';
+import { initAuth, openLogin } from './auth.js?v=37';
+import { initVeda } from './veda.js?v=37';
+import { initCareer } from './career.js?v=37';
+import { initCareers } from './careers.js?v=37';
+import { initProfile } from './profile.js?v=37';
+import { initPremium } from './premium.js?v=37';
+import { api, el, toast, esc, siteUrl } from './utils.js?v=37';
+import { iconSvg, suggestionIcon } from './icons.js?v=37';
+import { playClick } from './sound.js?v=37';
+import { initStudyTools } from './tools.js?v=37';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1253,6 +1253,7 @@ function initGlobalSearch() {
   const wrap = document.getElementById('top-search-wrap');
   if (!overlay || !input) return;
   const gsEl = () => document.getElementById('global-search');
+  let justOpened = false;
 
   function openSearch() {
     overlay.classList.add('open');
@@ -1272,12 +1273,11 @@ function initGlobalSearch() {
 
   // Open via document-level delegation (capture phase): any mousedown that starts
   // within the search bar / icon opens the overlay. Immune to the input node being
-  // replaced or the click target resolving to an ancestor; runs before the close
-  // handler so the same click can never immediately close the overlay.
+  // replaced or the click target resolving to an ancestor.
   document.addEventListener('mousedown', (e) => {
     const t = e.target;
     if (t && t.closest && t.closest('#top-search-wrap')) {
-      if (!overlay.classList.contains('open')) { e.preventDefault(); openSearch(); }
+      if (!overlay.classList.contains('open')) { e.preventDefault(); justOpened = true; openSearch(); }
     }
   }, true);
   // Also open when the search input receives focus (keyboard / tap-to-focus).
@@ -1303,7 +1303,10 @@ function initGlobalSearch() {
   if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); showSuggestions(); });
 
   // Close only on a click that is truly outside both the overlay and the search bar.
+  // The opening click also bubbles a `click` whose target resolves to <body> (the
+  // overlay now covers the bar); ignore exactly that click so it never self-closes.
   document.addEventListener('click', (e) => {
+    if (justOpened) { justOpened = false; return; }
     if (!overlay.classList.contains('open')) return;
     const t = e.target;
     if (!t || !t.closest) return;

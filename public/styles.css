@@ -343,9 +343,8 @@
 
     .chat-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 2px; padding-bottom: 16px; }
     .msg { display: flex; gap: 9px; align-items: flex-end; }
-    .msg-actions { align-self: center; display: flex; flex-direction: column; gap: 5px; opacity: 0; transition: opacity .15s var(--ease); flex-shrink: 0; }
-    .msg:hover .msg-actions { opacity: 1; }
-    .msg-copy, .msg-pdf { font-size: 11px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px 9px; cursor: pointer; transition: all .15s var(--ease); white-space: nowrap; }
+    .msg-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .msg-copy, .msg-pdf { font-size: 11.5px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; transition: all .15s var(--ease); white-space: nowrap; }
     .msg-copy:hover { color: var(--teal); border-color: rgba(14,165,164,0.4); }
     .msg-pdf { color: var(--gold-deep); border-color: rgba(224,165,38,0.35); }
     .msg-pdf:hover { color: var(--gold-deep); border-color: rgba(224,165,38,0.6); background: rgba(224,165,38,0.1); }

@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=36';
-import { openLogin } from './auth.js?v=36';
-import { playChatDing } from './sound.js?v=36';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=37';
+import { openLogin } from './auth.js?v=37';
+import { playChatDing } from './sound.js?v=37';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -36,7 +36,7 @@ function appendBubble(who, text) {
   const av = who === 'user' ? (u ? (u.name || 'S').charAt(0).toUpperCase() : 'S') : 'V';
   row.innerHTML = `<div class="msg-av ${avClass}">${av}</div><div class="bubble ${avClass}"></div>`;
   const bubble = row.querySelector('.bubble');
-  if (who === 'v') { bubble.innerHTML = renderMarkdown(text); bubble.dataset.raw = text; }
+  if (who === 'v') { bubble.innerHTML = '<div class="b-content">' + renderMarkdown(text) + '</div>'; bubble.dataset.raw = text; }
   else bubble.textContent = text;
   if (who === 'v') addMsgActions(row, bubble);
   wrap.appendChild(row);
@@ -49,7 +49,8 @@ function addMsgActions(row, bubble) {
   bar.innerHTML = '<button class="msg-copy" title="Copy reply">⧉ Copy</button>' +
     '<button class="msg-pdf" title="Download as PDF">⬇ PDF</button>';
   bar.querySelector('.msg-copy').addEventListener('click', () => {
-    const txt = (bubble.innerText || '').replace(/[⧉⬇]\s*(Copy|PDF)/g, '').trim();
+    const c = bubble.querySelector('.b-content');
+    const txt = ((c ? c.innerText : bubble.innerText) || '').replace(/[⧉⬇]\s*(Copy|PDF)/g, '').trim();
     if (navigator.clipboard) navigator.clipboard.writeText(txt)
       .then(() => toast('Copied to clipboard', 'ok')).catch(() => {});
   });
@@ -59,7 +60,7 @@ function addMsgActions(row, bubble) {
     const grade = (u && (u.grade || u.target_exam)) || '';
     generateRoadmapPDF(raw, 'Veda Response' + (grade ? ' — ' + grade : ''));
   });
-  row.appendChild(bar);
+  bubble.appendChild(bar);
 }
 
 function setVedaStatus(state) {
@@ -79,7 +80,7 @@ function beginStream() {
   const wrap = el('chat-messages');
   const row = document.createElement('div');
   row.className = 'msg';
-  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v"></div>';
+  row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v"><div class="b-content"></div></div>';
   wrap.appendChild(row);
   streamEl = row.querySelector('.bubble');
   addMsgActions(row, streamEl);
@@ -197,7 +198,7 @@ function buildGreeting() {
     hi + '<b>Veda</b>, your AI study companion. I can help you with:' +
     '<ul><li>Finding the right college or stream</li><li>Career guidance & planning</li>' +
     '<li>Scholarships, loans & admissions</li><li>Study plans, quizzes & notes</li></ul>' +
-    'Ask me anything — or tap a suggestion below.</div></div>';
+    'Ask me anything and I’ll help you out.</div></div>';
 }
 
 function lastAssistant() {
@@ -257,57 +258,83 @@ function downloadLastRoadmap() {
   generateRoadmapPDF(text, 'My Learning Roadmap' + (grade ? ' — ' + grade : ''));
 }
 
+function sanitizePdf(s) {
+  if (!s) return '';
+  const rep = {
+    '—': '-', '–': '-', '→': '->', '⇒': '=>', '↔': '<->', '•': '-', '·': '-', '∙': '-',
+    '“': '"', '”': '"', '‘': "'", '’': "'", '•': '-', '✓': '[OK]', '✔': '[OK]', '☑': '[OK]',
+    '★': '*', '☆': '*', '♦': '*', '▪': '-', '▸': '-', '►': '->', '»': '>>', '«': '<<',
+    '…': '...', '’': "'", '‘': "'", '“': '"', '”': '"', '≈': '~', '×': 'x', '÷': '/',
+    '≥': '>=', '≤': '<=', '±': '+/-', '°': ' deg', '₹': 'Rs ', '€': 'EUR ', '$': 'USD '
+  };
+  let out = '';
+  for (const ch of s) {
+    if (rep[ch]) { out += rep[ch]; continue; }
+    const code = ch.codePointAt(0);
+    // jsPDF default font supports WinAnsi (Latin-1, <= 0xFF). Drop emoji / non-Latin.
+    if (code <= 0xFF) out += ch;
+    else if (code >= 0x2000 && code <= 0x206F) out += ' '; // general punctuation -> space
+  }
+  return out;
+}
+
 function generateRoadmapPDF(markdown, title) {
   const jspdf = window.jspdf;
   if (!jspdf) { toast('PDF library not ready. Try again in a moment.', 'info'); return; }
-  const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 48;
-  const maxW = pageW - margin * 2;
-  let y = margin;
+  try {
+    const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const maxW = pageW - margin * 2;
+    let y = margin;
+    const cleanTitle = sanitizePdf(title || 'Learning Roadmap');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text(title || 'Learning Roadmap', margin, y);
-  y += 28;
-  doc.setDrawColor(224, 165, 38);
-  doc.setLineWidth(2);
-  doc.line(margin, y, pageW - margin, y);
-  y += 22;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text(cleanTitle, margin, y);
+    y += 28;
+    doc.setDrawColor(224, 165, 38);
+    doc.setLineWidth(2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 22;
 
-  const stripMd = (s) => s
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/[*_`#]/g, '')
-    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-    .replace(/–/g, '-');
-  const draw = (text, size, style, indent, prefix) => {
-    doc.setFont('helvetica', style);
-    doc.setFontSize(size);
-    const full = (prefix || '') + text;
-    const wrapped = doc.splitTextToSize(full, maxW - indent);
-    for (const w of wrapped) {
-      if (y > pageH - margin) { doc.addPage(); y = margin; }
-      doc.text(w, margin + indent, y);
-      y += size + 6;
+    const stripMd = (s) => s
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/[*_`#]/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/–/g, '-');
+    const draw = (text, size, style, indent, prefix) => {
+      doc.setFont('helvetica', style);
+      doc.setFontSize(size);
+      const full = (prefix || '') + text;
+      const wrapped = doc.splitTextToSize(full, maxW - indent);
+      for (const w of wrapped) {
+        if (y > pageH - margin) { doc.addPage(); y = margin; }
+        doc.text(w, margin + indent, y);
+        y += size + 6;
+      }
+    };
+
+    for (const raw of sanitizePdf(markdown || '').split('\n')) {
+      const line = raw.replace(/\s+$/, '');
+      if (!line.trim()) { y += 6; continue; }
+      if (/^###\s/.test(line)) { draw(line.replace(/^###\s/, ''), 13, 'bold', 0); y += 2; continue; }
+      if (/^##\s/.test(line)) { y += 4; draw(line.replace(/^##\s/, ''), 15, 'bold', 0); y += 4; continue; }
+      if (/^#\s/.test(line)) { y += 4; draw(line.replace(/^#\s/, ''), 17, 'bold', 0); y += 4; continue; }
+      const m = line.match(/^(\d+)\.\s/);
+      if (m) { draw(stripMd(line.replace(/^\d+\.\s/, '')), 11, 'normal', 18, m[1] + '. '); continue; }
+      if (/^[-*]\s/.test(line)) { draw(stripMd(line.replace(/^[-*]\s/, '')), 11, 'normal', 14, '-  '); continue; }
+      draw(stripMd(line), 11, 'normal', 0, '');
     }
-  };
 
-  for (const raw of (markdown || '').split('\n')) {
-    const line = raw.replace(/\s+$/, '');
-    if (!line.trim()) { y += 6; continue; }
-    if (/^###\s/.test(line)) { draw(line.replace(/^###\s/, ''), 13, 'bold', 0); y += 2; continue; }
-    if (/^##\s/.test(line)) { y += 4; draw(line.replace(/^##\s/, ''), 15, 'bold', 0); y += 4; continue; }
-    if (/^#\s/.test(line)) { y += 4; draw(line.replace(/^#\s/, ''), 17, 'bold', 0); y += 4; continue; }
-    const m = line.match(/^(\d+)\.\s/);
-    if (m) { draw(stripMd(line.replace(/^\d+\.\s/, '')), 11, 'normal', 18, m[1] + '. '); continue; }
-    if (/^[-*]\s/.test(line)) { draw(stripMd(line.replace(/^[-*]\s/, '')), 11, 'normal', 14, '•  '); continue; }
-    draw(stripMd(line), 11, 'normal', 0, '');
+    const safe = cleanTitle.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    doc.save((safe || 'roadmap') + '-veda.pdf');
+    toast('✅ PDF downloaded', 'success');
+  } catch (e) {
+    console.error('PDF generation failed', e);
+    toast('Could not build the PDF right now. Please try again.', 'info');
   }
-
-  const safe = (title || 'roadmap').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-  doc.save((safe || 'roadmap') + '-veda.pdf');
-  toast('✅ Roadmap PDF downloaded', 'success');
 }
 
 async function startRoadmap() {
@@ -412,7 +439,7 @@ export function initVeda() {
         const { done, value } = await reader.read();
         if (done) break;
         text += decoder.decode(value, { stream: true });
-        if (streamEl) { streamEl.innerHTML = renderMarkdown(text); streamEl.dataset.raw = text; }
+        if (streamEl) { const c = streamEl.querySelector('.b-content'); if (c) c.innerHTML = renderMarkdown(text); streamEl.dataset.raw = text; }
         if (!dinged && text.trim()) { dinged = true; try { playChatDing(); } catch (_) {} }
         scrollDown();
       }
