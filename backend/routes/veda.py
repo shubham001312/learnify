@@ -1,4 +1,5 @@
 import json
+import datetime
 import concurrent.futures as _cf
 import urllib.parse
 from typing import List, Optional
@@ -21,6 +22,8 @@ from backend.database.seed_careers import list_careers
 
 
 router = APIRouter()
+
+_HOME_CACHE = {}  # per-user-per-day cache for home suggestions; resets on restart/deploy
 
 
 def _with_timeout(fn, timeout, default=None):
@@ -555,6 +558,9 @@ class HomeSuggReq(BaseModel):
 def home_suggestions(req: HomeSuggReq):
     """AI-generated, personalized suggestion 'slots' for the home screen,
     derived from the user's real profile, marks and goals."""
+    cache_key = (req.user_id or "demo") + "|" + datetime.date.today().isoformat()
+    if cache_key in _HOME_CACHE:
+        return {"slots": _HOME_CACHE[cache_key]}
     try:
         user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
     except Exception:
@@ -614,6 +620,8 @@ def home_suggestions(req: HomeSuggReq):
         )
     if not clean:
         clean = _default_slots()
+    else:
+        _HOME_CACHE[cache_key] = clean
     return {"slots": clean}
 
 

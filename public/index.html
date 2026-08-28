@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=22">
+  <link rel="stylesheet" href="styles.css?v=23">
 </head>
 <body>
 
@@ -194,6 +194,17 @@
 
       <div class="results-bar">
         <span id="college-count" class="college-count">Loading…</span>
+      </div>
+
+      <div class="course-banner" id="course-banner" style="display:none">
+        <div class="cb-info">
+          <span class="cb-ic">🎓</span>
+          <div>
+            <div class="cb-title" id="cb-title"></div>
+            <div class="cb-sub" id="cb-sub"></div>
+          </div>
+        </div>
+        <button class="cb-clear" id="cb-clear" title="Clear filter">✕ Clear</button>
       </div>
 
       <div id="college-list"></div>
@@ -400,7 +411,7 @@
   <div class="modal" id="career-quiz-modal">
     <div class="modal-card career-quiz">
       <button class="modal-x" data-close>&times;</button>
-      <h3 class="modal-title">Find your career path</h3>
+      <h3 class="modal-title">🎯 Find your career path</h3>
       <p class="cq-sub">Answer a few quick questions and Veda will suggest the best-fit career for you.</p>
 
       <div class="cq-step">
@@ -1321,7 +1332,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=22"></script>
+  <script type="module" src="src/app.js?v=23"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

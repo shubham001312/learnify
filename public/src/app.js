@@ -1,17 +1,17 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=22';
-import { applyLanguage } from './i18n.js?v=22';
-import { initNotifications, addNotification } from './notifications.js?v=22';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=23';
+import { applyLanguage } from './i18n.js?v=23';
+import { initNotifications, addNotification } from './notifications.js?v=23';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=22';
-import { initVeda } from './veda.js?v=22';
-import { initCareer } from './career.js?v=22';
-import { initCareers } from './careers.js?v=22';
-import { initProfile } from './profile.js?v=22';
-import { initPremium } from './premium.js?v=22';
-import { api, el, toast, esc } from './utils.js?v=22';
-import { playClick } from './sound.js?v=22';
-import { initStudyTools } from './tools.js?v=22';
+import { initAuth, openLogin } from './auth.js?v=23';
+import { initVeda } from './veda.js?v=23';
+import { initCareer } from './career.js?v=23';
+import { initCareers } from './careers.js?v=23';
+import { initProfile } from './profile.js?v=23';
+import { initPremium } from './premium.js?v=23';
+import { api, el, toast, esc } from './utils.js?v=23';
+import { playClick } from './sound.js?v=23';
+import { initStudyTools } from './tools.js?v=23';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -58,39 +58,62 @@ window.renderHero = renderHero;
 function loadHomeSuggestions() {
   const box = el('home-slots');
   if (!box) return;
-  if (box.dataset.loaded === '1') return; // cache within session
+  if (box.dataset.loaded === '1') return; // session guard
   const user = (typeof getUser === 'function' && getUser()) || {};
+  const uid = user.id || 'demo';
+  const day = new Date().toISOString().slice(0, 10);
+  // App version is embedded in the module URL (?v=NN) and bumps on every deploy,
+  // so a new deployment automatically invalidates the cached suggestions.
+  const src = (document.querySelector('script[type="module"][src*="src/app.js"]') || {}).src || '';
+  const m = src.match(/v=(\d+)/);
+  const version = m ? m[1] : '0';
+  const cacheKey = 'learnify_home_' + uid + '_' + day + '_v' + version;
+
+  function render(slots) {
+    if (!slots || !slots.length) { box.innerHTML = '<div class="slot-skeleton">No suggestions right now.</div>'; return; }
+    box.dataset.loaded = '1';
+    box.innerHTML = slots.map((s) => {
+      const go = s.cta_go || 'veda';
+      const arg = (s.cta_arg || '').replace(/"/g, '');
+      return '<button class="slot" data-go="' + esc(go) + '"' + (arg ? ' data-arg="' + esc(arg) + '"' : '') + '">' +
+        '<div class="slot-ic">' + (s.icon || '✨') + '</div>' +
+        '<div class="slot-body"><div class="slot-title">' + esc(s.title || '') + '</div>' +
+        '<div class="slot-text">' + esc(s.text || '') + '</div>' +
+        '<div class="slot-cta">' + esc(s.cta_label || 'Explore') + ' →</div></div></button>';
+    }).join('');
+    box.querySelectorAll('.slot').forEach((b) => {
+      b.addEventListener('click', () => {
+        const go = b.dataset.go;
+        const arg = b.dataset.arg;
+        if (go === 'career' && arg) openCareer(arg);
+        else if (go === 'college') setView('college', true);
+        else if (go === 'career') setView('career', true);
+        else if (go === 'scholarships') setView('scholarships', true);
+        else if (go === 'planner') setView('planner', true);
+        else if (go === 'quiz') setView('quiz', true);
+        else if (window.askVeda) window.askVeda(arg || '');
+        else setView('veda', true);
+      });
+    });
+  }
+
+  // Serve from a per-user daily cache (auto-invalidates when a new version deploys)
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) { render(JSON.parse(cached)); return; }
+  } catch (_) {}
+
   box.innerHTML = '<div class="slot-skeleton">Veda is preparing your personalized suggestions…</div>';
-  api('/veda/home-suggestions', { method: 'POST', body: JSON.stringify({ user_id: user.id || 'demo', language: getLang() || 'English' }) })
+  api('/veda/home-suggestions', { method: 'POST', body: JSON.stringify({ user_id: uid, language: getLang() || 'English' }) })
     .then((d) => {
       const slots = (d && d.slots) || [];
-      if (!slots.length) { box.innerHTML = '<div class="slot-skeleton">No suggestions right now.</div>'; return; }
-      box.dataset.loaded = '1';
-      box.innerHTML = slots.map((s) => {
-        const go = s.cta_go || 'veda';
-        const arg = (s.cta_arg || '').replace(/"/g, '');
-        return '<button class="slot" data-go="' + esc(go) + '"' + (arg ? ' data-arg="' + esc(arg) + '"' : '') + '">' +
-          '<div class="slot-ic">' + (s.icon || '✨') + '</div>' +
-          '<div class="slot-body"><div class="slot-title">' + esc(s.title || '') + '</div>' +
-          '<div class="slot-text">' + esc(s.text || '') + '</div>' +
-          '<div class="slot-cta">' + esc(s.cta_label || 'Explore') + ' →</div></div></button>';
-      }).join('');
-      box.querySelectorAll('.slot').forEach((b) => {
-        b.addEventListener('click', () => {
-          const go = b.dataset.go;
-          const arg = b.dataset.arg;
-          if (go === 'career' && arg) openCareer(arg);
-          else if (go === 'college') setView('college', true);
-          else if (go === 'career') setView('career', true);
-          else if (go === 'scholarships') setView('scholarships', true);
-          else if (go === 'planner') setView('planner', true);
-          else if (go === 'quiz') setView('quiz', true);
-          else if (window.askVeda) window.askVeda(arg || '');
-          else setView('veda', true);
-        });
-      });
+      try { localStorage.setItem(cacheKey, JSON.stringify(slots)); } catch (_) {}
+      render(slots);
     })
-    .catch(() => { box.innerHTML = '<div class="slot-skeleton">Could not load suggestions. Try again later.</div>'; });
+    .catch(() => {
+      try { const stale = localStorage.getItem(cacheKey); if (stale) { render(JSON.parse(stale)); return; } } catch (_) {}
+      box.innerHTML = '<div class="slot-skeleton">Could not load suggestions. Try again later.</div>';
+    });
 }
 
 function openPage(name) {
