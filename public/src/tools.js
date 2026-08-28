@@ -44,7 +44,7 @@ function runSmartMatch() {
       q.value = (loc ? loc + ' ' : '') + 'scholarships for Indian students 2026';
       go.click();
       const meta = el('sch-live-meta');
-      if (meta) meta.textContent = 'Smart Match · live web search';
+      if (meta) meta.textContent = 'Smart Match · scholarship database';
     }
   }, 350);
 }

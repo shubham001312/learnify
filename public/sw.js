@@ -1,5 +1,5 @@
-const CACHE = "learnify-v8";
-const PRECACHE = ["/", "/index.html", "/styles.css?v=10", "/src/app.js?v=10", "/manifest.webmanifest"];
+const CACHE = "learnify-v9";
+const PRECACHE = ["/", "/index.html", "/styles.css?v=11", "/src/app.js?v=11", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
