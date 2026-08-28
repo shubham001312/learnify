@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
 
@@ -202,6 +202,7 @@
           </div>
           <span class="pro-pill" id="profile-badge" style="display:none">⚡ Pro</span>
           <button class="edit-pen" id="profile-edit-pen" title="Edit profile">✎</button>
+          <div class="member-info" id="member-info"></div>
         </div>
 
         <div class="stats">
@@ -223,7 +224,11 @@
         <div class="docs">
           <div class="docs-head"><span data-i18n="my_documents_h">My Documents</span> <span id="doc-count" class="end">0/3</span></div>
           <form id="doc-form" class="doc-form">
-            <input type="file" id="doc-file" accept=".pdf,.png,.jpg,.jpeg" required>
+            <label class="file-label" for="doc-file">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+              <span id="doc-file-label-text">Choose marksheet (PDF / Image)</span>
+            </label>
+            <input type="file" id="doc-file" accept=".pdf,.png,.jpg,.jpeg" required hidden>
             <button type="submit" class="btn primary sm">Upload</button>
           </form>
           <div id="doc-status" class="doc-status"></div>
@@ -348,6 +353,16 @@
             <option value="Bengali">Bengali</option>
             <option value="Tamil">Tamil</option>
           </select>
+        </div>
+        <div class="field" id="auth-extra-fields" style="display:none">
+          <label>School</label>
+          <input type="text" id="auth-school" placeholder="School name">
+          <label>Board</label>
+          <input type="text" id="auth-board" placeholder="CBSE / ICSE / State">
+          <label>College</label>
+          <input type="text" id="auth-college" placeholder="College (if any)">
+          <label>Date of birth</label>
+          <input type="date" id="auth-dob">
         </div>
         <button type="submit" class="btn primary block" id="auth-submit">Login</button>
         <div class="auth-err" id="auth-err"></div>
@@ -678,7 +693,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=5"></script>
+  <script type="module" src="src/app.js?v=6"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

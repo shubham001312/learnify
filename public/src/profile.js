@@ -91,6 +91,12 @@ export function initProfile() {
     });
   }
 
+  const fileInput = el('doc-file');
+  if (fileInput) fileInput.addEventListener('change', () => {
+    const lbl = el('doc-file-label-text');
+    if (lbl) lbl.textContent = fileInput.files.length ? fileInput.files[0].name : 'Choose marksheet (PDF / Image)';
+  });
+
   // edit profile
   const openEdit = () => {
     const u = getUser() || {};
@@ -226,6 +232,16 @@ function applyUser(u) {
   if (el('home-name')) el('home-name').textContent = name;
   if (el('profile-badge')) el('profile-badge').style.display = u.premium ? '' : 'none';
   if (el('sub-label')) el('sub-label').textContent = u.premium ? 'Pro ⚡' : 'Free';
+  const mi = el('member-info');
+  if (mi) {
+    if (u.premium && u.premium_until) {
+      mi.innerHTML = '⚡ Pro member until <b>' + fmtDate(u.premium_until) + '</b>';
+    } else if (u.created_at) {
+      mi.innerHTML = 'Member since <b>' + fmtDate(u.created_at) + '</b>';
+    } else {
+      mi.innerHTML = 'Free member';
+    }
+  }
   syncLangUI();
 }
 
@@ -355,4 +371,13 @@ function computeCgpa() {
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  try {
+    const d = new Date(String(s).slice(0, 19).replace(' ', 'T') + 'Z');
+    if (isNaN(d)) return String(s).slice(0, 10);
+    return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (_) { return String(s).slice(0, 10); }
 }

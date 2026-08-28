@@ -129,6 +129,7 @@ def _profile_from_row(row: dict, email_fallback="", name_fallback=""):
         "college": row.get("college") or "",
         "dob": dob or "",
         "age": _age_from_dob(dob),
+        "created_at": row.get("created_at") or "",
     }
 
 

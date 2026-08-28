@@ -45,6 +45,7 @@ function setMode(m) {
   document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.auth === m));
   el('auth-name-field').style.display = m === 'register' ? '' : 'none';
   el('auth-lang-field').style.display = m === 'register' ? '' : 'none';
+  el('auth-extra-fields').style.display = m === 'register' ? '' : 'none';
   el('auth-submit').textContent = m === 'register' ? 'Create Account' : 'Login';
   el('auth-err').textContent = '';
 }
@@ -53,6 +54,10 @@ function submit() {
   const email = el('auth-email').value.trim();
   const pass = el('auth-pass').value;
   if (!email || !pass) { el('auth-err').textContent = 'Email and password are required.'; return; }
+  if (mode === 'register' && pass.length < 10) {
+    el('auth-err').textContent = 'Password must be at least 10 characters.';
+    return;
+  }
   const btn = el('auth-submit');
   btn.disabled = true;
 
@@ -62,7 +67,11 @@ function submit() {
     const payload = {
       email, password: pass,
       name: el('auth-name').value.trim() || email.split('@')[0],
-      language: el('auth-lang').value
+      language: el('auth-lang').value,
+      school: el('auth-school').value.trim(),
+      board: el('auth-board').value.trim(),
+      college: el('auth-college').value.trim(),
+      dob: el('auth-dob').value || ''
     };
     register(payload).then((d) => {
       if (d && d.session) {
