@@ -786,6 +786,18 @@ function openCollegeModal(c) {
   const loc = [c.address, c.district, c.city || c.location, c.state, c.pin_code]
     .filter(Boolean).join(', ');
 
+  let mapHtml = '';
+  if (c.lat != null && c.lng != null) {
+    const lat = Number(c.lat), lng = Number(c.lng), b = 0.02;
+    mapHtml =
+      '<div class="dm-map"><iframe loading="lazy" title="Campus map" src="https://www.openstreetmap.org/export/embed.html?bbox=' +
+      (lng - b) + '%2C' + (lat - b) + '%2C' + (lng + b) + '%2C' + (lat + b) +
+      '&layer=mapnik&marker=' + lat + '%2C' + lng + '"></iframe>' +
+      '<a class="dm-link" href="https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=15/' + lat + '/' + lng + '" target="_blank" rel="noopener">📍 Open in Maps ↗</a></div>';
+  } else if (c.map_link) {
+    mapHtml = '<a class="dm-link" href="' + esc(c.map_link) + '" target="_blank" rel="noopener">📍 View on map ↗</a>';
+  }
+
   const stats = [];
   if (c.nirf_rank != null) stats.push('<div class="dm-stat"><small>NIRF ' + esc(c.nirf_year || '2024') + '</small><b>#' + esc(c.nirf_rank) + '</b></div>');
   if (c.avg_package != null) stats.push('<div class="dm-stat"><small>Avg Package</small><b style="color:var(--green)">₹' + esc(c.avg_package) + ' LPA</b></div>');
@@ -808,7 +820,8 @@ function openCollegeModal(c) {
     '</div>' +
     (stats.length ? '<div class="dm-stats">' + stats.join('') + '</div>' : '') +
     (loc ? '<div class="dm-sec"><h4>📍 Location</h4><p>' + esc(loc) + '</p>' +
-        (c.website ? '<a class="dm-link" href="https://' + esc(c.website) + '" target="_blank" rel="noopener">🌐 Official website ↗</a>' : '') + '</div>' : '') +
+        (c.website ? '<a class="dm-link" href="https://' + esc(c.website) + '" target="_blank" rel="noopener">🌐 Official website ↗</a>' : '') +
+        (mapHtml ? mapHtml : '') + '</div>' : '') +
     ((c.affiliation || c.founded) ? '<div class="dm-sec"><h4>🏛 Affiliation & Founding</h4><p>' +
         (c.affiliation ? esc(c.affiliation) : '') +
         (c.affiliation && c.founded ? ' · ' : '') +
@@ -834,9 +847,14 @@ function openCollegeModal(c) {
           '<button type="submit" class="btn primary sm" id="rv-submit">Submit review</button>' +
         '</form>' +
     '</div>' +
-    '<button class="btn primary block" id="dm-ask">💬 Ask Veda about this college</button>';
+    '<button class="btn primary block" id="dm-ask">💬 Ask Veda about this college</button>' +
+    '<button class="btn ghost block" id="dm-compare">' + (compareList.some((x) => x.id === c.id) ? '✓ Added to compare' : '➕ Add to compare') + '</button>';
 
   openModalCard(html);
+  renderCompareBar();
+
+  const cmp = el('dm-compare');
+  if (cmp) cmp.addEventListener('click', () => toggleCompare(c));
 
   const ask = el('dm-ask');
   if (ask) ask.addEventListener('click', () => {
@@ -913,6 +931,65 @@ function openScholarshipModal(s) {
 
 window.openCollegeModal = openCollegeModal;
 window.openScholarshipModal = openScholarshipModal;
+
+// ---- College compare ----
+let compareList = [];
+try { compareList = JSON.parse(localStorage.getItem('learnify_compare') || '[]'); } catch (_) {}
+function saveCompare() { try { localStorage.setItem('learnify_compare', JSON.stringify(compareList)); } catch (_) {} }
+function renderCompareBar() {
+  let bar = el('compare-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'compare-bar';
+    bar.className = 'compare-bar';
+    document.body.appendChild(bar);
+  }
+  if (!compareList.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML =
+    '<span class="cb-title">Compare (' + compareList.length + '/3)</span>' +
+    '<div class="cb-chips">' + compareList.map((c, i) => '<span class="cb-chip">' + esc(c.name) + ' <b data-rm="' + i + '">&times;</b></span>').join('') + '</div>' +
+    '<button class="btn primary sm" id="cb-open">Compare</button>' +
+    '<button class="cb-clear" id="cb-clear">Clear</button>';
+  bar.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    compareList.splice(Number(b.dataset.rm), 1); saveCompare(); renderCompareBar();
+  }));
+  const open = el('cb-open'); if (open) open.addEventListener('click', openCompareModal);
+  const clr = el('cb-clear'); if (clr) clr.addEventListener('click', () => { compareList = []; saveCompare(); renderCompareBar(); });
+}
+function toggleCompare(c) {
+  const i = compareList.findIndex((x) => x.id === c.id);
+  if (i >= 0) { compareList.splice(i, 1); toast('Removed from compare', 'info'); }
+  else {
+    if (compareList.length >= 3) { toast('You can compare up to 3 colleges.', 'info'); return; }
+    compareList.push({ id: c.id, name: c.name, type: c.type, nirf_rank: c.nirf_rank, avg_package: c.avg_package, highest_package: c.highest_package, city: c.city, state: c.state, rating: c.rating, streams: c.streams });
+    toast('Added to compare', 'ok');
+  }
+  saveCompare(); renderCompareBar();
+  const btn = el('dm-compare'); if (btn) btn.textContent = compareList.some((x) => x.id === c.id) ? '✓ Added to compare' : '➕ Add to compare';
+}
+function openCompareModal() {
+  if (!compareList.length) { toast('Add colleges to compare first.', 'info'); return; }
+  const rows = [
+    ['Type', (c) => ((c.type || '').toString().replace(/^\w/, (m) => m.toUpperCase()) || '—')],
+    ['NIRF Rank', (c) => (c.nirf_rank != null ? '#' + c.nirf_rank : '—')],
+    ['Avg Package', (c) => (c.avg_package != null ? '₹' + c.avg_package + ' LPA' : '—')],
+    ['Highest Package', (c) => (c.highest_package != null ? '₹' + c.highest_package + ' LPA' : '—')],
+    ['Location', (c) => ([c.city, c.state].filter(Boolean).join(', ') || '—')],
+    ['Rating', (c) => (c.rating != null ? c.rating + ' ★' : '—')],
+    ['Streams', (c) => ((c.streams || []).join(', ') || '—')],
+  ];
+  const head = '<tr><th></th>' + compareList.map((c) => '<th>' + esc(c.name) + '</th>').join('') + '</tr>';
+  const body = rows.map(([label, fn]) => '<tr><td class="cmp-label">' + label + '</td>' + compareList.map((c) => '<td>' + esc(fn(c)) + '</td>').join('') + '</tr>').join('');
+  const html =
+    '<h3 class="modal-title">⚖️ Compare Colleges</h3>' +
+    '<div class="cmp-wrap"><table class="cmp-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
+    '<button class="btn ghost block" data-close>Close</button>';
+  openModalCard(html);
+}
+window.openCompareModal = openCompareModal;
+renderCompareBar();
 
 onReady(() => {
   initSystem();
