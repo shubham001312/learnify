@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.services.ai import stream_chat as ai_stream
+from backend.services import ai as _ai
 from backend.services.rag import retrieve as rag_retrieve
 
 from backend.database.client import db_available, get_client
@@ -33,7 +34,19 @@ def _local_reply(text: str) -> str:
     """Rule-based fallback so Veda always returns something useful, even if the
     AI provider is down or slow. Returns plain friendly text (no markdown)."""
     t = (text or "").lower()
-    if any(g in t for g in ("hi", "hello", "hey", "namaste", "नमस्ते", "how are you", "good morning", "good evening")):
+    if any(
+        g in t
+        for g in (
+            "hi",
+            "hello",
+            "hey",
+            "namaste",
+            "नमस्ते",
+            "how are you",
+            "good morning",
+            "good evening",
+        )
+    ):
         return (
             "Hey! I'm Veda, your study companion. Tell me what you're working on "
             "today — a subject, an exam, or a career question — and I'll help you out. ✨"
@@ -51,13 +64,38 @@ def _local_reply(text: str) -> str:
             "Colleges tab — filter by NIRF rank, stream and state, and compare them "
             "side by side. Tell me your stream or exam and I can suggest a few!"
         )
-    if any(e in t for e in ("jee", "neet", "upsc", "ca ", "cat ", "gate", "boards", "exam", "परीक्षा")):
+    if any(
+        e in t
+        for e in (
+            "jee",
+            "neet",
+            "upsc",
+            "ca ",
+            "cat ",
+            "gate",
+            "boards",
+            "exam",
+            "परीक्षा",
+        )
+    ):
         return (
             "For exam prep, a simple plan works best: break the syllabus into weekly "
             "targets, revise with active recall, and solve previous years' papers. "
             "Tell me which exam and your timeline — I'll help you build a study plan."
         )
-    if any(s in t for s in ("study", "tips", "motivat", "stress", "anxious", "sad", "tired", "पढ़ाई")):
+    if any(
+        s in t
+        for s in (
+            "study",
+            "tips",
+            "motivat",
+            "stress",
+            "anxious",
+            "sad",
+            "tired",
+            "पढ़ाई",
+        )
+    ):
         return (
             "You've got this! Small consistent steps beat cramming. Take a 5-minute "
             "break, hydrate, and tackle one topic at a time. I'm here if you want a "
@@ -427,3 +465,43 @@ def delete_chat(chat_id: str):
         except Exception:
             pass
     return {"ok": True}
+
+
+@router.get("/diag")
+def diag():
+    """Temporary diagnostic: report Groq connectivity/errors without exposing the key."""
+    import os
+    import requests as _req
+
+    key = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_KEY")
+    out = {
+        "has_key": bool(key),
+        "key_len": len(key or ""),
+        "groq_url": _ai.GROQ_URL,
+        "models": _ai.CHAT_MODELS,
+    }
+    if not key:
+        out["error"] = "GROQ_API_KEY not configured"
+        return out
+    errs = []
+    for mdl in _ai.CHAT_MODELS[:3]:
+        try:
+            r = _req.post(
+                _ai.GROQ_URL,
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": mdl,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "temperature": 0.5,
+                },
+                timeout=15,
+            )
+            out[f"status_{mdl}"] = r.status_code
+            out[f"body_{mdl}"] = r.text[:300]
+        except Exception as e:
+            errs.append(f"{mdl}: {type(e).__name__}: {e}")
+    out["errors"] = errs
+    return out
