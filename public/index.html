@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=45">
+  <link rel="stylesheet" href="styles.css?v=46">
 </head>
 <body>
 
@@ -32,20 +32,6 @@
     <div class="top-search" id="top-search-wrap">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
       <input type="text" id="global-search" placeholder="Search colleges, careers, companies…" autocomplete="off">
-    </div>
-    <div class="search-overlay" id="search-overlay" aria-hidden="true">
-      <div class="so-head">
-        <div class="so-search">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" id="search-input" placeholder="Search colleges, careers, companies…" autocomplete="off">
-          <button class="so-clear" id="search-clear" aria-label="Clear">&times;</button>
-        </div>
-        <button class="so-close" id="search-overlay-close">Cancel</button>
-      </div>
-      <div class="so-body">
-        <div id="search-suggestions" class="so-suggest"></div>
-        <div id="search-results" class="so-results" style="display:none"></div>
-      </div>
     </div>
       <div class="top-right">
         <button class="icon-btn" title="Notifications">
@@ -62,6 +48,21 @@
         <div class="notif-list" id="notif-list"></div>
       </div>
   </header>
+
+  <div class="search-overlay" id="search-overlay" aria-hidden="true">
+    <div class="so-head">
+      <div class="so-search">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Search colleges, careers, companies…" autocomplete="off">
+        <button class="so-clear" id="search-clear" aria-label="Clear">&times;</button>
+      </div>
+      <button class="so-close" id="search-overlay-close">Cancel</button>
+    </div>
+    <div class="so-body">
+      <div id="search-suggestions" class="so-suggest"></div>
+      <div id="search-results" class="so-results" style="display:none"></div>
+    </div>
+  </div>
 
   <!-- STAGE -->
   <main class="stage">
@@ -1376,8 +1377,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=45"></script>
-  <script type="module" src="src/app.js?v=45"></script>
+  <script src="vendor/jspdf.umd.min.js?v=46"></script>
+  <script type="module" src="src/app.js?v=46"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
