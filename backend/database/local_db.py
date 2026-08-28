@@ -135,7 +135,11 @@ def list_cities(state=None):
         cur.execute(
             "SELECT DISTINCT city FROM colleges WHERE city IS NOT NULL ORDER BY city"
         )
-    cities = [r["city"] for r in cur.fetchall()]
+    cities = [
+        r["city"]
+        for r in cur.fetchall()
+        if r["city"] and len(r["city"]) >= 2 and not r["city"].isdigit()
+    ]
     conn.close()
     return cities
 

@@ -1,4 +1,4 @@
-import { api, el, qs, esc } from './utils.js?v=16';
+import { api, el, qs, esc } from './utils.js?v=17';
 
 let scholarships = [];
 
@@ -45,8 +45,8 @@ export function initCareer() {
     const dSel = el('f-district');
     if (!dSel) return;
     const url = state
-      ? '/api/colleges/cities?state=' + encodeURIComponent(state)
-      : '/api/colleges/cities';
+      ? '/colleges/cities?state=' + encodeURIComponent(state)
+      : '/colleges/cities';
     try {
       const d = await api(url);
       const cities = (d && d.cities) || [];

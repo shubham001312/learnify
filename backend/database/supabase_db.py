@@ -106,7 +106,9 @@ def list_cities(state=None):
     if state:
         qb = qb.eq("state", state)
     res = qb.execute()
-    return sorted({r["city"] for r in (res.data or []) if r.get("city")})
+    cities = {r["city"] for r in (res.data or []) if r.get("city")}
+    clean = [c for c in cities if len(c) >= 2 and not c.isdigit()]
+    return sorted(clean)
 
 
 def get_reviews(college_id):
