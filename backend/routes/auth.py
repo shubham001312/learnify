@@ -322,25 +322,8 @@ def _our_uid(
 
 def resolve_uid(authorization: Optional[str]):
     """Return the app-level unique id (7 chars) for the bearer of `authorization`."""
-    token = _token(authorization)
-    if not token:
-        return None
-    if db_available():
-        try:
-            client = _require_client()
-            user_resp = client.auth.get_user(token)
-            user = getattr(user_resp, "user", None)
-            if user:
-                return _our_uid(
-                    client,
-                    getattr(user, "email", ""),
-                    getattr(user, "user_metadata", {}).get("name", ""),
-                )
-        except Exception:
-            return None
-        return None
-    u = local_auth.get_user_by_token(token)
-    return u.get("id") if u else None
+    cu = _current_app_user(authorization)
+    return cu["uid"] if cu else None
 
 
 @router.post("/register")

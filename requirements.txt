@@ -5,3 +5,5 @@ requests
 pyyaml
 razorpay
 python-multipart
+pypdf
+Pillow

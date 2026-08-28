@@ -20,7 +20,7 @@ except Exception:
 from backend.database.client import db_available, get_client
 from backend.services.detector import detect_synthetic
 from backend.services.rag import ingest as rag_ingest
-from backend.services.ai import vision_extract
+from backend.services.ai import vision_extract, extract_marksheet
 from backend.routes.auth import resolve_uid
 
 router = APIRouter()
@@ -252,9 +252,9 @@ if _MULTIPART_OK:
                 except Exception:
                     acad = {}
             elif ftype == "pdf":
-                acad = _extract_academic(text)
+                acad = extract_marksheet(text) or _extract_academic(text)
             elif ftype == "text":
-                acad = _extract_academic(text)
+                acad = extract_marksheet(text) or _extract_academic(text)
 
             rag_ingest((text or filename), uid, "document")
 
@@ -361,20 +361,24 @@ def update_academic(
 
 
 @router.get("")
-def list_documents(user_id: Optional[str] = None):
-    if db_available():
-        try:
-            client = get_client()
-            query = client.table("documents").select(
+def list_documents(authorization: Optional[str] = None):
+    uid = resolve_uid(authorization)
+    if not uid or not db_available():
+        return {"documents": []}
+    try:
+        client = get_client()
+        result = (
+            client.table("documents")
+            .select(
                 "id, filename, file_type, file_data, is_synthetic, extracted, created_at"
             )
-            if user_id:
-                query = query.eq("user_id", user_id)
-            result = query.execute()
-            return {"documents": result.data or []}
-        except Exception:
-            pass
-    return {"documents": UPLOADS}
+            .eq("user_id", uid)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return {"documents": result.data or []}
+    except Exception:
+        return {"documents": []}
 
 
 @router.get("/academic")

@@ -10,7 +10,7 @@ _anon_client = None
 
 def db_available() -> bool:
     return bool(os.environ.get("SUPABASE_URL")) and bool(
-        os.environ.get("SUPABASE_SERVICE_KEY")
+        os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
     )
 
 
@@ -31,7 +31,13 @@ def _make(url: str, key: str):
 def get_client():
     global _client
     if _client is None:
-        _client = _make(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get(
+            "SUPABASE_ANON_KEY"
+        )
+        if not url or not key:
+            return None
+        _client = _make(url, key)
     return _client
 
 

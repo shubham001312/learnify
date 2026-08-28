@@ -160,6 +160,35 @@ def analyze(text: str, model: str = ANALYZE_MODEL) -> dict:
     }
 
 
+def extract_marksheet(text: str) -> dict:
+    """Parse a mark sheet / result text into a structured academic record via Groq.
+
+    Returns {exam, board, year, marks:{subject:score}, total, percentage} or {}.
+    """
+    if not GROQ_API_KEY or not text or not text.strip():
+        return {}
+    prompt = (
+        "You are an academic data extractor for Indian student mark sheets and result "
+        "pages. Extract a JSON object with only these fields: "
+        '{"exam":"10th|12th|Diploma|Graduation|Other",'
+        '"board":"CBSE|ICSE|ISC|State Board|Other",'
+        '"year":YYYY,"marks":{"Subject":score_number},'
+        '"total":number,"percentage":number}. '
+        "Include every subject and its numeric score found. Compute total as the sum of "
+        "marks and percentage as (total / (number_of_subjects * 100)) * 100, rounded to 2 "
+        "decimals. If a field is genuinely absent, use null. Output ONLY the JSON object, "
+        "no markdown fences."
+    )
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": text[:6000]},
+    ]
+    try:
+        return _call_json("openai/gpt-oss-120b", messages, 0.1) or {}
+    except Exception:
+        return {}
+
+
 def _call_json(model: str, messages: list[dict], temperature: float = 0.2) -> dict:
     """Call Groq in JSON mode and parse the returned object."""
     if not GROQ_API_KEY:
