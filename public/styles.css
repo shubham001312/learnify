@@ -3,10 +3,13 @@
     :root {
       --bg:        #ffffff;
       --bg-soft:   #f6f7f9;
+      --bg-2:      #f6f7f9;
       --surface:   #ffffff;
       --surface-2: #f1f3f6;
+      --card:      #ffffff;
       --border:    rgba(15,23,42,0.08);
       --border-2:  rgba(15,23,42,0.12);
+      --border-strong: rgba(15,23,42,0.18);
 
       --gold:      #e0a526;
       --gold-soft: #f2c14e;
@@ -15,10 +18,14 @@
       --teal-soft: #5eead4;
       --green:     #16a34a;
       --red:       #ef4444;
+      --violet:    #8b5cf6;
 
       --text:      #0f172a;
+      --fg:        #0f172a;
       --muted:     #64748b;
       --sub:       #94a3b8;
+      --accent:    #0ea5a4;
+      --chip-bg:   #f1f3f6;
 
       --font-head: 'Plus Jakarta Sans', sans-serif;
       --font-body: 'Inter', sans-serif;
@@ -29,6 +36,7 @@
       --r-xl: 28px;
       --pill: 999px;
 
+      --shadow:    0 2px 8px rgba(15,23,42,0.06);
       --shadow-sm: 0 1px 2px rgba(15,23,42,0.04);
       --shadow-md: 0 6px 20px rgba(15,23,42,0.06);
       --shadow-lg: 0 14px 40px rgba(15,23,42,0.12);
@@ -104,7 +112,10 @@
     }
     textarea { resize: vertical; line-height: 1.5; }
 
-    ::-webkit-scrollbar { width: 0; height: 0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.22); }
     ::selection { background: rgba(224,165,38,0.22); }
 
     /* ───────── TOP BAR ───────── */
@@ -483,7 +494,7 @@
       .brand-name { font-size: 18px; }
       .top-search {
         order: 2; flex: 1 1 auto; max-width: 200px; margin: 0; height: 40px;
-        padding: 0 14px; border-left: 1px solid var(--border); border-radius: var(--pill);
+        padding: 0 14px; border-radius: var(--pill);
       }
       .top-right { order: 3; margin-left: auto; gap: 8px; }
       .icon-btn, .avatar { width: 36px; height: 36px; }
@@ -513,7 +524,7 @@
 }
 .modal.open { display: flex; animation: fade .18s ease; }
   .modal-card {
-    background: var(--surface); width: min(440px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: var(--surface); max-width: min(440px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch;
     border-radius: var(--r-lg); padding: 22px; position: relative;
     box-shadow: var(--shadow-lg); border: 1px solid var(--border);
   }
@@ -643,14 +654,14 @@ textarea { resize: vertical; }
 
 /* ===== DOC PREVIEW MODAL ===== */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(8, 12, 22, .62); backdrop-filter: blur(3px);
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75);
   display: none; align-items: center; justify-content: center; z-index: 500; padding: 18px;
 }
-.modal-overlay.show { display: flex; }
-.modal-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--card);
-  width: min(720px, 100%); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+.modal-overlay.show { display: flex; animation: fade .18s ease; }
+.modal-overlay .modal-card {
+  background: #ffffff; border: 1px solid var(--border); border-radius: var(--r-lg);
+  width: min(520px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45); padding: 22px; position: relative;
 }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); font: 700 15px var(--font-head); }
 .modal-close { background: none; border: none; color: var(--sub); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 6px; }
@@ -1086,7 +1097,7 @@ textarea { resize: vertical; }
     }
 
     /* ───────── New: Study Tools, Pro Tools, Sounds ───────── */
-    .modal-card.wide { max-width: 560px; }
+    .modal-card.wide { max-width: min(560px, 100%); }
     .modal-card.center { text-align: center; }
 
     .pro-pill { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: #1a1205; background: linear-gradient(135deg, #f6c453, #e0a526); padding: 2px 8px; border-radius: 999px; vertical-align: middle; margin-left: 6px; }
