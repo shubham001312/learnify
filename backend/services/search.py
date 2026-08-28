@@ -80,6 +80,12 @@ def google_scholarship_search(query, num=10):
             timeout=15,
         )
         data = resp.json()
+        if resp.status_code != 200 or data.get("error"):
+            gerr = data.get("error", {})
+            return [], {
+                "source": "error",
+                "note": "Google CSE: " + str(gerr.get("message", resp.text)[:200]),
+            }
         items = [
             {
                 "title": i.get("title"),
