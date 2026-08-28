@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=31';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=31';
-import { openLogin } from './auth.js?v=31';
+import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=32';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=32';
+import { openLogin } from './auth.js?v=32';
 
 const NOTES_KEY = 'learnify_notes';
 
@@ -23,7 +23,8 @@ function wirePremiumTools() {
       const which = b.dataset.premium;
       if (which === 'quiz') { if (window.setViewNav) window.setViewNav('quiz', true); }
       else if (which === 'roadmap') {
-        if (window.askVeda) window.askVeda('Build a step-by-step, personalised AI upskilling & career roadmap for me as an Indian student, with weekly milestones and free resources.');
+        if (window.startRoadmap) window.startRoadmap();
+        else if (window.askVeda) window.askVeda('Build a step-by-step, personalised AI upskilling & career roadmap for me as an Indian student, with weekly milestones and free resources.');
       } else if (which === 'scholarship') {
         runSmartMatch();
       }

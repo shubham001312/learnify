@@ -380,13 +380,17 @@
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
       padding: 10px 12px; box-shadow: var(--shadow);
     }
-    .suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; max-height: 84px; overflow-y: auto; }
     .suggest button {
       font-size: 12px; font-weight: 600; color: var(--teal);
       background: rgba(14,165,164,0.1); border: 1px solid rgba(14,165,164,0.2);
-      padding: 7px 13px; border-radius: var(--pill); cursor: pointer; transition: background .15s var(--ease);
+      padding: 7px 13px; border-radius: var(--pill); cursor: pointer; transition: background .15s var(--ease); line-height: 1.2;
     }
     .suggest button:hover { background: rgba(14,165,164,0.18); }
+    .suggest button[data-tag="pdf"] {
+      color: var(--gold-deep); background: rgba(224,165,38,0.12); border-color: rgba(224,165,38,0.3);
+    }
+    .suggest button[data-tag="pdf"]:hover { background: rgba(224,165,38,0.2); }
 
     .chat-input {
       display: flex; align-items: center; gap: 10px;

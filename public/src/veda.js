@@ -1,6 +1,8 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=31';
-import { openLogin } from './auth.js?v=31';
-import { playChatDing } from './sound.js?v=31';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=32';
+import { openLogin } from './auth.js?v=32';
+import { playChatDing } from './sound.js?v=32';
+
+const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
 let messages = [];
 let currentChatId = null;
@@ -126,6 +128,7 @@ async function openChat(id) {
     scrollDown();
   } catch (_) {}
   renderChatList();
+  renderSuggestions();
 }
 
 function newChat() {
@@ -135,6 +138,7 @@ function newChat() {
   wrap.innerHTML = greetingHTML;
   scrollDown();
   renderChatList();
+  renderSuggestions();
 }
 
 function syncVedaUser() {
@@ -147,6 +151,140 @@ function syncVedaUser() {
   if (cav) cav.textContent = 'V';
 }
 
+function buildGreeting() {
+  const u = getUser();
+  const name = (u && u.name) ? u.name.trim().split(' ')[0] : '';
+  const hi = name ? ('Hi ' + name + '! I’m ') : 'Hi! I’m ';
+  return '<div class="msg"><div class="msg-av v">V</div><div class="bubble v">' +
+    hi + '<b>Veda</b>, your AI study companion. I can help you with:' +
+    '<ul><li>Finding the right college or stream</li><li>Career guidance & planning</li>' +
+    '<li>Scholarships, loans & admissions</li><li>Study plans, quizzes & notes</li></ul>' +
+    'Ask me anything — or tap a suggestion below.</div></div>';
+}
+
+function lastAssistant() {
+  for (let i = messages.length - 1; i >= 0; i--)
+    if (messages[i].role === 'assistant') return messages[i].content || '';
+  return '';
+}
+
+function buildSuggestions() {
+  const u = getUser();
+  const grade = (u && (u.grade || u.target_exam)) || '';
+  const sugs = [];
+  const last = lastAssistant().toLowerCase();
+  if (messages.length) {
+    if (last.includes('roadmap') || last.includes('step') || last.includes('phase') || last.includes('milestone'))
+      sugs.push({ q: 'Save this roadmap as a PDF', tag: 'pdf' });
+    if (last.includes('scholarship')) sugs.push({ q: 'What is the eligibility for these?' });
+    if (last.includes('college')) sugs.push({ q: 'Compare the top 2 colleges you mentioned' });
+    sugs.push({ q: 'Give me a weekly study plan' });
+    sugs.push({ q: 'Explain this more simply' });
+  }
+  if (grade) {
+    sugs.push({ q: 'Plan my study schedule for ' + grade });
+    sugs.push({ q: 'Best colleges for ' + grade });
+  }
+  if (chatList && chatList.length) {
+    const t = (chatList[0] && chatList[0].title) || '';
+    if (t && t !== 'New chat') sugs.push({ q: 'Continue our chat: ' + t });
+  }
+  if (!sugs.length) {
+    sugs.push({ q: 'Compare top 2 colleges for my profile' });
+    sugs.push({ q: 'What scholarships can I apply for?' });
+    sugs.push({ q: 'Which stream should I pick?' });
+  }
+  const seen = new Set(), out = [];
+  for (const s of sugs) { if (!seen.has(s.q)) { seen.add(s.q); out.push(s); } }
+  return out.slice(0, 4);
+}
+
+function renderSuggestions() {
+  const wrap = document.querySelector('.suggest');
+  if (!wrap) return;
+  const sugs = buildSuggestions();
+  wrap.innerHTML = sugs.map((s) =>
+    '<button data-q="' + esc(s.q) + '"' + (s.tag ? ' data-tag="' + esc(s.tag) + '"' : '') + '>' + esc(s.q) + '</button>'
+  ).join('');
+}
+
+function downloadLastRoadmap() {
+  const text = lastAssistant();
+  if (!text) { toast('No roadmap to save yet. Ask Veda to build one first.', 'info'); return; }
+  const u = getUser();
+  const grade = (u && (u.grade || u.target_exam)) || '';
+  generateRoadmapPDF(text, 'My Learning Roadmap' + (grade ? ' — ' + grade : ''));
+}
+
+function generateRoadmapPDF(markdown, title) {
+  const jspdf = window.jspdf;
+  if (!jspdf) { toast('PDF library not ready. Try again in a moment.', 'info'); return; }
+  const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  const maxW = pageW - margin * 2;
+  let y = margin;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text(title || 'Learning Roadmap', margin, y);
+  y += 28;
+  doc.setDrawColor(224, 165, 38);
+  doc.setLineWidth(2);
+  doc.line(margin, y, pageW - margin, y);
+  y += 22;
+
+  const stripMd = (s) => s
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/[*_`#]/g, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/–/g, '-');
+  const draw = (text, size, style, indent, prefix) => {
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+    const full = (prefix || '') + text;
+    const wrapped = doc.splitTextToSize(full, maxW - indent);
+    for (const w of wrapped) {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(w, margin + indent, y);
+      y += size + 6;
+    }
+  };
+
+  for (const raw of (markdown || '').split('\n')) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) { y += 6; continue; }
+    if (/^###\s/.test(line)) { draw(line.replace(/^###\s/, ''), 13, 'bold', 0); y += 2; continue; }
+    if (/^##\s/.test(line)) { y += 4; draw(line.replace(/^##\s/, ''), 15, 'bold', 0); y += 4; continue; }
+    if (/^#\s/.test(line)) { y += 4; draw(line.replace(/^#\s/, ''), 17, 'bold', 0); y += 4; continue; }
+    const m = line.match(/^(\d+)\.\s/);
+    if (m) { draw(stripMd(line.replace(/^\d+\.\s/, '')), 11, 'normal', 18, m[1] + '. '); continue; }
+    if (/^[-*]\s/.test(line)) { draw(stripMd(line.replace(/^[-*]\s/, '')), 11, 'normal', 14, '•  '); continue; }
+    draw(stripMd(line), 11, 'normal', 0, '');
+  }
+
+  const safe = (title || 'roadmap').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  doc.save((safe || 'roadmap') + '-veda.pdf');
+  toast('✅ Roadmap PDF downloaded', 'success');
+}
+
+async function startRoadmap() {
+  if (!getToken()) { toast('Please log in to build a roadmap.', 'info'); openLogin(); return; }
+  const u = getUser();
+  const grade = (u && (u.grade || u.target_exam)) || '';
+  let prompt = 'Build a detailed, personalised study & career roadmap for me as an Indian student';
+  if (grade) prompt += ' preparing for ' + grade;
+  prompt += ': split it into clear phases (Foundation, Skill-building, Exams & Applications, Placement), ' +
+    'with weekly milestones, free resources, and the exact next 3 actions. Use headings and bullet points.';
+  const input = el('chat-input');
+  if (input) input.value = prompt;
+  const text = await window.sendMessage();
+  if (text) generateRoadmapPDF(text, 'My Learning Roadmap' + (grade ? ' — ' + grade : ''));
+}
+window.startRoadmap = startRoadmap;
+window.downloadLastRoadmap = downloadLastRoadmap;
+
 export function initVeda() {
   const input = el('chat-input');
   const wrap = el('chat-messages');
@@ -155,13 +293,15 @@ export function initVeda() {
   let busy = false;
 
   syncVedaUser();
-  greetingHTML = wrap.innerHTML;
+  greetingHTML = buildGreeting();
+  newChat();
 
-  loadChatList();
+  loadChatList().then(() => renderSuggestions());
   window.addEventListener('learnify:login', () => {
     syncVedaUser();
+    greetingHTML = buildGreeting();
     newChat();
-    loadChatList();
+    loadChatList().then(() => renderSuggestions());
   });
 
   const newBtn = el('veda-new');
@@ -236,12 +376,14 @@ export function initVeda() {
         if (!dinged && text.trim()) { dinged = true; try { playChatDing(); } catch (_) {} }
         scrollDown();
       }
-      messages.push({ role: 'assistant', content: text });
-      if (!premium) incVeda();
-      updateQuota();
-      saveChatLocal();
-      await loadChatList();
-    } catch (err) {
+       messages.push({ role: 'assistant', content: text });
+       if (!premium) incVeda();
+       updateQuota();
+       saveChatLocal();
+       renderSuggestions();
+       await loadChatList();
+       return text;
+     } catch (err) {
       removeTyping();
       appendBubble('v', '⚠ Sorry, ' + (err && err.message ? err.message : 'network error. Please try again.'));
       scrollDown();
@@ -253,11 +395,13 @@ export function initVeda() {
     }
   };
 
-  document.querySelectorAll('.suggest button').forEach((b) => {
-    b.addEventListener('click', () => {
-      input.value = b.dataset.q || b.textContent;
-      window.sendMessage();
-    });
+  const suggestWrap = document.querySelector('.suggest');
+  if (suggestWrap) suggestWrap.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.tag === 'pdf') { downloadLastRoadmap(); return; }
+    input.value = b.dataset.q || b.textContent;
+    window.sendMessage();
   });
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendMessage(); });
 
