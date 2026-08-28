@@ -474,17 +474,37 @@ def diag():
     import requests as _req
 
     key = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_KEY")
-    out = {
-        "has_key": bool(key),
-        "key_len": len(key or ""),
-        "groq_url": _ai.GROQ_URL,
-        "models": _ai.CHAT_MODELS,
-    }
+    out = {"has_key": bool(key), "key_len": len(key or "")}
     if not key:
         out["error"] = "GROQ_API_KEY not configured"
         return out
+    # List models actually available for this key.
+    try:
+        mr = _req.get(
+            _ai.GROQ_URL.replace("/chat/completions", "/models"),
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=15,
+        )
+        out["models_status"] = mr.status_code
+        try:
+            out["available_models"] = [m["id"] for m in mr.json().get("data", [])]
+        except Exception as e:
+            out["models_parse_error"] = str(e)
+    except Exception as e:
+        out["models_error"] = f"{type(e).__name__}: {e}"
+
+    # Probe candidate chat models to find one that works.
+    candidates = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "llama3-8b-8192",
+        "gemma2-9b-it",
+        "llama-3.2-90b-vision-preview",
+        "llama-3.2-11b-vision-preview",
+    ]
     errs = []
-    for mdl in _ai.CHAT_MODELS[:3]:
+    for mdl in candidates:
         try:
             r = _req.post(
                 _ai.GROQ_URL,
@@ -500,7 +520,9 @@ def diag():
                 timeout=15,
             )
             out[f"status_{mdl}"] = r.status_code
-            out[f"body_{mdl}"] = r.text[:300]
+            if r.status_code == 200:
+                out["WORKING_MODEL"] = mdl
+                break
         except Exception as e:
             errs.append(f"{mdl}: {type(e).__name__}: {e}")
     out["errors"] = errs
