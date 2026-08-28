@@ -121,7 +121,9 @@ def _extract_academic(text: str) -> dict:
 
     if re.search(r"\b10th\b|\bclass 10\b|\bsslc\b|\bmatric|\bsecondary\b", lower):
         rec["exam"] = "10th"
-    elif re.search(r"\b12th\b|\bclass 12\b|\binter\b|\bsenior secondary\b", lower):
+    elif re.search(
+        r"\b12th\b|\bclass 12\b|\binter\b|\bsenior secondary\b|\bhsc\b|\b\+2\b", lower
+    ):
         rec["exam"] = "12th"
     elif re.search(r"\bdiploma\b", lower):
         rec["exam"] = "Diploma"
@@ -132,10 +134,10 @@ def _extract_academic(text: str) -> dict:
         rec["board"] = "CBSE"
     elif "icse" in lower or "cisce" in lower:
         rec["board"] = "ICSE"
-    elif "state" in lower:
-        rec["board"] = "State Board"
     elif "isc" in lower:
         rec["board"] = "ISC"
+    elif "state" in lower:
+        rec["board"] = "State Board"
 
     y = re.search(r"(20\d{2})", text)
     if y:
@@ -145,20 +147,30 @@ def _extract_academic(text: str) -> dict:
     for line in text.splitlines():
         ll = line.lower()
         for subj in SUBJECT_WORDS:
-            m = re.search(r"\b" + re.escape(subj) + r"\b[^\d\n]{0,20}?(\d{1,3})\b", ll)
+            m = re.search(r"\b" + re.escape(subj) + r"\b[^\d\n]{0,30}?(\d{1,3})\b", ll)
             if m:
                 val = int(m.group(1))
-                if 0 <= val <= 100 and subj not in marks:
+                if 0 <= val <= 100 and subj.capitalize() not in marks:
                     marks[subj.capitalize()] = val
     if marks:
         rec["marks"] = marks
         rec["total"] = sum(marks.values())
         rec["percentage"] = round(rec["total"] / (len(marks) * 100) * 100, 2)
 
-    pct = re.search(r"percentage[^\d]{0,10}(\d{1,3}(?:\.\d{1,2})?)", lower)
+    pct = re.search(r"percentage[^\d]{0,12}(\d{1,3}(?:\.\d{1,2})?)", lower)
     if pct:
         try:
             rec["percentage"] = float(pct.group(1))
+        except Exception:
+            pass
+    # total / maximum -> percentage
+    tot = re.search(r"(?:total|aggregate)[^\d\n]{0,20}?(\d{2,3})", lower)
+    mx = re.search(r"(?:maximum|max|out of)[^\d\n]{0,20}?(\d{2,3})", lower)
+    if tot and mx and rec.get("percentage") is None:
+        try:
+            t, m = int(tot.group(1)), int(mx.group(1))
+            if m:
+                rec["percentage"] = round(t / m * 100, 2)
         except Exception:
             pass
     return rec
@@ -273,6 +285,7 @@ if _MULTIPART_OK:
                                 "filename": filename,
                                 "file_type": stored_type,
                                 "file_data": file_data,
+                                "doc_id": doc_id,
                                 "is_synthetic": False,
                                 "extracted": acad or {},
                             }
@@ -385,7 +398,7 @@ def list_documents(authorization: Optional[str] = Header(None, alias="Authorizat
         result = (
             client.table("documents")
             .select(
-                "id, filename, file_type, file_data, is_synthetic, extracted, created_at"
+                "id, doc_id, filename, file_type, file_data, is_synthetic, extracted, created_at"
             )
             .eq("user_id", uid)
             .order("created_at", desc=True)
@@ -413,3 +426,52 @@ def list_academic(authorization: Optional[str] = Header(None, alias="Authorizati
         return {"records": res.data or []}
     except Exception:
         return {"records": []}
+
+
+@router.post("/academic")
+def create_academic(
+    req: AcadUpdate,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+):
+    uid = resolve_uid(authorization)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not db_available():
+        raise HTTPException(status_code=503, detail="Storage unavailable")
+    client = get_client()
+    payload = {k: v for k, v in req.dict(exclude_unset=True).items() if v is not None}
+    payload["user_id"] = uid
+    res = client.table("academic_records").insert(payload).execute()
+    return {"ok": True, "record": (res.data or [{}])[0]}
+
+
+@router.delete("/{doc_id}")
+def delete_document(
+    doc_id: str,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+):
+    uid = resolve_uid(authorization)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not db_available():
+        raise HTTPException(status_code=503, detail="Storage unavailable")
+    client = get_client()
+    # find the stored doc_id (custom) so we can also drop linked academic records
+    try:
+        row = (
+            client.table("documents")
+            .select("doc_id")
+            .eq("id", doc_id)
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+        )
+        custom = (row.data and row.data[0].get("doc_id")) if row.data else None
+        if custom:
+            client.table("academic_records").delete().eq("doc_id", custom).execute()
+    except Exception:
+        pass
+    res = (
+        client.table("documents").delete().eq("id", doc_id).eq("user_id", uid).execute()
+    )
+    return {"ok": True, "deleted": (res.data or [])}

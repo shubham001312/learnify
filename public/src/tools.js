@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=24';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=24';
-import { openLogin } from './auth.js?v=24';
+import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=25';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=25';
+import { openLogin } from './auth.js?v=25';
 
 const NOTES_KEY = 'learnify_notes';
 
@@ -201,6 +201,31 @@ function wireNotes() {
     URL.revokeObjectURL(a.href);
     toast('Notes exported', 'ok');
   });
+
+  const aiBtn = el('notes-ai');
+  const aiOut = el('notes-ai-out');
+  const aiMode = el('notes-ai-mode');
+  if (aiBtn) {
+    aiBtn.addEventListener('click', async () => {
+      const src = area.value.trim();
+      if (!src) { toast('Write some notes first.', 'info'); return; }
+      if (!getToken()) { toast('Login to use AI on notes.', 'info'); openLogin(); return; }
+      aiOut.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+      aiBtn.disabled = true; aiBtn.textContent = 'Working…';
+      const mode = aiMode ? aiMode.value : 'improve';
+      const promptMap = {
+        improve: 'Improve and organise the following study notes: fix grammar, structure with headings, keep all facts. Return clean, ready-to-study notes.',
+        expand: 'Expand the following study notes with helpful explanations and simple examples for an Indian student. Use markdown headings.',
+        guide: 'Turn the following notes into a concise study guide with key points, important definitions/formulas, and a quick recap at the end.',
+        explain: 'Explain the following notes simply, as if teaching a complete beginner. Use plain, friendly language.'
+      };
+      try {
+        const reply = await vedaText({ user_id: ((getUser() || {}).email) || 'demo', messages: [{ role: 'user', content: (promptMap[mode] || promptMap.improve) + '\n\n' + src }] });
+        aiOut.innerHTML = '<div class="notes-ai-out-text">' + esc(reply || 'No output.') + '</div>';
+      } catch (e) { aiOut.textContent = '⚠️ ' + e.message; }
+      finally { aiBtn.disabled = false; aiBtn.textContent = '✨ AI Magic'; }
+    });
+  }
 }
 
 function wireSummarizer() {
@@ -219,12 +244,18 @@ function wireSummarizer() {
       len = 'medium'; el('sum-len').value = 'medium';
       toast('Detailed summaries are a Pro feature — using Medium.', 'info');
     }
+    const lenMap = { short: '3-4 short bullet points', medium: '5-6 clear bullet points', detailed: '7-10 detailed bullet points' };
     try {
       const reply = await vedaText({
         user_id: ((getUser() || {}).email) || 'demo',
-        messages: [{ role: 'user', content: `Summarize the following text into ${len} key bullet points for an Indian student. Keep it clear and concise:\n\n` + text }]
+        messages: [{ role: 'user', content: `Summarize the following text for an Indian student.\nFirst line: a one-sentence TL;DR. Then ${lenMap[len] || '5-6 clear bullet points'} (each line starting with "- "). Keep it clear and concise.\n\n` + text }]
       });
-      out.textContent = reply || 'No summary.';
+      const lines = (reply || '').split('\n').map(l => l.trim()).filter(Boolean);
+      let tldr = '', body = [];
+      lines.forEach((l, i) => { if (i === 0) tldr = l.replace(/^[-*•]\s*/, ''); else body.push(l.replace(/^[-*•]\s*/, '')); });
+      out.innerHTML =
+        (tldr ? '<div class="sum-tldr"><span class="sum-tldr-k">TL;DR</span>' + esc(tldr) + '</div>' : '') +
+        (body.length ? '<div class="sum-bullets">' + body.map(b => '<div class="sum-b">' + esc(b) + '</div>').join('') + '</div>' : (tldr ? '' : 'No summary.'));
     } catch (e) {
       out.textContent = '⚠️ ' + e.message;
     } finally {

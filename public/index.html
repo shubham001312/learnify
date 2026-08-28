@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
 
@@ -298,7 +298,10 @@
           <div class="modal-card">
             <div class="modal-head">
               <b>Document Preview</b>
-              <button class="modal-close" aria-label="Close">&times;</button>
+              <span class="modal-head-actions">
+                <button class="modal-del" id="doc-preview-del" title="Delete document">🗑</button>
+                <button class="modal-close" aria-label="Close">&times;</button>
+              </span>
             </div>
             <div id="doc-preview-body" class="modal-body"></div>
           </div>
@@ -315,7 +318,9 @@
         </div>
 
         <div class="academic">
-          <div class="docs-head"><span>My Marks</span> <span id="acad-count" class="end"></span></div>
+          <div class="docs-head"><span>My Marks</span>
+            <span class="end"><span id="acad-count"></span><button class="btn ghost sm" id="btn-add-acad" style="margin-left:8px">＋ Add</button></span>
+          </div>
           <div id="academic-list" class="slist" style="margin-top:8px"></div>
         </div>
 
@@ -909,6 +914,18 @@
           <button class="btn primary block" id="notes-export">Export .txt</button>
         </div>
       </div>
+      <div class="notes-ai">
+        <div class="row gap">
+          <select id="notes-ai-mode" class="field-inline">
+            <option value="improve">Improve &amp; organise</option>
+            <option value="expand">Expand</option>
+            <option value="guide">Make study guide</option>
+            <option value="explain">Explain simply</option>
+          </select>
+          <button class="btn primary block" id="notes-ai">✨ AI Magic</button>
+        </div>
+        <div id="notes-ai-out" class="notes-ai-out"></div>
+      </div>
     </div>
   </section>
 
@@ -1332,7 +1349,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=24"></script>
+  <script type="module" src="src/app.js?v=25"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

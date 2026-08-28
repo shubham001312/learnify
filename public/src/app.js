@@ -1,17 +1,17 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=24';
-import { applyLanguage } from './i18n.js?v=24';
-import { initNotifications, addNotification } from './notifications.js?v=24';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=25';
+import { applyLanguage } from './i18n.js?v=25';
+import { initNotifications, addNotification } from './notifications.js?v=25';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=24';
-import { initVeda } from './veda.js?v=24';
-import { initCareer } from './career.js?v=24';
-import { initCareers } from './careers.js?v=24';
-import { initProfile } from './profile.js?v=24';
-import { initPremium } from './premium.js?v=24';
-import { api, el, toast, esc } from './utils.js?v=24';
-import { playClick } from './sound.js?v=24';
-import { initStudyTools } from './tools.js?v=24';
+import { initAuth, openLogin } from './auth.js?v=25';
+import { initVeda } from './veda.js?v=25';
+import { initCareer } from './career.js?v=25';
+import { initCareers } from './careers.js?v=25';
+import { initProfile } from './profile.js?v=25';
+import { initPremium } from './premium.js?v=25';
+import { api, el, toast, esc } from './utils.js?v=25';
+import { playClick } from './sound.js?v=25';
+import { initStudyTools } from './tools.js?v=25';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -452,6 +452,52 @@ function initResume() {
   });
 }
 
+async function vedaText(payload) {
+  const resp = await fetch('/api/veda/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error('Veda request failed (' + resp.status + ')');
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+  }
+  return text;
+}
+
+function extractJsonObj(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  if (s.startsWith('```')) s = s.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a === -1 || b === -1) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch (_) { return null; }
+}
+
+async function aiPlanInsights(subs, days, hours, exam, preview) {
+  const box = document.createElement('div');
+  box.className = 'pl-ai';
+  box.innerHTML = '<div class="pl-ai-head">🤖 Veda\'s plan insights</div><div class="pl-ai-body"><div class="typing"><span></span><span></span><span></span></div></div>';
+  preview.appendChild(box);
+  const list = subs.map(s => `${s.name} (level ${s.level}/100 → target ${s.target}, priority P${s.prio})`).join('\n');
+  const prompt = `You are a friendly Indian study coach. A student has ${days} days until their ${exam || 'upcoming exam'} and studies ${hours} hours/day. Subjects:\n${list}\nGive SHORT, practical, personalised advice. Respond with ONLY valid JSON: {"focus":["tip1","tip2","tip3"],"strategy":"one short paragraph","motivation":"one encouraging line"}. No markdown, no extra text.`;
+  try {
+    const text = await vedaText({ user_id: ((getUser() || {}).email) || 'demo', messages: [{ role: 'user', content: prompt }] });
+    const d = extractJsonObj(text);
+    if (!d) { box.remove(); return; }
+    const focus = (d.focus || []).map(t => '<li>' + esc(t) + '</li>').join('');
+    box.querySelector('.pl-ai-body').innerHTML =
+      (focus ? '<div class="pl-ai-sub">Where to focus</div><ul class="pl-ai-list">' + focus + '</ul>' : '') +
+      (d.strategy ? '<div class="pl-ai-sub">Strategy</div><p class="pl-ai-text">' + esc(d.strategy) + '</p>' : '') +
+      (d.motivation ? '<div class="pl-ai-mot">“' + esc(d.motivation) + '”</div>' : '');
+  } catch (e) { box.remove(); }
+}
+
 function initPlanner() {
   const preview = el('pl-preview');
   if (!preview) return;
@@ -569,7 +615,8 @@ function initPlanner() {
       + '<div class="pl-stat"><b>' + hours + 'h</b><span>per day</span></div>'
       + '<div class="pl-stat"><b>' + totalHours + '</b><span>total hours</span></div>'
       + '<div class="pl-stat"><b>' + subs.length + '</b><span>subjects</span></div>'
-      + '</div>';
+      + '</div>'
+      + '<div class="pl-exam-line">🎯 Target exam: <b>' + esc(exam) + '</b></div>';
 
     html += '<div class="pl-alloc">';
     alloc.forEach((s) => {
@@ -594,6 +641,7 @@ function initPlanner() {
     }
     preview.innerHTML = html;
     preview.style.display = 'block';
+    aiPlanInsights(subs, days, hours, exam, preview);
     if (window.addNotification) window.addNotification('Study plan ready — ' + days + ' days, ' + totalHours + ' hours scheduled.', 'plan');
   });
 

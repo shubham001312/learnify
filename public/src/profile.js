@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=24';
-import { applyLanguage } from './i18n.js?v=24';
-import { logout, openLogin } from './auth.js?v=24';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=25';
+import { applyLanguage } from './i18n.js?v=25';
+import { logout, openLogin } from './auth.js?v=25';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -118,7 +118,11 @@ export function initProfile() {
           status.style.color = '#c0392b';
         } else {
           const ex = d.extracted || {};
-          status.textContent = '✓ Uploaded. ' + (ex.exam ? ex.exam + ' marks saved.' : 'Document processed.');
+          if (ex.percentage != null || (ex.marks && Object.keys(ex.marks).length)) {
+            status.textContent = '✓ Uploaded. ' + (ex.exam ? ex.exam + ' marks saved.' : 'Marks saved.');
+          } else {
+            status.textContent = '✓ Uploaded. Couldn’t auto-read marks — tap “＋ Add” under My Marks to enter them.';
+          }
           status.style.color = 'var(--green)';
           if (ex.percentage != null) el('stat-12th').textContent = ex.percentage + '%';
           if (ex.cgpa != null) el('stat-cgpa').textContent = ex.cgpa;
@@ -348,14 +352,15 @@ function loadDocs() {
       const meta = (d.extracted && d.extracted.percentage)
         ? '<small>' + esc(d.extracted.exam || '') + ' · ' + esc(d.extracted.percentage) + '%</small>'
         : '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + (d.file_type ? (' · ' + esc(d.file_type)) : '') + '</small>';
-      return '<div class="sitem" data-idx="' + i + '" role="button" tabindex="0">' + preview +
-        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' + meta + '</div></div>';
+      return '<div class="sitem" data-idx="' + i + '">' + preview +
+        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' + meta + '</div>' +
+        '<button class="doc-del" title="Delete document" data-del="' + i + '">🗑</button></div>';
     }).join('');
     list.querySelectorAll('.sitem').forEach((node) => {
       node.addEventListener('click', () => openDocPreview(Number(node.dataset.idx)));
-      node.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDocPreview(Number(node.dataset.idx)); }
-      });
+    });
+    list.querySelectorAll('.doc-del').forEach((b) => {
+      b.addEventListener('click', (e) => { e.stopPropagation(); deleteDoc(currentDocs[Number(b.dataset.del)]); });
     });
   }).catch(() => { list.innerHTML = ''; });
 }
@@ -389,6 +394,8 @@ function openDocPreview(i) {
   }
   body.innerHTML = html;
   el('doc-preview-modal').classList.add('show');
+  const delBtn = el('doc-preview-del');
+  if (delBtn) { delBtn.onclick = () => { closeDocPreview(); deleteDoc(d); }; }
   if (d.file_type === 'pdf' && d.file_data) {
     decompressPdfInto(body.querySelector('.pdf-mount'), d.file_data);
   }
@@ -416,6 +423,14 @@ function closeDocPreview() {
   const frame = m.querySelector('iframe');
   if (frame && frame.src) { try { URL.revokeObjectURL(frame.src); } catch (e) {} }
   el('doc-preview-body').innerHTML = '';
+}
+
+function deleteDoc(d) {
+  if (!d) return;
+  if (!confirm('Delete "' + (d.filename || 'document') + '"? This also removes its extracted marks.')) return;
+  api('/documents/' + d.id, { method: 'DELETE' })
+    .then(() => { toast('Document deleted', 'ok'); loadDocs(); loadAcademic(); })
+    .catch((e) => toast('Delete failed: ' + (e && e.message ? e.message : ''), 'info'));
 }
 
 function loadAcademic() {
@@ -456,7 +471,6 @@ function openAcadEdit(id) {
 
 if (el('acad-save')) el('acad-save').addEventListener('click', () => {
   const id = el('acad-id').value;
-  if (!id) return;
   let marks = null;
   const mraw = el('acad-marks').value.trim();
   if (mraw) {
@@ -475,14 +489,29 @@ if (el('acad-save')) el('acad-save').addEventListener('click', () => {
   const st = el('acad-status');
   st.textContent = 'Saving…';
   st.style.color = 'var(--sub)';
-  api('/documents/academic/' + id, { method: 'PATCH', body: JSON.stringify(payload) })
+  const req = id
+    ? api('/documents/academic/' + id, { method: 'PATCH', body: JSON.stringify(payload) })
+    : api('/documents/academic', { method: 'POST', body: JSON.stringify(payload) });
+  req
     .then(() => {
       st.textContent = '✓ Saved.';
       st.style.color = 'var(--green)';
       loadAcademic();
+      if (payload.percentage != null && el('stat-12th')) el('stat-12th').textContent = payload.percentage + '%';
       setTimeout(() => import('./utils.js').then((m) => m.closeModal('academic-modal')), 600);
     })
     .catch((e) => { st.textContent = '⚠ ' + (e && e.message ? e.message : 'failed'); st.style.color = '#c0392b'; });
+});
+
+if (el('btn-add-acad')) el('btn-add-acad').addEventListener('click', () => {
+  el('acad-id').value = '';
+  el('acad-exam').value = '';
+  el('acad-board').value = '';
+  el('acad-year').value = '';
+  el('acad-pct').value = '';
+  el('acad-marks').value = '';
+  el('acad-status').textContent = '';
+  import('./utils.js').then((m) => m.openModal('academic-modal'));
 });
 
 function loadSgpa() {

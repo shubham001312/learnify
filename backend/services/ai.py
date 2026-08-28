@@ -20,8 +20,8 @@ CHAT_MODELS = [
 ANALYZE_MODEL = "openai/gpt-oss-120b"
 
 VISION_MODELS = [
-    "groq/compound",
-    "openai/gpt-oss-120b",
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-90b-vision-preview",
 ]
 
 
