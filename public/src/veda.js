@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=13';
-import { openLogin } from './auth.js?v=13';
-import { playChatDing } from './sound.js?v=13';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=14';
+import { openLogin } from './auth.js?v=14';
+import { playChatDing } from './sound.js?v=14';
 
 let messages = [];
 let currentChatId = null;

@@ -1,16 +1,16 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=13';
-import { applyLanguage } from './i18n.js?v=13';
-import { initNotifications, addNotification } from './notifications.js?v=13';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=14';
+import { applyLanguage } from './i18n.js?v=14';
+import { initNotifications, addNotification } from './notifications.js?v=14';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=13';
-import { initVeda } from './veda.js?v=13';
-import { initCareer } from './career.js?v=13';
-import { initProfile } from './profile.js?v=13';
-import { initPremium } from './premium.js?v=13';
-import { api, el, toast, esc } from './utils.js?v=13';
-import { playClick } from './sound.js?v=13';
-import { initStudyTools } from './tools.js?v=13';
+import { initAuth, openLogin } from './auth.js?v=14';
+import { initVeda } from './veda.js?v=14';
+import { initCareer } from './career.js?v=14';
+import { initProfile } from './profile.js?v=14';
+import { initPremium } from './premium.js?v=14';
+import { api, el, toast, esc } from './utils.js?v=14';
+import { playClick } from './sound.js?v=14';
+import { initStudyTools } from './tools.js?v=14';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
