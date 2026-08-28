@@ -7,21 +7,21 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_KEY")
 
-# Chat models (best-first). Ordered to minimise free-tier rate-limit (429)
-# errors: llama-3.1-8b-instant has the highest free-tier TPM (30k), so it is
-# primary; llama-3.3-70b-versatile is the higher-quality fallback.
+# Chat models (best-first). These are the model IDs actually available on the
+# configured Groq key (older llama/gemma/mixtral IDs were decommissioned).
+# Ordered for quality + rate-limit resilience.
 CHAT_MODELS = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it",
+    "groq/compound",
+    "groq/compound-mini",
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
 ]
 
-ANALYZE_MODEL = "llama-3.3-70b-versatile"
+ANALYZE_MODEL = "openai/gpt-oss-120b"
 
 VISION_MODELS = [
-    "llama-3.2-90b-vision-preview",
-    "llama-3.2-11b-vision-preview",
+    "groq/compound",
+    "openai/gpt-oss-120b",
 ]
 
 

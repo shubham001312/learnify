@@ -7,7 +7,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.services.ai import stream_chat as ai_stream
-from backend.services import ai as _ai
 from backend.services.rag import retrieve as rag_retrieve
 
 from backend.database.client import db_available, get_client
@@ -465,65 +464,3 @@ def delete_chat(chat_id: str):
         except Exception:
             pass
     return {"ok": True}
-
-
-@router.get("/diag")
-def diag():
-    """Temporary diagnostic: report Groq connectivity/errors without exposing the key."""
-    import os
-    import requests as _req
-
-    key = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_KEY")
-    out = {"has_key": bool(key), "key_len": len(key or "")}
-    if not key:
-        out["error"] = "GROQ_API_KEY not configured"
-        return out
-    # List models actually available for this key.
-    try:
-        mr = _req.get(
-            _ai.GROQ_URL.replace("/chat/completions", "/models"),
-            headers={"Authorization": f"Bearer {key}"},
-            timeout=15,
-        )
-        out["models_status"] = mr.status_code
-        try:
-            out["available_models"] = [m["id"] for m in mr.json().get("data", [])]
-        except Exception as e:
-            out["models_parse_error"] = str(e)
-    except Exception as e:
-        out["models_error"] = f"{type(e).__name__}: {e}"
-
-    # Probe candidate chat models to find one that works.
-    candidates = [
-        "groq/compound",
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.8-27b",
-        "groq/compound-mini",
-        "openai/gpt-oss-20b",
-        "qwen/qwen3.6-27b",
-        "allam-2-7b",
-    ]
-    errs = []
-    for mdl in candidates:
-        try:
-            r = _req.post(
-                _ai.GROQ_URL,
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": mdl,
-                    "messages": [{"role": "user", "content": "ping"}],
-                    "temperature": 0.5,
-                },
-                timeout=15,
-            )
-            out[f"status_{mdl}"] = r.status_code
-            if r.status_code == 200:
-                out["WORKING_MODEL"] = mdl
-                break
-        except Exception as e:
-            errs.append(f"{mdl}: {type(e).__name__}: {e}")
-    out["errors"] = errs
-    return out
