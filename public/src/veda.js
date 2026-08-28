@@ -1,5 +1,6 @@
 import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda } from './utils.js';
 import { openLogin } from './auth.js';
+import { playChatDing } from './sound.js';
 
 let messages = [];
 let currentChatId = null;
@@ -204,11 +205,13 @@ export function initVeda() {
       let text = '';
       removeTyping();
       beginStream();
+      let dinged = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         text += decoder.decode(value, { stream: true });
         if (streamEl) streamEl.textContent = text;
+        if (!dinged && text.trim()) { dinged = true; playChatDing(); }
         scrollDown();
       }
       messages.push({ role: 'assistant', content: text });

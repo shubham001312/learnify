@@ -921,3 +921,70 @@ textarea { resize: vertical; }
       .dm-pc { grid-template-columns: 1fr; }
       .ff.two { grid-template-columns: 1fr; }
     }
+
+    /* ───────── New: Study Tools, Pro Tools, Sounds ───────── */
+    .modal-card.wide { max-width: 560px; }
+    .modal-card.center { text-align: center; }
+
+    .pro-pill { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: #1a1205; background: linear-gradient(135deg, #f6c453, #e0a526); padding: 2px 8px; border-radius: 999px; vertical-align: middle; margin-left: 6px; }
+
+    .tool.pro-tool { position: relative; }
+    .tool.pro-tool::after { content: "🔒"; position: absolute; top: 6px; right: 8px; font-size: 12px; opacity: .85; }
+    .tool.pro-tool.is-pro::after { content: ""; }
+
+    .study-tools { margin-bottom: 4px; }
+
+    /* Quiz */
+    .quiz-box { margin-top: 14px; display: grid; gap: 16px; }
+    .quiz-q { font-weight: 700; font-size: 14.5px; color: var(--text); }
+    .quiz-opt { display: block; width: 100%; text-align: left; border: 1px solid var(--border); background: var(--card); border-radius: 10px; padding: 10px 12px; margin-top: 8px; font-size: 13.5px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .quiz-opt:hover { border-color: var(--teal); }
+    .quiz-opt.sel { border-color: var(--teal); background: rgba(14,165,164,.08); }
+    .quiz-opt.correct { border-color: var(--green); background: rgba(22,163,74,.12); color: var(--green); }
+    .quiz-opt.wrong { border-color: #e74c3c; background: rgba(231,76,60,.1); color: #c0392b; }
+    .quiz-result { font-weight: 700; font-size: 15px; margin-top: 4px; }
+
+    /* Timer */
+    .timer-display { font-size: 56px; font-weight: 800; letter-spacing: .04em; color: var(--text); margin: 10px 0; font-variant-numeric: tabular-nums; }
+    .timer-presets { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .tbtn-sm { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--text); }
+    .tbtn-sm.active { border-color: var(--teal); background: rgba(14,165,164,.1); color: var(--teal); }
+    .timer-controls { display: flex; gap: 10px; justify-content: center; }
+
+    /* Notes / Summarizer */
+    .notes-area { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--border); border-radius: 12px; padding: 12px; font: 500 14px var(--font-body); color: var(--text); background: var(--card); outline: none; box-sizing: border-box; }
+    .notes-area:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
+    .sum-output { margin-top: 14px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+    .toggle-row { margin: 14px 0 4px; }
+    .switch { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub); cursor: pointer; }
+    .switch input { width: 18px; height: 18px; accent-color: var(--teal); }
+
+    /* ───────── Responsive hardening (fix mobile overlaps) ───────── */
+    html, body { overflow-x: hidden; }
+    .stage { overflow-x: hidden; }
+    .hero h2, .bubble { overflow-wrap: anywhere; word-break: break-word; }
+    .hero h2 br { display: inline; }
+    .chat-head .meta { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tool-ic { flex: 0 0 auto; }
+
+    @media (max-width: 600px) {
+      .tool { padding: 14px 6px; }
+      .tool-ic { width: 34px; height: 34px; }
+      .timer-display { font-size: 48px; }
+      .feature { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      .brand-name { font-size: 15px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .top-search { max-width: 150px; }
+      .hero h2 { font-size: 20px; }
+      .section-label { font-size: 13px; }
+      .quiz-opt, .quiz-q { font-size: 13px; }
+    }
+    @media (max-width: 380px) {
+      .tools { gap: 8px; }
+      .tool > span:not(.tool-ic) { font-size: 11px; }
+      .conv-grid { grid-template-columns: 1fr; }
+      .foot a span { font-size: 9px; }
+      .timer-display { font-size: 42px; }
+    }

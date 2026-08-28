@@ -1,0 +1,217 @@
+import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js';
+import { openLogin } from './auth.js';
+
+const NOTES_KEY = 'learnify_notes';
+
+export function initStudyTools() {
+  wirePremiumTools();
+  wireQuiz();
+  wireTimer();
+  wireNotes();
+  wireSummarizer();
+  wireSoundSetting();
+}
+
+// Premium-gated tools: open the tool for Pro users, otherwise prompt upgrade.
+function wirePremiumTools() {
+  document.querySelectorAll('[data-premium]').forEach((b) => {
+    b.addEventListener('click', () => {
+      playClick();
+      if (!isPremium()) { openModal('premium-modal'); return; }
+      b.classList.add('is-pro');
+      const which = b.dataset.premium;
+      if (which === 'quiz') openModal('quiz-modal');
+      else if (which === 'roadmap') {
+        if (window.askVeda) window.askVeda('Build a step-by-step, personalised AI upskilling & career roadmap for me as an Indian student, with weekly milestones and free resources.');
+      } else if (which === 'scholarship') {
+        if (window.setViewNav) window.setViewNav('scholarships', true);
+      }
+    });
+  });
+}
+
+// Stream /api/veda/chat and return the full reply text (the endpoint streams plain text).
+async function vedaText(payload) {
+  const resp = await fetch('/api/veda/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error('Veda request failed (' + resp.status + ')');
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+  }
+  return text;
+}
+
+function wireQuiz() {
+  const gen = el('quiz-gen');
+  if (!gen) return;
+  gen.addEventListener('click', async () => {
+    const topic = (el('quiz-topic').value || '').trim();
+    if (!topic) { toast('Enter a topic first.', 'info'); return; }
+    if (!getToken()) { toast('Login to generate a quiz.', 'info'); openLogin(); return; }
+    let count = parseInt(el('quiz-count').value, 10) || 5;
+    if (!isPremium() && count > 10) count = 10;
+    const box = el('quiz-box');
+    box.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    gen.disabled = true; gen.textContent = 'Generating…';
+    try {
+      const text = await vedaText({
+        user_id: ((getUser() || {}).email) || 'demo',
+        messages: [{ role: 'user', content: `Generate ${count} multiple-choice quiz questions about "${topic}" for an Indian student. Return ONLY a valid JSON array of objects with keys: q (string), options (array of 4 strings), answer (integer 0-3, index of correct option). No markdown, no extra text.` }]
+      });
+      const arr = extractJsonArray(text);
+      if (!arr || !arr.length) throw new Error('Could not parse the quiz. Try again.');
+      renderQuiz(arr);
+    } catch (e) {
+      box.innerHTML = '<div class="modal-sub" style="color:#c0392b">⚠️ ' + esc(e.message) + '</div>';
+    } finally {
+      gen.disabled = false; gen.textContent = 'Generate Quiz';
+    }
+  });
+}
+
+function renderQuiz(arr) {
+  const box = el('quiz-box');
+  let score = 0, answered = 0;
+  box.innerHTML = '';
+  arr.forEach((item, i) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="quiz-q">' + (i + 1) + '. ' + esc(item.q || '') + '</div>';
+    (item.options || []).forEach((opt, oi) => {
+      const b = document.createElement('button');
+      b.className = 'quiz-opt';
+      b.textContent = opt;
+      b.addEventListener('click', () => {
+        if (wrap.querySelector('.quiz-opt.sel')) return;
+        b.classList.add('sel');
+        answered++;
+        const correct = Number(item.answer) === oi;
+        b.classList.add(correct ? 'correct' : 'wrong');
+        if (correct) score++;
+        if (answered === arr.length) res.textContent = '🎉 You scored ' + score + ' / ' + arr.length;
+      });
+      wrap.appendChild(b);
+    });
+    box.appendChild(wrap);
+  });
+  const res = document.createElement('div');
+  res.className = 'quiz-result';
+  box.appendChild(res);
+}
+
+function extractJsonArray(s) {
+  if (!s) return null;
+  s = s.trim();
+  if (s.startsWith('```')) s = s.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
+  const a = s.indexOf('['), b = s.lastIndexOf(']');
+  if (a === -1 || b === -1) return null;
+  try { const arr = JSON.parse(s.slice(a, b + 1)); return Array.isArray(arr) ? arr : null; } catch (_) { return null; }
+}
+
+function wireTimer() {
+  const disp = el('timer-display');
+  if (!disp) return;
+  let total = 25 * 60, left = total, timer = null, running = false;
+  const status = el('timer-status');
+  const render = () => {
+    const m = String(Math.floor(left / 60)).padStart(2, '0');
+    const s = String(left % 60).padStart(2, '0');
+    disp.textContent = m + ':' + s;
+  };
+  const setMin = (min) => {
+    total = min * 60; left = total; render();
+    document.querySelectorAll('.timer-presets .tbtn-sm').forEach((x) => x.classList.toggle('active', Number(x.dataset.min) === min));
+  };
+  document.querySelectorAll('.timer-presets .tbtn-sm').forEach((b) => {
+    b.addEventListener('click', () => { playClick(); setMin(Number(b.dataset.min)); if (status) status.textContent = 'Ready'; });
+  });
+  const start = el('timer-start');
+  start && start.addEventListener('click', () => {
+    playClick();
+    if (running) { clearInterval(timer); running = false; start.textContent = 'Start'; if (status) status.textContent = 'Paused'; return; }
+    if (left <= 0) left = total;
+    running = true; start.textContent = 'Pause';
+    if (status) status.textContent = 'Focusing… stay sharp!';
+    timer = setInterval(() => {
+      left--; render();
+      if (left <= 0) {
+        clearInterval(timer); running = false; start.textContent = 'Start';
+        if (status) status.textContent = '✅ Session complete!';
+      }
+    }, 1000);
+  });
+  const reset = el('timer-reset');
+  reset && reset.addEventListener('click', () => {
+    playClick(); clearInterval(timer); running = false; left = total; render();
+    start.textContent = 'Start'; if (status) status.textContent = 'Pomodoro focus session';
+  });
+  setMin(25);
+}
+
+function wireNotes() {
+  const area = el('notes-area');
+  if (!area) return;
+  try { area.value = localStorage.getItem(NOTES_KEY) || ''; } catch (_) {}
+  const status = el('notes-status');
+  let t;
+  area.addEventListener('input', () => {
+    clearTimeout(t);
+    if (status) status.textContent = 'Saving…';
+    t = setTimeout(() => { try { localStorage.setItem(NOTES_KEY, area.value); if (status) status.textContent = 'Saved ✓'; } catch (_) {} }, 400);
+  });
+  const copy = el('notes-copy');
+  copy && copy.addEventListener('click', () => {
+    playClick();
+    area.select();
+    try { navigator.clipboard.writeText(area.value); toast('Notes copied', 'ok'); } catch (_) { document.execCommand('copy'); }
+  });
+}
+
+function wireSummarizer() {
+  const gen = el('sum-gen');
+  if (!gen) return;
+  gen.addEventListener('click', async () => {
+    const text = (el('sum-input').value || '').trim();
+    if (!text) { toast('Paste some text first.', 'info'); return; }
+    if (!getToken()) { toast('Login to use the Summarizer.', 'info'); openLogin(); return; }
+    const out = el('sum-output');
+    out.textContent = '';
+    out.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    gen.disabled = true; gen.textContent = 'Summarizing…';
+    const len = el('sum-len').value;
+    try {
+      const reply = await vedaText({
+        user_id: ((getUser() || {}).email) || 'demo',
+        messages: [{ role: 'user', content: `Summarize the following text into ${len} key bullet points for an Indian student. Keep it clear and concise:\n\n` + text }]
+      });
+      out.textContent = reply || 'No summary.';
+    } catch (e) {
+      out.textContent = '⚠️ ' + e.message;
+    } finally {
+      gen.disabled = false; gen.textContent = 'Summarize';
+    }
+  });
+}
+
+function wireSoundSetting() {
+  const box = el('settings-sound');
+  if (box) box.checked = soundEnabled();
+  const openBtn = el('btn-settings');
+  if (openBtn) openBtn.addEventListener('click', () => { if (box) box.checked = soundEnabled(); });
+  const save = el('settings-save');
+  if (save) save.addEventListener('click', () => { if (box) setSoundEnabled(box.checked); });
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}

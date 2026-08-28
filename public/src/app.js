@@ -9,6 +9,8 @@ import { initCareer } from './career.js';
 import { initProfile } from './profile.js';
 import { initPremium } from './premium.js';
 import { api, el, toast, esc } from './utils.js';
+import { playClick } from './sound.js';
+import { initStudyTools } from './tools.js';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -175,6 +177,7 @@ function initCalculator() {
   const render = () => { screen.textContent = expr || '0'; };
   document.querySelectorAll('.calc-btn').forEach((b) => {
     b.addEventListener('click', () => {
+      playClick();
       const k = b.dataset.k;
       if (k === 'C') expr = '';
       else if (k === '⌫') expr = expr.slice(0, -1);
@@ -752,6 +755,9 @@ function openModalCard(html) {
   openModal('detail-modal');
 }
 
+window.askVeda = askVeda;
+window.setViewNav = setView;
+
 function renderReviews(list) {
   if (!list || !list.length) {
     return '<div class="dm-noreviews">No reviews yet. Be the first to share your experience!</div>';
@@ -923,6 +929,7 @@ onReady(() => {
   initScholarships();
   initMisc();
   initNotifications();
+  initStudyTools();
   applyLanguage(getLang());
   _restoreView();
 });
