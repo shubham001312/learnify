@@ -17,6 +17,7 @@ from backend.services.rag import retrieve as rag_retrieve
 
 from backend.database.client import db_available, get_client
 from backend.database.seed import SEED_SCHOLARSHIPS
+from backend.database.seed_careers import list_careers
 
 
 router = APIRouter()
@@ -542,6 +543,188 @@ def chat(req: ChatReq):
             json.dumps(profile_deltas)
         )
     return resp
+
+
+# ───────────────────────── personalized home slots ─────────────────────────
+class HomeSuggReq(BaseModel):
+    user_id: str = "demo"
+    language: str = "English"
+
+
+@router.post("/home-suggestions")
+def home_suggestions(req: HomeSuggReq):
+    """AI-generated, personalized suggestion 'slots' for the home screen,
+    derived from the user's real profile, marks and goals."""
+    try:
+        user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
+    except Exception:
+        user_block = ""
+
+    career_titles = ", ".join(f"{c['title']}" for c in list_careers())
+
+    system = (
+        "You are Veda, an AI study companion for Indian students. The user has a home "
+        "screen with a 'For You' section. Generate 4 short, personalized, actionable "
+        "suggestion cards (slots) they would find genuinely useful right now. "
+        "Base them on the USER PROFILE below when available (exam, stream, marks, goal, "
+        "state). If the profile is empty, give broadly useful student actions. "
+        "Each slot must be concrete and specific (name a real exam, career, subject or tool).\n"
+        'Return STRICT JSON only: {"slots":[ {"icon":emoji,"title":<4 words>,'
+        '"text":<one short sentence>,"cta_label":<2-3 words>,"cta_go":'
+        '"college"|"career"|"veda"|"scholarships"|"planner"|"quiz",'
+        '"cta_arg":<optional career id / exam / empty string>} ]}.\n'
+        "Available careers include: " + career_titles + "."
+    )
+    messages = [{"role": "system", "content": system}]
+    if user_block:
+        messages.append({"role": "user", "content": "USER PROFILE:\n" + user_block})
+    else:
+        messages.append(
+            {
+                "role": "user",
+                "content": "No profile data yet — suggest useful starter actions.",
+            }
+        )
+
+    try:
+        parsed = (
+            _with_timeout(lambda: _call_json("openai/gpt-oss-120b", messages, 0.35), 25)
+            or {}
+        )
+    except Exception:
+        parsed = {}
+    slots = parsed.get("slots") if isinstance(parsed, dict) else None
+    if not isinstance(slots, list) or not slots:
+        slots = _default_slots()
+    # Sanitize / cap.
+    clean = []
+    allowed_go = {"college", "career", "veda", "scholarships", "planner", "quiz"}
+    for s in slots[:4]:
+        if not isinstance(s, dict):
+            continue
+        clean.append(
+            {
+                "icon": (s.get("icon") or "✨")[:4],
+                "title": str(s.get("title", "Tip"))[:40],
+                "text": str(s.get("text", ""))[:140],
+                "cta_label": str(s.get("cta_label", "Explore"))[:30],
+                "cta_go": s.get("cta_go") if s.get("cta_go") in allowed_go else "veda",
+                "cta_arg": str(s.get("cta_arg") or "")[:40],
+            }
+        )
+    if not clean:
+        clean = _default_slots()
+    return {"slots": clean}
+
+
+def _default_slots():
+    return [
+        {
+            "icon": "🎯",
+            "title": "Explore Careers",
+            "text": "Discover 25+ career paths and find what fits you best.",
+            "cta_label": "Career Paths",
+            "cta_go": "career",
+            "cta_arg": "",
+        },
+        {
+            "icon": "🏫",
+            "title": "Find Colleges",
+            "text": "Search 700+ colleges across India with smart filters.",
+            "cta_label": "Search",
+            "cta_go": "college",
+            "cta_arg": "",
+        },
+        {
+            "icon": "💡",
+            "title": "Ask Veda",
+            "text": "Stuck on a topic or decision? Chat with your AI mentor.",
+            "cta_label": "Talk",
+            "cta_go": "veda",
+            "cta_arg": "",
+        },
+        {
+            "icon": "🎓",
+            "title": "Scholarships",
+            "text": "See schemes you may be eligible for and never miss a deadline.",
+            "cta_label": "Browse",
+            "cta_go": "scholarships",
+            "cta_arg": "",
+        },
+    ]
+
+
+# ───────────────────────── career guidance (short Q&A) ─────────────────────────
+class GuidanceReq(BaseModel):
+    user_id: str = "demo"
+    answers: dict = {}
+    language: str = "English"
+
+
+@router.post("/career-guidance")
+def career_guidance(req: GuidanceReq):
+    """Take a student's profile + a few short survey answers and return a
+    personalized career-path recommendation (drawn from our careers dataset)."""
+    try:
+        user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
+    except Exception:
+        user_block = ""
+
+    careers = list_careers()
+    catalog = "\n".join(f"- {c['id']}: {c['title']} ({c['category']})" for c in careers)
+    answers_txt = json.dumps(req.answers or {}, ensure_ascii=False)
+
+    system = (
+        "You are Veda, a career counsellor for Indian students. Using the student's "
+        "profile and their answers to a short interest survey, recommend the single "
+        "best-fit career PATH from the provided CATALOG (you must pick one of those ids). "
+        "Also list 1-3 alternative paths they should consider. Be specific and kind.\n"
+        "Return STRICT JSON only:\n"
+        '{"career_id":"<id from catalog>","title":"<career title>",'
+        '"category":"<category>","match":<0-100 integer>,'
+        '"reasoning":"<2-3 short sentences>",'
+        '"next_steps":[<3 short steps>],'
+        '"also_consider":[<up to 3 career ids from catalog>]}\n'
+        "CATALOG:\n" + catalog
+    )
+    messages = [{"role": "system", "content": system}]
+    ctx = ""
+    if user_block:
+        ctx += "USER PROFILE:\n" + user_block + "\n"
+    ctx += "SURVEY ANSWERS:\n" + answers_txt
+    messages.append({"role": "user", "content": ctx})
+
+    try:
+        parsed = (
+            _with_timeout(lambda: _call_json("openai/gpt-oss-120b", messages, 0.3), 25)
+            or {}
+        )
+    except Exception:
+        parsed = {}
+
+    # Validate career_id against our catalog.
+    valid_ids = {c["id"] for c in careers}
+    cid = parsed.get("career_id") if isinstance(parsed, dict) else None
+    if cid not in valid_ids:
+        # Try to match by title, else fall back to also_consider / first.
+        title = (parsed.get("title") or "").lower()
+        matched = next((c["id"] for c in careers if c["title"].lower() == title), None)
+        if not matched and isinstance(parsed.get("also_consider"), list):
+            matched = next((x for x in parsed["also_consider"] if x in valid_ids), None)
+        cid = matched or (list(valid_ids)[0] if valid_ids else None)
+
+    result = {
+        "career_id": cid,
+        "title": parsed.get("title") if isinstance(parsed, dict) else None,
+        "category": parsed.get("category") if isinstance(parsed, dict) else None,
+        "match": parsed.get("match") if isinstance(parsed, dict) else None,
+        "reasoning": parsed.get("reasoning") if isinstance(parsed, dict) else None,
+        "next_steps": parsed.get("next_steps") if isinstance(parsed, dict) else None,
+        "also_consider": parsed.get("also_consider")
+        if isinstance(parsed, dict)
+        else None,
+    }
+    return {"guidance": result}
 
 
 @router.post("/quiz")

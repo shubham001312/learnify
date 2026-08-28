@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=18';
-import { applyLanguage } from './i18n.js?v=18';
-import { logout, openLogin } from './auth.js?v=18';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=19';
+import { applyLanguage } from './i18n.js?v=19';
+import { logout, openLogin } from './auth.js?v=19';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -72,6 +72,8 @@ export function initProfile() {
     if (data && data.user) {
       applyUser(data.user);
       setUser(data.user);
+      window.learnifyProfile = data.user;
+      if (window.renderHero) window.renderHero();
     }
   }).catch(() => { /* cached */ });
 

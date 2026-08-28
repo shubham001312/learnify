@@ -1,16 +1,17 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=18';
-import { applyLanguage } from './i18n.js?v=18';
-import { initNotifications, addNotification } from './notifications.js?v=18';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=19';
+import { applyLanguage } from './i18n.js?v=19';
+import { initNotifications, addNotification } from './notifications.js?v=19';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=18';
-import { initVeda } from './veda.js?v=18';
-import { initCareer } from './career.js?v=18';
-import { initProfile } from './profile.js?v=18';
-import { initPremium } from './premium.js?v=18';
-import { api, el, toast, esc } from './utils.js?v=18';
-import { playClick } from './sound.js?v=18';
-import { initStudyTools } from './tools.js?v=18';
+import { initAuth, openLogin } from './auth.js?v=19';
+import { initVeda } from './veda.js?v=19';
+import { initCareer } from './career.js?v=19';
+import { initCareers } from './careers.js?v=19';
+import { initProfile } from './profile.js?v=19';
+import { initPremium } from './premium.js?v=19';
+import { api, el, toast, esc } from './utils.js?v=19';
+import { playClick } from './sound.js?v=19';
+import { initStudyTools } from './tools.js?v=19';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -22,6 +23,74 @@ function switchTab(tab) {
   const footer = document.querySelector('.foot');
   if (footer) footer.style.display = (tab === 'veda') ? 'none' : '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (tab === 'home') { renderHero(); loadHomeSuggestions(); }
+  if (tab === 'career' && window.loadCareers) window.loadCareers();
+}
+
+function renderHero() {
+  const user = (typeof getUser === 'function' && getUser()) || {};
+  const prof = (typeof window !== 'undefined' && window.learnifyProfile) || {};
+  const merged = Object.assign({}, prof, user);
+  const name = (merged.name && merged.name !== 'Student') ? merged.name.split(' ')[0] : 'Student';
+  const h = new Date().getHours();
+  let greet, emoji, wish;
+  if (h < 12) { greet = 'Good morning'; emoji = '🌅'; wish = "Hope you slept well — let's make today count."; }
+  else if (h < 17) { greet = 'Good afternoon'; emoji = '☀️'; wish = "Hope your day is going great so far."; }
+  else if (h < 21) { greet = 'Good evening'; emoji = '🌆'; wish = "A little focused study now goes a long way."; }
+  else { greet = 'Good night'; emoji = '🌙'; wish = "Late grind? Remember to rest too."; }
+
+  const t = ((merged.target_exam || '') + ' ' + (merged.board || '') + ' ' + (merged.stream || '')).toLowerCase();
+  let personal = '';
+  if (t.includes('jee')) personal = "Your JEE journey is the focus — small daily wins add up.";
+  else if (t.includes('neet')) personal = "NEET needs consistency — you've got this.";
+  else if (t.includes('cet') || t.includes('cat') || t.includes('ca ')) personal = "Keep your exam prep steady — we're here to help.";
+  else if (merged.premium) personal = "Welcome back, Pro — your AI toolkit is ready.";
+  else if (merged.career_goal) personal = "Still aiming for " + merged.career_goal + "? Let's keep moving.";
+  else if (merged.grade) personal = "You're in " + merged.grade + " — share your goals with Veda for sharper help.";
+  else personal = "Tell Veda your goals for sharper, personal help.";
+
+  const g = el('hero-greet'); if (g) g.textContent = greet + ' ' + emoji;
+  const n = el('home-name'); if (n) n.textContent = name;
+  const p = el('home-personal'); if (p) p.textContent = wish + ' ' + personal;
+}
+window.renderHero = renderHero;
+
+function loadHomeSuggestions() {
+  const box = el('home-slots');
+  if (!box) return;
+  if (box.dataset.loaded === '1') return; // cache within session
+  const user = (typeof getUser === 'function' && getUser()) || {};
+  box.innerHTML = '<div class="slot-skeleton">Veda is preparing your personalized suggestions…</div>';
+  api('/veda/home-suggestions', { method: 'POST', body: JSON.stringify({ user_id: user.id || 'demo', language: getLang() || 'English' }) })
+    .then((d) => {
+      const slots = (d && d.slots) || [];
+      if (!slots.length) { box.innerHTML = '<div class="slot-skeleton">No suggestions right now.</div>'; return; }
+      box.dataset.loaded = '1';
+      box.innerHTML = slots.map((s) => {
+        const go = s.cta_go || 'veda';
+        const arg = (s.cta_arg || '').replace(/"/g, '');
+        return '<button class="slot" data-go="' + esc(go) + '"' + (arg ? ' data-arg="' + esc(arg) + '"' : '') + '">' +
+          '<div class="slot-ic">' + (s.icon || '✨') + '</div>' +
+          '<div class="slot-body"><div class="slot-title">' + esc(s.title || '') + '</div>' +
+          '<div class="slot-text">' + esc(s.text || '') + '</div>' +
+          '<div class="slot-cta">' + esc(s.cta_label || 'Explore') + ' →</div></div></button>';
+      }).join('');
+      box.querySelectorAll('.slot').forEach((b) => {
+        b.addEventListener('click', () => {
+          const go = b.dataset.go;
+          const arg = b.dataset.arg;
+          if (go === 'career' && arg) openCareer(arg);
+          else if (go === 'college') setView('college', true);
+          else if (go === 'career') setView('career', true);
+          else if (go === 'scholarships') setView('scholarships', true);
+          else if (go === 'planner') setView('planner', true);
+          else if (go === 'quiz') setView('quiz', true);
+          else if (window.askVeda) window.askVeda(arg || '');
+          else setView('veda', true);
+        });
+      });
+    })
+    .catch(() => { box.innerHTML = '<div class="slot-skeleton">Could not load suggestions. Try again later.</div>'; });
 }
 
 function openPage(name) {
@@ -51,8 +120,8 @@ _syncScrollLock();
    Tabs and full-page tools are tracked in the URL hash + localStorage so a
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
-const _TABS = ['home', 'veda', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms'];
+const _TABS = ['home', 'veda', 'college', 'career', 'profile'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
@@ -1094,6 +1163,7 @@ onReady(() => {
   initAuth();
   initVeda();
   initCareer();
+  initCareers();
   initProfile();
   initPremium();
   initTools();

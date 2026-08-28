@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
 
@@ -55,14 +55,19 @@
     <!-- HOME -->
     <section id="tab-home" class="tab-pane active">
       <div class="hero">
-        <h2><span data-i18n="hero_welcome">Welcome back,</span><br><span id="home-name">Student</span> 👋</h2>
-        <p data-i18n="hero_explore">What should we explore today?</p>
+        <h2><span id="hero-greet">Welcome back</span>,<br><span id="home-name">Student</span> 👋</h2>
+        <p id="home-personal">What should we explore today?</p>
         <div class="hero-chips">
-          <button class="chip" data-go="career"><span class="chip-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></span> <span data-i18n="chip_colleges">Find Colleges</span></button>
+          <button class="chip" data-go="college"><span class="chip-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></span> <span data-i18n="chip_colleges">Find Colleges</span></button>
           <button class="chip" data-go="career"><span class="chip-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span> <span data-i18n="chip_careers">Career Paths</span></button>
           <button class="chip" data-go="career"><span class="chip-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.5"/><circle cx="4.5" cy="12" r="1.5"/><circle cx="4.5" cy="18" r="1.5"/></svg></span> <span data-i18n="chip_scholarships">Scholarships</span></button>
           <button class="chip" data-go="veda"><span class="chip-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span> <span data-i18n="chip_veda">Ask Veda</span></button>
         </div>
+      </div>
+
+      <div class="section-label">For You <span class="ai-badge">✨ AI</span></div>
+      <div class="home-slots" id="home-slots">
+        <div class="slot-skeleton">Veda is preparing your personalized suggestions…</div>
       </div>
 
       <div class="section-label" data-i18n="quick_tools">Quick Tools</div>
@@ -165,10 +170,10 @@
       </div>
     </section>
 
-    <!-- CAREER -->
-    <section id="tab-career" class="tab-pane">
+    <!-- COLLEGE -->
+    <section id="tab-college" class="tab-pane">
       <div class="page-head">
-        <div class="eyebrow">Career Explorer</div>
+        <div class="eyebrow">College Explorer</div>
         <h1 data-i18n="career_h1">Find your college</h1>
         <p data-i18n="career_sub">Discover colleges, placements, scholarships &amp; loans across India</p>
       </div>
@@ -195,6 +200,26 @@
       <div class="load-more-wrap">
         <button class="btn primary sm" id="college-loadmore" style="display:none">Load more</button>
       </div>
+    </section>
+
+    <!-- CAREER -->
+    <section id="tab-career" class="tab-pane">
+      <div class="career-hero">
+        <div class="ce-ic">🧭</div>
+        <div class="ce-txt">
+          <div class="eyebrow">Career Paths</div>
+          <h1>Find your direction</h1>
+          <p>Explore 28 Indian career paths, get an AI recommendation, and plan your journey.</p>
+        </div>
+        <button class="btn primary" id="career-quiz-open">🎯 Find my career path</button>
+      </div>
+
+      <div class="career-cats" id="career-cats"></div>
+
+      <div class="results-bar">
+        <span id="career-count" class="college-count">Loading careers…</span>
+      </div>
+      <div class="career-grid" id="careers-grid"></div>
     </section>
 
     <!-- PROFILE -->
@@ -357,15 +382,71 @@
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
       <span data-i18n="nav_veda">Veda</span>
     </button>
+    <button class="tbtn" data-tab="college">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg>
+      <span>College</span>
+    </button>
     <button class="tbtn" data-tab="career">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
-      <span data-i18n="nav_career">Career</span>
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2.5 5.5L7 17l2.5-5.5L12 9z"/></svg>
+      <span>Career</span>
     </button>
     <button class="tbtn" data-tab="profile">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
       <span data-i18n="nav_profile">Profile</span>
     </button>
   </nav>
+
+  <!-- ============ CAREER QUIZ MODAL ============ -->
+  <div class="modal" id="career-quiz-modal">
+    <div class="modal-card career-quiz">
+      <button class="modal-x" data-close>&times;</button>
+      <h3 class="modal-title">🎯 Find your career path</h3>
+      <p class="cq-sub">Answer a few quick questions and Veda will suggest the best-fit career for you.</p>
+
+      <div class="cq-step">
+        <div class="cq-q">1. Which field excites you most?</div>
+        <div class="cq-opts" data-q="field">
+          <button class="cq-opt" data-v="Tech &amp; Coding">💻 Tech &amp; Coding</button>
+          <button class="cq-opt" data-v="Medicine &amp; Biology">🩺 Medicine &amp; Biology</button>
+          <button class="cq-opt" data-v="Business &amp; Money">💰 Business &amp; Money</button>
+          <button class="cq-opt" data-v="Arts, Design &amp; Media">🎨 Arts, Design &amp; Media</button>
+          <button class="cq-opt" data-v="Public Service &amp; Law">⚖️ Public Service &amp; Law</button>
+          <button class="cq-opt" data-v="Nature &amp; Agriculture">🌾 Nature &amp; Agriculture</button>
+        </div>
+      </div>
+
+      <div class="cq-step">
+        <div class="cq-q">2. What matters more to you?</div>
+        <div class="cq-opts" data-q="priority">
+          <button class="cq-opt" data-v="Job security">🛡️ Job security</button>
+          <button class="cq-opt" data-v="High income">💸 High income</button>
+          <button class="cq-opt" data-v="Passion &amp; interest">❤️ Passion &amp; interest</button>
+          <button class="cq-opt" data-v="Work-life balance">⚖️ Work-life balance</button>
+          <button class="cq-opt" data-v="Helping society">🤝 Helping society</button>
+        </div>
+      </div>
+
+      <div class="cq-step">
+        <div class="cq-q">3. Preferred study route after 12th?</div>
+        <div class="cq-opts" data-q="route">
+          <button class="cq-opt" data-v="Engineering / Medical (B.Tech, MBBS)">🏗️ Engineering / Medical</button>
+          <button class="cq-opt" data-v="Commerce / Finance (B.Com, CA)">📒 Commerce / Finance</button>
+          <button class="cq-opt" data-v="Pure Sciences (B.Sc, Research)">🔬 Pure Sciences</button>
+          <button class="cq-opt" data-v="Management / Law (MBA, LLB)">📈 Management / Law</button>
+          <button class="cq-opt" data-v="Design / Creative">🎨 Design / Creative</button>
+          <button class="cq-opt" data-v="Government services (UPSC, NDA)">🏛️ Government services</button>
+        </div>
+      </div>
+
+      <div class="cq-step">
+        <div class="cq-q">4. Anything else Veda should know? <span class="muted">(optional)</span></div>
+        <textarea id="cq-notes" class="notes-area" placeholder="e.g. weak in physics but love biology; parents want a stable job…"></textarea>
+      </div>
+
+      <button class="btn primary block" id="cq-submit">Get my recommendation ✨</button>
+      <div id="cq-result"></div>
+    </div>
+  </div>
 
   <!-- ============ MODALS ============ -->
   <div class="modal" id="auth-modal">
@@ -847,6 +928,15 @@
     </div>
   </section>
 
+  <!-- ============ CAREER DETAIL ============ -->
+  <section class="fullpage" id="page-career" data-page="career-detail">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title" id="career-page-title">Career</div>
+    </div>
+    <div class="page-body" id="career-page-body"></div>
+  </section>
+
   <!-- ============ ABOUT ============ -->
   <section class="fullpage about-page" id="page-about" data-page="about">
     <div class="fp-head">
@@ -1231,7 +1321,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=18"></script>
+  <script type="module" src="src/app.js?v=19"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

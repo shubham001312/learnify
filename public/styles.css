@@ -1225,3 +1225,79 @@ textarea { resize: vertical; }
         padding: 28px 30px 44px;
       }
     }
+
+    /* ── Home: For You AI slots ── */
+    .ai-badge { font-size: 11px; font-weight: 700; color: var(--teal); background: rgba(14,165,164,0.14); padding: 2px 9px; border-radius: 999px; vertical-align: middle; margin-left: 6px; }
+    .home-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .slot { display: flex; gap: 12px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s; align-items: center; }
+    .slot:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: rgba(224,165,38,0.4); }
+    .slot-ic { font-size: 24px; flex: 0 0 auto; }
+    .slot-body { min-width: 0; }
+    .slot-title { font-family: var(--font-head); font-weight: 700; font-size: 14px; }
+    .slot-text { font-size: 12.5px; color: var(--muted); margin: 2px 0 4px; line-height: 1.35; }
+    .slot-cta { font-size: 12px; font-weight: 700; color: var(--gold-deep); }
+    .slot-skeleton { grid-column: 1 / -1; font-size: 13px; color: var(--sub); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--r-md); padding: 16px; text-align: center; }
+
+    /* ── Career tab ── */
+    .career-hero { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, rgba(14,165,164,0.12), rgba(224,165,38,0.1)); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px; margin-bottom: 16px; flex-wrap: wrap; }
+    .career-hero .ce-ic { font-size: 34px; }
+    .career-hero .ce-txt { flex: 1; min-width: 180px; }
+    .career-hero h1 { font-family: var(--font-head); font-weight: 800; font-size: 22px; margin: 2px 0 4px; }
+    .career-hero p { font-size: 13px; color: var(--muted); margin: 0; }
+    .career-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .cat-chip { font-size: 12.5px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: all .15s var(--ease); }
+    .cat-chip:hover { color: var(--text); border-color: rgba(14,165,164,0.4); }
+    .cat-chip.active { color: #fff; background: var(--teal); border-color: var(--teal); }
+    .career-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .career-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; text-align: left; cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s; }
+    .career-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: rgba(224,165,38,0.45); }
+    .cc-ic { font-size: 28px; margin-bottom: 6px; }
+    .cc-cat { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
+    .cc-title { font-family: var(--font-head); font-weight: 700; font-size: 14.5px; margin: 2px 0 4px; }
+    .cc-tag { font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+    /* ── Career detail ── */
+    .career-detail { padding: 2px 0; }
+    .cd-hero { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+    .cd-ic { font-size: 42px; flex: 0 0 auto; }
+    .cd-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
+    .cd-hero h2 { font-family: var(--font-head); font-weight: 800; font-size: 22px; margin: 2px 0 4px; }
+    .cd-tag { font-size: 13.5px; color: var(--muted); margin: 0; }
+    .dm-sec { margin: 14px 0; }
+    .dm-sec h4 { font-family: var(--font-head); font-size: 14px; color: var(--text); margin: 0 0 6px; }
+    .dm-sec p { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }
+    .dm-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .dm-chip { font-size: 12px; color: var(--teal); background: rgba(14,165,164,0.1); border: 1px solid rgba(14,165,164,0.2); border-radius: 999px; padding: 4px 10px; }
+    .dm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .cd-steps { margin: 0; padding-left: 20px; }
+    .cd-steps li { font-size: 13.5px; color: var(--muted); margin: 6px 0; line-height: 1.45; }
+    .cd-steps b { color: var(--gold-deep); }
+    .rel-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rel-chip { font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+    .rel-chip:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* ── Career quiz modal ── */
+    .career-quiz { max-width: 520px; }
+    .cq-sub { font-size: 13px; color: var(--muted); margin: -6px 0 14px; }
+    .cq-step { margin-bottom: 14px; }
+    .cq-q { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .cq-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .cq-opt { font-size: 13px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; cursor: pointer; transition: all .15s var(--ease); }
+    .cq-opt:hover { border-color: rgba(14,165,164,0.5); color: var(--text); }
+    .cq-opt.active { color: #fff; background: var(--teal); border-color: var(--teal); }
+    .muted { color: var(--sub); font-weight: 400; }
+
+    /* ── Guidance result ── */
+    .guidance { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .g-head { display: flex; align-items: center; gap: 12px; }
+    .g-badge { font-size: 30px; }
+    .g-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
+    .g-head h3 { font-family: var(--font-head); font-weight: 800; font-size: 18px; margin: 2px 0 0; }
+    .g-match { margin-left: auto; text-align: center; font-family: var(--font-head); font-weight: 800; font-size: 22px; color: var(--gold-deep); }
+    .g-match span { display: block; font-size: 10px; font-weight: 600; color: var(--sub); }
+    .g-reason { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 10px 0; }
+
+    @media (max-width: 560px) {
+      .home-slots { grid-template-columns: 1fr; }
+      .dm-grid2 { grid-template-columns: 1fr; }
+    }

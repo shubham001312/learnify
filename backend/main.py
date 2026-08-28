@@ -70,11 +70,21 @@ def root():
 
 
 try:
-    from backend.routes import auth, veda, colleges, documents, premium, search, scanned
+    from backend.routes import (
+        auth,
+        veda,
+        colleges,
+        documents,
+        premium,
+        search,
+        scanned,
+        careers,
+    )
 
     app.include_router(auth.router, prefix="/api/auth")
     app.include_router(veda.router, prefix="/api/veda")
     app.include_router(colleges.router, prefix="/api")
+    app.include_router(careers.router, prefix="/api")
     app.include_router(documents.router, prefix="/api/documents")
     app.include_router(premium.router, prefix="/api/premium")
     app.include_router(search.router, prefix="/api")
