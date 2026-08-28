@@ -265,34 +265,50 @@ if _MULTIPART_OK:
             db_note = None
             if client:
                 try:
-                    client.table("documents").insert(
-                        {
-                            "user_id": uid,
-                            "filename": filename,
-                            "file_type": stored_type,
-                            "file_data": file_data,
-                            "is_synthetic": False,
-                            "extracted": acad or {},
-                        }
-                    ).execute()
+                    result = (
+                        client.table("documents")
+                        .insert(
+                            {
+                                "user_id": uid,
+                                "filename": filename,
+                                "file_type": stored_type,
+                                "file_data": file_data,
+                                "is_synthetic": False,
+                                "extracted": acad or {},
+                            }
+                        )
+                        .execute()
+                    )
+                    if getattr(result, "error", None):
+                        db_note = "documents: " + str(result.error)[:400]
                 except Exception as e:
                     db_note = "documents: " + str(e)[:400]
                 if acad:
                     try:
-                        client.table("academic_records").insert(
-                            {
-                                "user_id": uid,
-                                "doc_id": doc_id,
-                                "exam": acad.get("exam"),
-                                "board": acad.get("board"),
-                                "year": acad.get("year"),
-                                "marks": acad.get("marks"),
-                                "total": acad.get("total"),
-                                "percentage": acad.get("percentage"),
-                                "raw_text": (text or "")[:4000],
-                                "verified": True,
-                            }
-                        ).execute()
+                        result = (
+                            client.table("academic_records")
+                            .insert(
+                                {
+                                    "user_id": uid,
+                                    "doc_id": doc_id,
+                                    "exam": acad.get("exam"),
+                                    "board": acad.get("board"),
+                                    "year": acad.get("year"),
+                                    "marks": acad.get("marks"),
+                                    "total": acad.get("total"),
+                                    "percentage": acad.get("percentage"),
+                                    "raw_text": (text or "")[:4000],
+                                    "verified": True,
+                                }
+                            )
+                            .execute()
+                        )
+                        if getattr(result, "error", None):
+                            db_note = (
+                                (db_note + "; " if db_note else "")
+                                + "academic: "
+                                + str(result.error)[:400]
+                            )
                     except Exception as e:
                         db_note = (
                             (db_note + "; " if db_note else "")
