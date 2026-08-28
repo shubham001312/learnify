@@ -1,4 +1,4 @@
-const CACHE = "learnify-v3";
+const CACHE = "learnify-v4";
 const PRECACHE = ["/", "/index.html", "/styles.css?v=6", "/src/app.js?v=6", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -21,14 +21,27 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/api") || url.hostname !== self.location.hostname) return;
 
-  // Network-first so new deploys are picked up immediately; fall back to cache.
-  event.respondWith(
-    fetch(req)
-      .then((res) => {
-        const c = caches.open(CACHE);
-        if (res && res.status === 200) c.then((cache) => cache.put(req, res.clone()));
-        return res;
-      })
-      .catch(() => caches.match(req))
-  );
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(req);
+      // Cache a copy in the background. Clone immediately and never let
+      // caching errors affect the response we return to the page.
+      if (res && res.status === 200) {
+        try {
+          const copy = res.clone();
+          const cache = await caches.open(CACHE);
+          await cache.put(req, copy);
+        } catch (_) { /* ignore cache failures */ }
+      }
+      return res;
+    } catch (err) {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      if (req.mode === "navigate") {
+        const shell = await caches.match("/index.html");
+        if (shell) return shell;
+      }
+      return new Response("", { status: 504, statusText: "Offline" });
+    }
+  })());
 });
