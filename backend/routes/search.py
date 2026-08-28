@@ -93,7 +93,27 @@ def global_search(q: str = Query(..., min_length=2), num: int = 8):
 
     total = len(careers) + len(companies) + len(colleges)
     ai_answer = None
-    if total == 0:
+    # Generate an AI answer when nothing matches, OR when the query is about
+    # something fresh/current ("latest", "2025", "new", "trending"…) that the
+    # database can't fully answer.
+    _fresh = (
+        "latest",
+        "newest",
+        "current",
+        "upcoming",
+        "trending",
+        "recent",
+        "future",
+        "news",
+        "2025",
+        "2026",
+        "2027",
+        "2028",
+        "2029",
+        "2030",
+    )
+    _need_ai = (total == 0) or any(k in q.lower() for k in _fresh)
+    if _need_ai:
         try:
             ai_answer = chat(
                 [

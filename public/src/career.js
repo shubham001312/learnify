@@ -1,4 +1,4 @@
-import { api, el, qs, esc } from './utils.js?v=47';
+import { api, el, qs, esc } from './utils.js?v=48';
 
 let scholarships = [];
 
