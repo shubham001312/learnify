@@ -1,17 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=25';
-import { applyLanguage } from './i18n.js?v=25';
-import { initNotifications, addNotification } from './notifications.js?v=25';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=26';
+import { applyLanguage } from './i18n.js?v=26';
+import { initNotifications, addNotification } from './notifications.js?v=26';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=25';
-import { initVeda } from './veda.js?v=25';
-import { initCareer } from './career.js?v=25';
-import { initCareers } from './careers.js?v=25';
-import { initProfile } from './profile.js?v=25';
-import { initPremium } from './premium.js?v=25';
-import { api, el, toast, esc } from './utils.js?v=25';
-import { playClick } from './sound.js?v=25';
-import { initStudyTools } from './tools.js?v=25';
+import { initAuth, openLogin } from './auth.js?v=26';
+import { initVeda } from './veda.js?v=26';
+import { initCareer } from './career.js?v=26';
+import { initCareers } from './careers.js?v=26';
+import { initProfile } from './profile.js?v=26';
+import { initPremium } from './premium.js?v=26';
+import { api, el, toast, esc } from './utils.js?v=26';
+import { iconSvg, suggestionIcon } from './icons.js?v=26';
+import { playClick } from './sound.js?v=26';
+import { initStudyTools } from './tools.js?v=26';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -76,7 +77,7 @@ function loadHomeSuggestions() {
       const go = s.cta_go || 'veda';
       const arg = (s.cta_arg || '').replace(/"/g, '');
       return '<button class="slot" data-go="' + esc(go) + '"' + (arg ? ' data-arg="' + esc(arg) + '"' : '') + '">' +
-        '<div class="slot-ic">' + (s.icon || '✨') + '</div>' +
+        '<div class="slot-ic">' + iconSvg(suggestionIcon(s.cta_go, s.title)) + '</div>' +
         '<div class="slot-body"><div class="slot-title">' + esc(s.title || '') + '</div>' +
         '<div class="slot-text">' + esc(s.text || '') + '</div>' +
         '<div class="slot-cta">' + esc(s.cta_label || 'Explore') + ' →</div></div></button>';

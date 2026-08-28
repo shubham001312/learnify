@@ -622,6 +622,16 @@ textarea { resize: vertical; }
 .modal-del { border: none; background: transparent; color: var(--muted); font-size: 17px; cursor: pointer; padding: 4px 8px; border-radius: 8px; line-height: 1; }
 .modal-del:hover { color: #c0392b; background: rgba(192,57,43,.1); }
 
+/* ───────── ACADEMIC MARKS FORM ───────── */
+.acad-subjects { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.acad-row { display: flex; align-items: center; gap: 10px; }
+.acad-row label { flex: 1; font: 600 13px var(--font-body); color: var(--text); }
+.acad-row input { width: 96px; border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; font: 600 14px var(--font-body); color: var(--text); background: var(--card); outline: none; box-sizing: border-box; }
+.acad-row input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
+.acad-summary { margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 12px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 10px; font-size: 13.5px; color: var(--text); }
+.acad-summary b { color: var(--gold-deep); }
+#acad-stream-wrap { margin-top: 2px; }
+
 /* ===== DOC PREVIEW MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(8, 12, 22, .62); backdrop-filter: blur(3px);
@@ -1275,7 +1285,8 @@ textarea { resize: vertical; }
     .home-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
     .slot { display: flex; gap: 12px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s; align-items: center; }
     .slot:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: rgba(224,165,38,0.4); }
-    .slot-ic { font-size: 24px; flex: 0 0 auto; }
+    .slot-ic { font-size: 24px; flex: 0 0 auto; color: var(--gold-deep); }
+    .slot-ic svg { width: 24px; height: 24px; display: block; }
     .slot-body { min-width: 0; }
     .slot-title { font-family: var(--font-head); font-weight: 700; font-size: 14px; }
     .slot-text { font-size: 12.5px; color: var(--muted); margin: 2px 0 4px; line-height: 1.35; }
@@ -1295,7 +1306,8 @@ textarea { resize: vertical; }
     .career-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
     .career-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; text-align: left; cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s; }
     .career-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: rgba(224,165,38,0.45); }
-    .cc-ic { font-size: 28px; margin-bottom: 6px; }
+    .cc-ic { font-size: 28px; margin-bottom: 6px; color: var(--gold-deep); }
+    .cc-ic svg { width: 28px; height: 28px; display: block; }
     .cc-cat { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .cc-title { font-family: var(--font-head); font-weight: 700; font-size: 14.5px; margin: 2px 0 4px; }
     .cc-tag { font-size: 12px; color: var(--muted); line-height: 1.35; }
@@ -1303,7 +1315,8 @@ textarea { resize: vertical; }
     /* ── Career detail ── */
     .career-detail { padding: 2px 0; }
     .cd-hero { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
-    .cd-ic { font-size: 42px; flex: 0 0 auto; }
+    .cd-ic { font-size: 42px; flex: 0 0 auto; color: var(--gold-deep); }
+    .cd-ic svg { width: 46px; height: 46px; display: block; }
     .cd-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .cd-hero h2 { font-family: var(--font-head); font-weight: 800; font-size: 22px; margin: 2px 0 4px; }
     .cd-tag { font-size: 13.5px; color: var(--muted); margin: 0; }
@@ -1318,6 +1331,7 @@ textarea { resize: vertical; }
     .cd-steps b { color: var(--gold-deep); }
     .rel-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
     .rel-chip { font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+    .rel-chip svg { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; margin-right: 5px; color: var(--teal); }
     .rel-chip:hover { border-color: var(--teal); color: var(--teal); }
 
     /* ── Career quiz modal ── */
@@ -1334,7 +1348,8 @@ textarea { resize: vertical; }
     /* ── Guidance result ── */
     .guidance { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
     .g-head { display: flex; align-items: center; gap: 12px; }
-    .g-badge { font-size: 30px; }
+    .g-badge { font-size: 30px; color: var(--gold-deep); }
+    .g-badge svg { width: 30px; height: 30px; display: block; }
     .g-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .g-head h3 { font-family: var(--font-head); font-weight: 800; font-size: 18px; margin: 2px 0 0; }
     .g-match { margin-left: auto; text-align: center; font-family: var(--font-head); font-weight: 800; font-size: 22px; color: var(--gold-deep); }

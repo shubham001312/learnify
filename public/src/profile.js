@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=25';
-import { applyLanguage } from './i18n.js?v=25';
-import { logout, openLogin } from './auth.js?v=25';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=26';
+import { applyLanguage } from './i18n.js?v=26';
+import { logout, openLogin } from './auth.js?v=26';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -46,14 +46,6 @@ export function initProfile() {
   const loggedOut = el('profile-loggedout');
   const main = el('profile-main');
 
-  const modal = el('doc-preview-modal');
-  if (modal) {
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeDocPreview(); });
-    const closeBtn = modal.querySelector('.modal-close');
-    if (closeBtn) closeBtn.addEventListener('click', closeDocPreview);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('show')) closeDocPreview(); });
-  }
-
   if (!token) {
     if (loggedOut) loggedOut.style.display = 'flex';
     if (main) main.style.display = 'none';
@@ -88,57 +80,6 @@ export function initProfile() {
       toast('Language set to ' + langSel.value, 'ok');
     });
   }
-
-  // document upload
-  const docForm = el('doc-form');
-  if (docForm) {
-    docForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-    const fileInput = el('doc-file');
-    if (!fileInput.files.length) return;
-    const fname = fileInput.files[0].name;
-      if (docQuotaLeft() <= 0) {
-        toast('Free plan allows 3 documents. Upgrade to Premium for unlimited.', 'info');
-        import('./utils.js').then((m) => m.openModal('premium-modal'));
-        return;
-      }
-      const fd = new FormData();
-      fd.append('file', fileInput.files[0]);
-      const status = el('doc-status');
-      status.textContent = 'Uploading & scanning…';
-      fetch('/api/documents/upload', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token },
-        body: fd
-      }).then(async (res) => {
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(d.detail || 'Upload failed');
-        if (d.is_synthetic) {
-          status.textContent = '⚠️ ' + (d.message || 'Please re-upload a genuine document.');
-          status.style.color = '#c0392b';
-        } else {
-          const ex = d.extracted || {};
-          if (ex.percentage != null || (ex.marks && Object.keys(ex.marks).length)) {
-            status.textContent = '✓ Uploaded. ' + (ex.exam ? ex.exam + ' marks saved.' : 'Marks saved.');
-          } else {
-            status.textContent = '✓ Uploaded. Couldn’t auto-read marks — tap “＋ Add” under My Marks to enter them.';
-          }
-          status.style.color = 'var(--green)';
-          if (ex.percentage != null) el('stat-12th').textContent = ex.percentage + '%';
-          if (ex.cgpa != null) el('stat-cgpa').textContent = ex.cgpa;
-          loadDocs();
-          loadAcademic();
-          if (window.addNotification) window.addNotification('Document "' + fname + '" processed successfully.');
-        }
-      }).catch((err) => { status.textContent = '⚠️ ' + err.message; status.style.color = '#c0392b'; });
-    });
-  }
-
-  const fileInput = el('doc-file');
-  if (fileInput) fileInput.addEventListener('change', () => {
-    const lbl = el('doc-file-label-text');
-    if (lbl) lbl.textContent = fileInput.files.length ? fileInput.files[0].name : 'Choose marksheet (PDF / Image)';
-  });
 
   // edit profile
   const openEdit = () => {
@@ -206,11 +147,6 @@ export function initProfile() {
       });
   });
 
-  // documents shortcut
-  if (el('btn-docs')) el('btn-docs').addEventListener('click', () => {
-    if (el('doc-file')) el('doc-file').click();
-  });
-
   // sgpa
   if (el('btn-sgpa')) el('btn-sgpa').addEventListener('click', () => {
     renderSgpa();
@@ -262,7 +198,6 @@ export function initProfile() {
     location.reload();
   });
 
-  loadDocs();
   loadAcademic();
   loadSgpa();
 }
@@ -325,114 +260,6 @@ function syncLangUI() {
     b.classList.toggle('active', (b.dataset.lang || b.textContent.trim()) === lang));
 }
 
-function docQuotaLeft() {
-  const used = Number(el('stat-docs') ? el('stat-docs').textContent : 0) || 0;
-  const limit = (getUser() && getUser().premium) ? Infinity : 3;
-  return Math.max(0, limit - used);
-}
-
-let currentDocs = [];
-
-function loadDocs() {
-  const list = el('doc-list');
-  if (!list) return;
-  api('/documents').then((data) => {
-    const docs = (data && data.documents) || [];
-    currentDocs = docs;
-    if (el('stat-docs')) el('stat-docs').textContent = docs.length;
-    if (el('doc-count')) el('doc-count').textContent = docs.length + '/3';
-    if (!docs.length) {
-      list.innerHTML = '<small style="color:var(--sub)">No documents yet. Upload your marksheet to get started.</small>';
-      return;
-    }
-    list.innerHTML = docs.map((d, i) => {
-      const preview = (d.file_type === 'image' && d.file_data)
-        ? '<div class="doc-thumb-wrap"><img class="doc-thumb" src="data:image/jpeg;base64,' + esc(d.file_data) + '" alt="doc"></div>'
-        : '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>';
-      const meta = (d.extracted && d.extracted.percentage)
-        ? '<small>' + esc(d.extracted.exam || '') + ' · ' + esc(d.extracted.percentage) + '%</small>'
-        : '<small>' + (d.is_synthetic ? 'Flagged' : 'Clean') + (d.file_type ? (' · ' + esc(d.file_type)) : '') + '</small>';
-      return '<div class="sitem" data-idx="' + i + '">' + preview +
-        '<div class="info"><b>' + esc(d.filename || 'document') + '</b>' + meta + '</div>' +
-        '<button class="doc-del" title="Delete document" data-del="' + i + '">🗑</button></div>';
-    }).join('');
-    list.querySelectorAll('.sitem').forEach((node) => {
-      node.addEventListener('click', () => openDocPreview(Number(node.dataset.idx)));
-    });
-    list.querySelectorAll('.doc-del').forEach((b) => {
-      b.addEventListener('click', (e) => { e.stopPropagation(); deleteDoc(currentDocs[Number(b.dataset.del)]); });
-    });
-  }).catch(() => { list.innerHTML = ''; });
-}
-
-function openDocPreview(i) {
-  const d = currentDocs[i];
-  if (!d) return;
-  const body = el('doc-preview-body');
-  let html = '';
-  if (d.file_type === 'image' && d.file_data) {
-    html += '<img class="doc-full" src="data:image/jpeg;base64,' + esc(d.file_data) + '" alt="document">';
-  } else if (d.file_type === 'pdf' && d.file_data) {
-    html += '<div class="pdf-mount"><small>Loading PDF…</small></div>';
-  } else {
-    html += '<p style="color:var(--sub)">Preview not available for this file.</p>';
-  }
-  const ex = d.extracted || {};
-  if (ex.exam || ex.board || ex.percentage || (ex.marks && Object.keys(ex.marks).length)) {
-    let meta = '<div class="doc-meta">';
-    if (ex.exam) meta += '<span><b>Exam:</b> ' + esc(ex.exam) + '</span>';
-    if (ex.board) meta += '<span><b>Board:</b> ' + esc(ex.board) + '</span>';
-    if (ex.year) meta += '<span><b>Year:</b> ' + esc(ex.year) + '</span>';
-    if (ex.percentage) meta += '<span><b>Percentage:</b> ' + esc(ex.percentage) + '%</span>';
-    meta += '</div>';
-    if (ex.marks && Object.keys(ex.marks).length) {
-      meta += '<div class="doc-marks"><b>Marks:</b><ul>';
-      for (const [k, v] of Object.entries(ex.marks)) meta += '<li>' + esc(k) + ': ' + esc(v) + '</li>';
-      meta += '</ul></div>';
-    }
-    html += meta;
-  }
-  body.innerHTML = html;
-  el('doc-preview-modal').classList.add('show');
-  const delBtn = el('doc-preview-del');
-  if (delBtn) { delBtn.onclick = () => { closeDocPreview(); deleteDoc(d); }; }
-  if (d.file_type === 'pdf' && d.file_data) {
-    decompressPdfInto(body.querySelector('.pdf-mount'), d.file_data);
-  }
-}
-
-async function decompressPdfInto(mount, b64) {
-  if (!mount) return;
-  try {
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
-    const stream = new Response(bytes).body.pipeThrough(new DecompressionStream('gzip'));
-    const ab = await new Response(stream).arrayBuffer();
-    const url = URL.createObjectURL(new Blob([ab], { type: 'application/pdf' }));
-    mount.innerHTML = '<iframe class="pdf-frame" src="' + url + '" title="document"></iframe>';
-  } catch (e) {
-    mount.innerHTML = '<small style="color:var(--sub)">PDF preview unavailable.</small>';
-  }
-}
-
-function closeDocPreview() {
-  const m = el('doc-preview-modal');
-  if (!m) return;
-  m.classList.remove('show');
-  const frame = m.querySelector('iframe');
-  if (frame && frame.src) { try { URL.revokeObjectURL(frame.src); } catch (e) {} }
-  el('doc-preview-body').innerHTML = '';
-}
-
-function deleteDoc(d) {
-  if (!d) return;
-  if (!confirm('Delete "' + (d.filename || 'document') + '"? This also removes its extracted marks.')) return;
-  api('/documents/' + d.id, { method: 'DELETE' })
-    .then(() => { toast('Document deleted', 'ok'); loadDocs(); loadAcademic(); })
-    .catch((e) => toast('Delete failed: ' + (e && e.message ? e.message : ''), 'info'));
-}
-
 function loadAcademic() {
   const list = el('academic-list');
   if (!list) return;
@@ -440,7 +267,8 @@ function loadAcademic() {
     const recs = (data && data.records) || [];
     academicRecs = recs;
     if (el('acad-count')) el('acad-count').textContent = recs.length ? recs.length + ' record' + (recs.length > 1 ? 's' : '') : '';
-    if (!recs.length) { list.innerHTML = '<small style="color:var(--sub)">No marks yet — upload your marksheet.</small>'; return; }
+    if (el('stat-docs')) el('stat-docs').textContent = recs.length;
+    if (!recs.length) { list.innerHTML = '<small style="color:var(--sub)">No marks yet — tap “＋ Add” to enter your subjects.</small>'; return; }
     list.innerHTML = recs.map((r) => {
       const marks = (r.marks && typeof r.marks === 'object')
         ? Object.entries(r.marks).map(([k, v]) => esc(k) + ': ' + esc(v)).join(', ')
@@ -456,39 +284,110 @@ function loadAcademic() {
   }).catch(() => { list.innerHTML = ''; });
 }
 
-function openAcadEdit(id) {
-  const r = (academicRecs || []).find((x) => x.id === id);
-  if (!r) return;
-  el('acad-id').value = r.id || '';
-  el('acad-exam').value = r.exam || '';
-  el('acad-board').value = r.board || '';
-  el('acad-year').value = r.year || '';
-  el('acad-pct').value = r.percentage != null ? r.percentage : '';
-  el('acad-marks').value = (r.marks && typeof r.marks === 'object') ? JSON.stringify(r.marks) : '';
+const EXAM_SUBJECTS = {
+  '10th': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
+  'Diploma': ['Subject 1', 'Subject 2', 'Subject 3', 'Subject 4', 'Subject 5'],
+  'Graduation': ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6']
+};
+const STREAM_SUBJECTS = {
+  'PCM': ['Physics', 'Chemistry', 'Mathematics', 'English'],
+  'PCMB': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English'],
+  'PCMc': ['Physics', 'Chemistry', 'Mathematics', 'Computer Science', 'English'],
+  'Commerce': ['Accountancy', 'Business Studies', 'Economics', 'English', 'Mathematics'],
+  'Humanities': ['History', 'Geography', 'Political Science', 'English', 'Economics'],
+  'Arts': ['History', 'Geography', 'Political Science', 'English', 'Fine Arts']
+};
+let acadCurrentMarks = {};
+
+function populateAcadYear() {
+  const sel = el('acad-year');
+  if (!sel) return;
+  const y = new Date().getFullYear();
+  let opts = '<option value="">Select year</option>';
+  for (let yr = y + 1; yr >= 2000; yr--) opts += '<option value="' + yr + '">' + yr + '</option>';
+  sel.innerHTML = opts;
+}
+
+function acadSubjectsFor(exam, stream, marks) {
+  if (marks && Object.keys(marks).length) return Object.keys(marks);
+  if (exam === '12th') return STREAM_SUBJECTS[stream] || [];
+  return EXAM_SUBJECTS[exam] || ['Subject 1', 'Subject 2', 'Subject 3'];
+}
+
+function renderAcadSubjects(exam, stream, marks) {
+  const wrap = el('acad-subjects');
+  if (!wrap) return;
+  const subs = acadSubjectsFor(exam, stream, marks);
+  wrap.innerHTML = subs.map((s) => {
+    const v = (marks && marks[s] != null) ? marks[s] : '';
+    return '<div class="acad-row"><label>' + esc(s) + '</label>' +
+      '<input type="number" min="0" max="100" step="0.01" class="acad-mark" data-sub="' + esc(s) + '" value="' + esc(v) + '" placeholder="0–100"></div>';
+  }).join('');
+  wrap.querySelectorAll('.acad-mark').forEach((inp) => inp.addEventListener('input', computeAcadSummary));
+  computeAcadSummary();
+}
+
+function computeAcadSummary() {
+  const wrap = el('acad-subjects');
+  const sumEl = el('acad-summary');
+  if (!wrap || !sumEl) return;
+  const marks = {};
+  let total = 0, count = 0;
+  wrap.querySelectorAll('.acad-mark').forEach((inp) => {
+    const val = parseFloat(inp.value);
+    if (!isNaN(val)) { marks[inp.dataset.sub] = val; total += val; count++; }
+  });
+  acadCurrentMarks = marks;
+  if (count === 0) { sumEl.innerHTML = ''; return; }
+  const pct = total / count;
+  sumEl.innerHTML = '<span><b>Total:</b> ' + total.toFixed(2) + ' / ' + (count * 100) + '</span>' +
+    '<span><b>Percentage:</b> ' + pct.toFixed(2) + '%</span>';
+}
+
+function openAcadModal(id, rec) {
+  el('acad-id').value = id || '';
+  const exam = rec ? (rec.exam || '') : '';
+  el('acad-exam').value = exam;
+  el('acad-board').value = rec ? (rec.board || '') : '';
+  el('acad-stream-wrap').style.display = (exam === '12th') ? '' : 'none';
+  el('acad-stream').value = '';
+  populateAcadYear();
+  el('acad-year').value = rec ? (rec.year || '') : '';
+  const marks = (rec && rec.marks && typeof rec.marks === 'object') ? rec.marks : {};
+  renderAcadSubjects(exam, '', marks);
   el('acad-status').textContent = '';
   import('./utils.js').then((m) => m.openModal('academic-modal'));
 }
 
+function openAcadEdit(id) {
+  const r = (academicRecs || []).find((x) => x.id === id);
+  if (!r) return;
+  openAcadModal(id, r);
+}
+
+if (el('acad-exam')) el('acad-exam').addEventListener('change', () => {
+  const is12 = el('acad-exam').value === '12th';
+  el('acad-stream-wrap').style.display = is12 ? '' : 'none';
+  if (!is12) el('acad-stream').value = '';
+  renderAcadSubjects(el('acad-exam').value, el('acad-stream').value, {});
+});
+if (el('acad-stream')) el('acad-stream').addEventListener('change', () => {
+  renderAcadSubjects(el('acad-exam').value, el('acad-stream').value, {});
+});
+
 if (el('acad-save')) el('acad-save').addEventListener('click', () => {
   const id = el('acad-id').value;
-  let marks = null;
-  const mraw = el('acad-marks').value.trim();
-  if (mraw) {
-    try { marks = JSON.parse(mraw); } catch (_) {
-      el('acad-status').textContent = 'Marks must be valid JSON, e.g. {"Math":90,"Science":85}';
-      el('acad-status').style.color = '#c0392b';
-      return;
-    }
-  }
-  const payload = {};
-  if (el('acad-exam').value.trim()) payload.exam = el('acad-exam').value.trim();
+  const exam = el('acad-exam').value.trim();
+  if (!exam) { el('acad-status').textContent = 'Please select an exam.'; el('acad-status').style.color = '#c0392b'; return; }
+  const marks = acadCurrentMarks || {};
+  if (!Object.keys(marks).length) { el('acad-status').textContent = 'Enter at least one subject mark.'; el('acad-status').style.color = '#c0392b'; return; }
+  const total = Object.values(marks).reduce((a, b) => a + Number(b), 0);
+  const pct = +(total / Object.keys(marks).length).toFixed(2);
+  const payload = { exam: exam, marks: marks, total: total, percentage: pct };
   if (el('acad-board').value.trim()) payload.board = el('acad-board').value.trim();
   if (el('acad-year').value.trim()) payload.year = parseInt(el('acad-year').value, 10);
-  if (el('acad-pct').value.trim()) payload.percentage = parseFloat(el('acad-pct').value);
-  if (marks) payload.marks = marks;
   const st = el('acad-status');
-  st.textContent = 'Saving…';
-  st.style.color = 'var(--sub)';
+  st.textContent = 'Saving…'; st.style.color = 'var(--sub)';
   const req = id
     ? api('/documents/academic/' + id, { method: 'PATCH', body: JSON.stringify(payload) })
     : api('/documents/academic', { method: 'POST', body: JSON.stringify(payload) });
@@ -504,14 +403,7 @@ if (el('acad-save')) el('acad-save').addEventListener('click', () => {
 });
 
 if (el('btn-add-acad')) el('btn-add-acad').addEventListener('click', () => {
-  el('acad-id').value = '';
-  el('acad-exam').value = '';
-  el('acad-board').value = '';
-  el('acad-year').value = '';
-  el('acad-pct').value = '';
-  el('acad-marks').value = '';
-  el('acad-status').textContent = '';
-  import('./utils.js').then((m) => m.openModal('academic-modal'));
+  openAcadModal(null, null);
 });
 
 function loadSgpa() {

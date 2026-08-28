@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=25">
+  <link rel="stylesheet" href="styles.css?v=26">
 </head>
 <body>
 
@@ -267,7 +267,7 @@
         <div class="stats">
           <div class="stat g"><b id="stat-cgpa">—</b><small>CGPA</small></div>
           <div class="stat t"><b id="stat-12th">—</b><small>12th %</small></div>
-          <div class="stat"><b id="stat-docs">0</b><small>Docs</small></div>
+          <div class="stat"><b id="stat-docs">0</b><small>Marks</small></div>
         </div>
 
         <div class="field">
@@ -278,33 +278,6 @@
             <option value="Bengali">বাংলা (Bengali)</option>
             <option value="Tamil">தமிழ் (Tamil)</option>
           </select>
-        </div>
-
-        <div class="docs">
-          <div class="docs-head"><span data-i18n="my_documents_h">My Documents</span> <span id="doc-count" class="end">0/3</span></div>
-          <form id="doc-form" class="doc-form">
-            <label class="file-label" for="doc-file">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-              <span id="doc-file-label-text">Choose marksheet (PDF / Image)</span>
-            </label>
-            <input type="file" id="doc-file" accept=".pdf,.png,.jpg,.jpeg" required hidden>
-            <button type="submit" class="btn primary sm">Upload</button>
-          </form>
-          <div id="doc-status" class="doc-status"></div>
-          <div id="doc-list" class="slist" style="margin-top:8px"></div>
-        </div>
-
-        <div id="doc-preview-modal" class="modal-overlay">
-          <div class="modal-card">
-            <div class="modal-head">
-              <b>Document Preview</b>
-              <span class="modal-head-actions">
-                <button class="modal-del" id="doc-preview-del" title="Delete document">🗑</button>
-                <button class="modal-close" aria-label="Close">&times;</button>
-              </span>
-            </div>
-            <div id="doc-preview-body" class="modal-body"></div>
-          </div>
         </div>
 
         <div id="quiz-modal" class="modal-overlay">
@@ -328,10 +301,6 @@
           <button class="mitem" id="btn-edit">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>
             <span data-i18n="edit_profile">Edit Profile</span>
-          </button>
-          <button class="mitem" id="btn-docs">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-            <span data-i18n="my_docs">My Documents</span>
           </button>
           <button class="mitem" id="btn-sgpa">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-5"/></svg>
@@ -789,24 +758,43 @@
   <div class="modal" id="academic-modal">
     <div class="modal-card">
       <button class="modal-x" data-close>&times;</button>
-      <h3 class="modal-title">✏️ Edit Marks</h3>
+      <h3 class="modal-title">📊 Add / Edit Marks</h3>
       <input type="hidden" id="acad-id">
-      <div class="field"><label>Exam</label><input type="text" id="acad-exam" placeholder="10th / 12th / Diploma"></div>
+      <div class="field"><label>Exam</label>
+        <select id="acad-exam">
+          <option value="">Select exam</option>
+          <option value="10th">10th</option>
+          <option value="12th">12th</option>
+          <option value="Diploma">Diploma</option>
+          <option value="Graduation">Graduation</option>
+        </select>
+      </div>
+      <div class="field" id="acad-stream-wrap" style="display:none"><label>Stream (12th)</label>
+        <select id="acad-stream">
+          <option value="">Select stream</option>
+          <option value="PCM">PCM (Physics · Chemistry · Maths)</option>
+          <option value="PCMB">PCMB (+ Biology)</option>
+          <option value="PCMc">PCM + Computer Science</option>
+          <option value="Commerce">Commerce</option>
+          <option value="Humanities">Humanities</option>
+          <option value="Arts">Arts</option>
+        </select>
+      </div>
       <div class="field"><label>Board</label>
         <select id="acad-board">
           <option value="">Select board</option>
           <option>CBSE</option>
           <option>ICSE</option>
+          <option>ISC</option>
           <option>IB</option>
-          <option>Cambridge / IGCSE</option>
           <option>State Board</option>
           <option>Other</option>
         </select>
       </div>
-      <div class="field"><label>Year</label><input type="number" id="acad-year" placeholder="2024"></div>
-      <div class="field"><label>Percentage</label><input type="number" step="0.01" id="acad-pct" placeholder="85.5"></div>
-      <div class="field"><label>Marks (JSON)</label><textarea id="acad-marks" rows="3" placeholder='{"Math":90,"Science":85}'></textarea></div>
-      <button class="btn primary block" id="acad-save">Save</button>
+      <div class="field"><label>Year</label><select id="acad-year"></select></div>
+      <div class="acad-subjects" id="acad-subjects"></div>
+      <div class="acad-summary" id="acad-summary"></div>
+      <button class="btn primary block" id="acad-save">Save Marks</button>
       <div class="doc-status" id="acad-status"></div>
     </div>
   </div>
@@ -1349,7 +1337,7 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script type="module" src="src/app.js?v=25"></script>
+  <script type="module" src="src/app.js?v=26"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

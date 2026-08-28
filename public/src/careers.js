@@ -1,4 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=25';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=26';
+import { iconSvg, careerIcon } from './icons.js?v=26';
 
 let _careerData = [];
 let _careerCats = [];
@@ -88,7 +89,7 @@ function renderCareers(list) {
   if (!shown.length) { grid.innerHTML = '<div class="slot-skeleton">No careers in this category.</div>'; return; }
   grid.innerHTML = shown.map((c) =>
     '<button class="career-card" data-id="' + esc(c.id) + '">' +
-      '<div class="cc-ic">' + (c.icon || '🎯') + '</div>' +
+      '<div class="cc-ic">' + iconSvg(careerIcon(c.category, c.title)) + '</div>' +
       '<div class="cc-cat">' + esc(c.category) + '</div>' +
       '<div class="cc-title">' + esc(c.title) + '</div>' +
       '<div class="cc-tag">' + esc(c.tagline || '') + '</div>' +
@@ -104,7 +105,7 @@ export function openCareer(id) {
     const c = d && d.career;
     if (!c) { toast('Career not found', 'info'); return; }
     const title = el('career-page-title');
-    if (title) title.innerHTML = (c.icon || '🎯') + ' ' + esc(c.title);
+    if (title) title.innerHTML = iconSvg(careerIcon(c.category, c.title)) + ' ' + esc(c.title);
     const body = el('career-page-body');
     if (body) body.innerHTML = careerHTML(c);
     body.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => openCareer(b.dataset.id)));
@@ -129,12 +130,12 @@ function careerHTML(c) {
   const list = (arr, join = ', ') => (arr && arr.length) ? arr.map((x) => esc(x)).join(join) : '—';
   const steps = (c.roadmap || []).map((s, i) => '<li><b>' + (i + 1) + '.</b> ' + esc(s) + '</li>').join('');
   const related = (c.related_careers || []).map((r) =>
-    '<button class="rel-chip" data-id="' + esc(r.id) + '">' + esc(r.icon || '•') + ' ' + esc(r.title) + '</button>'
+    '<button class="rel-chip" data-id="' + esc(r.id) + '">' + iconSvg(careerIcon(r.category, r.title)) + ' ' + esc(r.title) + '</button>'
   ).join('');
   return (
     '<div class="career-detail">' +
       '<div class="cd-hero">' +
-        '<div class="cd-ic">' + (c.icon || '🎯') + '</div>' +
+        '<div class="cd-ic">' + iconSvg(careerIcon(c.category, c.title)) + '</div>' +
         '<div><div class="cd-cat">' + esc(c.category) + '</div>' +
         '<h2>' + esc(c.title) + '</h2>' +
         '<p class="cd-tag">' + esc(c.tagline || '') + '</p></div>' +
@@ -229,7 +230,7 @@ function renderGuidance(g) {
   return (
     '<div class="guidance">' +
       '<div class="g-head">' +
-        '<div class="g-badge">' + (g.icon || '🎯') + '</div>' +
+        '<div class="g-badge">' + iconSvg(careerIcon(g.category, g.title)) + '</div>' +
         '<div><div class="g-cat">' + esc(g.category || 'Recommended') + '</div>' +
         '<h3>' + esc(title) + '</h3></div>' +
         (match != null ? '<div class="g-match">' + match + '%<span>match</span></div>' : '') +
