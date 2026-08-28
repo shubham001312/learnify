@@ -262,11 +262,11 @@ if _MULTIPART_OK:
             file_data, stored_type = _compress_file(contents, ftype, filename)
 
             client = get_client() if db_available() else None
+            db_note = None
             if client:
                 try:
                     client.table("documents").insert(
                         {
-                            "id": doc_id if _is_uuid(doc_id) else None,
                             "user_id": uid,
                             "filename": filename,
                             "file_type": stored_type,
@@ -275,8 +275,8 @@ if _MULTIPART_OK:
                             "extracted": acad or {},
                         }
                     ).execute()
-                except Exception:
-                    pass
+                except Exception as e:
+                    db_note = "documents: " + str(e)[:400]
                 if acad:
                     try:
                         client.table("academic_records").insert(
@@ -293,8 +293,12 @@ if _MULTIPART_OK:
                                 "verified": True,
                             }
                         ).execute()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        db_note = (
+                            (db_note + "; " if db_note else "")
+                            + "academic: "
+                            + str(e)[:400]
+                        )
 
             UPLOADS.append(
                 {
@@ -309,6 +313,7 @@ if _MULTIPART_OK:
                 "document_id": doc_id,
                 "is_synthetic": False,
                 "extracted": acad,
+                "db_note": db_note,
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
