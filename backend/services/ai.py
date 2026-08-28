@@ -71,6 +71,10 @@ def _call_stream(
         GROQ_URL, headers=_headers(), json=payload, stream=True, timeout=(connect, read)
     )
     resp.raise_for_status()
+    # Groq's SSE stream omits a charset header, so `requests` would otherwise
+    # decode the bytes as ISO-8859-1 and corrupt multi-byte chars (emojis,
+    # curly quotes) into mojibake. Force UTF-8 decoding.
+    resp.encoding = "utf-8"
     for line in resp.iter_lines(decode_unicode=True):
         if not line:
             continue
