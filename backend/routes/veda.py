@@ -1,12 +1,14 @@
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from backend.services.ai import chat as ai_chat
+from backend.services.ai import stream_chat as ai_stream
 from backend.services.rag import retrieve as rag_retrieve
 
-from backend.services.memory import MemoryStore
+from backend.database.client import db_available, get_client
 from backend.database.seed import SEED_SCHOLARSHIPS
 
 
@@ -18,23 +20,25 @@ class ChatReq(BaseModel):
     messages: List[dict]
     mode: str = "chat"
     language: str = "English"
+    chat_id: Optional[str] = None
 
 
 SYSTEM_BASE = (
-    "You are Veda, an AI study companion for Indian students. Be concise, "
-    "warm, and academically rigorous.\n"
-    "YOUR SCOPE IS STRICTLY EDUCATION: school/college subjects, exam preparation, "
-    "career guidance, admissions, colleges, study planning, and scholarships for Indian "
-    "students. You may help explain concepts and solve academic problems.\n"
-    "You MUST REFUSE anything outside this scope: do NOT write or debug code, do NOT give "
-    "relationship/ dating advice, do NOT discuss politics, news, or current affairs, do NOT "
-    "do non-academic tasks. For such requests, politely reply that you only help with "
-    "education and studies, and offer to help with a study-related topic instead.\n"
-    "If the user asks about scholarships, financial aid, or 'what can I apply for', "
-    "you MUST answer strictly from the REAL SCHOLARSHIP DATABASE given in the context. "
-    "Do NOT invent schemes, do NOT use outside knowledge for scholarships, and NEVER "
-    "mention KVPY (it is discontinued). If the database has nothing matching, say so "
-    "honestly and suggest checking the Scholarships page and National Scholarship Portal."
+    "You are Veda, a warm, concise AI study companion for Indian students. "
+    "You speak like a friendly mentor, not a search engine.\n"
+    "SCOPE: strictly education — school/college subjects, exam prep, careers, "
+    "admissions, colleges, study planning, and scholarships for Indian students. "
+    "Refuse anything outside this scope (code, dating, politics, news, non-academic "
+    "tasks) politely and redirect to studies.\n"
+    "PERSONALISATION: You have the user's real profile and academic records in the "
+    "context below. Use them to give specific, personal answers. Address the user by "
+    "name when you know it. When they ask about THEIR OWN marks, results, or records, "
+    "answer strictly from the USER DATA provided — never invent numbers.\n"
+    "SCHOLARSHIPS: if asked about scholarships/aid, answer strictly from the REAL "
+    "SCHOLARSHIP DATABASE in context. Do not invent schemes, never mention KVPY "
+    "(discontinued); if nothing matches, say so honestly.\n"
+    "FORMATTING: Write clean, friendly plain-text. Do NOT use markdown asterisks, "
+    "bullet glyphs, or raw symbols. Use short paragraphs and simple line breaks only."
 )
 
 
@@ -78,22 +82,139 @@ def _scholarship_context(query: str) -> List[str]:
     return lines
 
 
+def _user_context(user_id: str) -> str:
+    """Build a personalisation block from the user's real stored data."""
+    if not user_id or user_id == "demo" or not db_available():
+        return ""
+    try:
+        client = get_client()
+        res = (
+            client.table("users")
+            .select("name,grade,language,school,board,college,dob,premium")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        u = (res.data or [{}])[0] if res.data else {}
+        if not u:
+            return ""
+
+        parts = ["USER PROFILE (use this to personalise):"]
+        if u.get("name"):
+            parts.append(f"- Name: {u['name']}")
+        if u.get("grade"):
+            parts.append(f"- Grade / class: {u['grade']}")
+        if u.get("school"):
+            parts.append(f"- School: {u['school']}")
+        if u.get("board"):
+            parts.append(f"- Board: {u['board']}")
+        if u.get("college"):
+            parts.append(f"- College: {u['college']}")
+        if u.get("dob"):
+            parts.append(f"- Date of birth: {u['dob']}")
+
+        acad = (
+            client.table("academic_records")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        )
+        for rec in acad.data or []:
+            label = rec.get("exam") or "Exam"
+            line = f"- {label} record"
+            if rec.get("board"):
+                line += f" (board: {rec['board']})"
+            if rec.get("year"):
+                line += f" year: {rec['year']}"
+            if rec.get("marks"):
+                line += f": marks = {json.dumps(rec['marks'], ensure_ascii=False)}"
+            if rec.get("percentage") is not None:
+                line += f", percentage = {rec['percentage']}"
+            if rec.get("total") is not None:
+                line += f", total = {rec['total']}"
+            parts.append(line)
+
+        mem = (
+            client.table("memory")
+            .select("kind,content")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+        for m in mem.data or []:
+            if m.get("content"):
+                parts.append(f"- Memory: {m['content']}")
+
+        return "\n".join(parts)
+    except Exception:
+        return ""
+
+
+def _ensure_chat(user_id: str, chat_id: Optional[str], title: str):
+    """Return a valid chat_id (create one if needed)."""
+    if not db_available():
+        return None
+    try:
+        client = get_client()
+        if chat_id:
+            existing = (
+                client.table("chats").select("id").eq("id", chat_id).limit(1).execute()
+            )
+            if existing.data:
+                return chat_id
+        res = (
+            client.table("chats")
+            .insert({"user_id": user_id, "title": title[:80]})
+            .execute()
+        )
+        if res.data:
+            return res.data[0]["id"]
+    except Exception:
+        pass
+    return None
+
+
+def _persist_turn(user_id, chat_id, user_msg, assistant_msg):
+    if not db_available() or not chat_id:
+        return
+    try:
+        client = get_client()
+        rows = [
+            {
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "role": "user",
+                "content": user_msg,
+            },
+            {
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "role": "assistant",
+                "content": assistant_msg,
+            },
+        ]
+        client.table("conversations").insert(rows).execute()
+        client.table("chats").update({"updated_at": "now()"}).eq(
+            "id", chat_id
+        ).execute()
+    except Exception:
+        pass
+
+
 @router.post("/chat")
 def chat(req: ChatReq):
     user_messages = [m for m in req.messages if m.get("role") == "user"]
     last_msg = user_messages[-1].get("content", "") if user_messages else ""
 
     ctx = []
-    memory = ""
     scholarship_block = ""
     try:
         ctx = rag_retrieve(last_msg, req.user_id) or []
     except Exception:
         ctx = []
-    try:
-        memory = MemoryStore().get_context(req.user_id) or ""
-    except Exception:
-        memory = ""
 
     if _is_scholarship_query(last_msg):
         try:
@@ -108,9 +229,11 @@ def chat(req: ChatReq):
         except Exception:
             scholarship_block = ""
 
+    user_block = _user_context(req.user_id) or ""
+
     context_block = ""
-    if memory:
-        context_block += f"\nUser memory:\n{memory}\n"
+    if user_block:
+        context_block += user_block + "\n"
     if scholarship_block:
         context_block += scholarship_block
     if ctx:
@@ -122,26 +245,107 @@ def chat(req: ChatReq):
         SYSTEM_BASE
         + f"\nMode: {req.mode}"
         + f"\nRespond in {req.language}."
-        + context_block
+        + (f"\n\n{context_block}" if context_block else "")
     )
 
     full_messages = [{"role": "system", "content": system_prompt}]
     full_messages.extend(req.messages)
 
-    try:
-        reply = ai_chat(full_messages)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Veda request failed: {e}")
+    chat_id = _ensure_chat(req.user_id, req.chat_id, last_msg or "New chat")
 
+    def event_stream():
+        collected = []
+        try:
+            for token in ai_stream(full_messages):
+                collected.append(token)
+                yield token
+        except Exception as e:
+            err = f"\n\n[Veda is temporarily unavailable: {e}]"
+            yield err
+            collected.append(err)
+        finally:
+            _persist_turn(req.user_id, chat_id, last_msg, "".join(collected))
+
+    return StreamingResponse(event_stream(), media_type="text/plain; charset=utf-8")
+
+
+# ───────────────────────── chat history ─────────────────────────
+class ChatCreate(BaseModel):
+    user_id: str
+    title: Optional[str] = None
+
+
+@router.get("/chats")
+def list_chats(user_id: str):
+    if not db_available():
+        return {"chats": []}
     try:
-        MemoryStore().add_conversation(req.user_id, req.messages)
+        client = get_client()
+        res = (
+            client.table("chats")
+            .select("id,title,created_at,updated_at")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+        return {"chats": res.data or []}
     except Exception:
-        pass
+        return {"chats": []}
 
-    return {
-        "reply": reply,
-        "sources": ctx[:2],
-        "memory_updated": True,
-    }
+
+@router.post("/chats")
+def create_chat(req: ChatCreate):
+    if not db_available():
+        raise HTTPException(status_code=503, detail="Chat storage unavailable")
+    try:
+        client = get_client()
+        res = (
+            client.table("chats")
+            .insert({"user_id": req.user_id, "title": (req.title or "New chat")[:80]})
+            .execute()
+        )
+        if res.data:
+            return {"id": res.data[0]["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=500, detail="Could not create chat")
+
+
+@router.get("/chats/{chat_id}")
+def get_chat(chat_id: str):
+    if not db_available():
+        return {"id": chat_id, "messages": []}
+    try:
+        client = get_client()
+        res = (
+            client.table("conversations")
+            .select("role,content,created_at")
+            .eq("chat_id", chat_id)
+            .order("created_at", asc=True)
+            .execute()
+        )
+        msgs = [
+            {"role": m["role"], "content": m["content"]}
+            for m in (res.data or [])
+            if m.get("content")
+        ]
+        title_res = (
+            client.table("chats").select("title").eq("id", chat_id).limit(1).execute()
+        )
+        title = (title_res.data or [{}])[0].get("title") if title_res.data else None
+        return {"id": chat_id, "title": title, "messages": msgs}
+    except Exception:
+        return {"id": chat_id, "messages": []}
+
+
+@router.delete("/chats/{chat_id}")
+def delete_chat(chat_id: str):
+    if db_available():
+        try:
+            client = get_client()
+            client.table("conversations").delete().eq("chat_id", chat_id).execute()
+            client.table("chats").delete().eq("id", chat_id).execute()
+        except Exception:
+            pass
+    return {"ok": True}

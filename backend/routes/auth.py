@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -16,12 +17,19 @@ class RegisterReq(BaseModel):
     name: str
     language: str = "English"
     grade: str = ""
+    school: str = ""
+    board: str = ""
+    college: str = ""
+    dob: str = ""
 
 
 class ProfileReq(BaseModel):
-    name: str = ""
     language: str = ""
     grade: str = ""
+    school: str = ""
+    board: str = ""
+    college: str = ""
+    dob: str = ""
 
 
 class LoginReq(BaseModel):
@@ -53,20 +61,98 @@ def _require_client():
     return get_anon_client()
 
 
-def _ensure_users_row(client, uid, email, name="", language="English", grade=""):
+def _ensure_users_row(
+    client,
+    uid,
+    email,
+    name="",
+    language="English",
+    grade="",
+    school="",
+    board="",
+    college="",
+    dob="",
+):
     try:
-        client.table("users").upsert(
-            {
-                "id": uid,
-                "email": email,
-                "name": name,
-                "language": language,
-                "grade": grade,
-            },
-            on_conflict="id",
-        ).execute()
+        row = {
+            "id": uid,
+            "email": email,
+            "name": name,
+            "language": language,
+            "grade": grade,
+        }
+        if school:
+            row["school"] = school
+        if board:
+            row["board"] = board
+        if college:
+            row["college"] = college
+        if dob:
+            row["dob"] = dob
+        client.table("users").upsert(row, on_conflict="id").execute()
     except Exception:
         pass
+
+
+def _age_from_dob(dob):
+    if not dob:
+        return None
+    try:
+        d = datetime.date.fromisoformat(str(dob)[:10])
+        today = datetime.date.today()
+        return today.year - d.year - ((today.month, today.day) < (d.month, d.day))
+    except Exception:
+        return None
+
+
+def _profile_from_row(row: dict, email_fallback="", name_fallback=""):
+    name = row.get("name") or name_fallback
+    dob = row.get("dob")
+    premium_until = row.get("premium_until")
+    is_premium = bool(row.get("premium"))
+    if is_premium and premium_until:
+        try:
+            until = datetime.datetime.fromisoformat(str(premium_until)[:19])
+            is_premium = until > datetime.datetime.utcnow()
+        except Exception:
+            pass
+    return {
+        "id": row.get("id"),
+        "email": row.get("email") or email_fallback,
+        "name": name,
+        "language": row.get("language") or "English",
+        "grade": row.get("grade") or "",
+        "premium": is_premium,
+        "premium_until": premium_until or "",
+        "school": row.get("school") or "",
+        "board": row.get("board") or "",
+        "college": row.get("college") or "",
+        "dob": dob or "",
+        "age": _age_from_dob(dob),
+    }
+
+
+def _full_user(client, uid, email_fallback="", name_fallback=""):
+    try:
+        res = client.table("users").select("*").eq("id", uid).limit(1).execute()
+        if res.data:
+            return _profile_from_row(res.data[0], email_fallback, name_fallback)
+    except Exception:
+        pass
+    return {
+        "id": uid,
+        "email": email_fallback,
+        "name": name_fallback,
+        "language": "English",
+        "grade": "",
+        "premium": False,
+        "premium_until": "",
+        "school": "",
+        "board": "",
+        "college": "",
+        "dob": "",
+        "age": None,
+    }
 
 
 def _admin_confirm_email(email: str):
@@ -97,7 +183,17 @@ def _admin_confirm_email(email: str):
         pass
 
 
-def _our_uid(client, email, name="", language="English", grade=""):
+def _our_uid(
+    client,
+    email,
+    name="",
+    language="English",
+    grade="",
+    school="",
+    board="",
+    college="",
+    dob="",
+):
     """Resolve our app-level unique id (exactly 7 chars) for a user.
 
     Looks up the existing row by email; if missing, generates a fresh,
@@ -109,7 +205,12 @@ def _our_uid(client, email, name="", language="English", grade=""):
         res = svc.table("users").select("id").eq("email", email).limit(1).execute()
         rows = res.data or []
         if rows:
-            return rows[0]["id"]
+            # ensure profile fields are filled in if previously missing
+            existing = rows[0]["id"]
+            _ensure_users_row(
+                svc, existing, email, name, language, grade, school, board, college, dob
+            )
+            return existing
     except Exception:
         pass
 
@@ -121,7 +222,9 @@ def _our_uid(client, email, name="", language="English", grade=""):
             return False
 
     uid = generate_uid(taken)
-    _ensure_users_row(svc, uid, email, name, language, grade)
+    _ensure_users_row(
+        svc, uid, email, name, language, grade, school, board, college, dob
+    )
     return uid
 
 
@@ -165,6 +268,10 @@ def register(req: RegisterReq):
                             "name": req.name,
                             "language": req.language,
                             "grade": req.grade,
+                            "school": req.school,
+                            "board": req.board,
+                            "college": req.college,
+                            "dob": req.dob,
                         }
                     },
                 }
@@ -182,9 +289,19 @@ def register(req: RegisterReq):
                 except Exception:
                     sess = None
                 if sess:
-                    uid = _our_uid(client, email, req.name, req.language, req.grade)
+                    uid = _our_uid(
+                        client,
+                        email,
+                        req.name,
+                        req.language,
+                        req.grade,
+                        req.school,
+                        req.board,
+                        req.college,
+                        req.dob,
+                    )
                     return {
-                        "user": {"id": uid, "email": email, "name": req.name},
+                        "user": _full_user(client, uid, email, req.name),
                         "session": {"access_token": sess.access_token},
                     }
                 raise HTTPException(
@@ -204,6 +321,10 @@ def register(req: RegisterReq):
                                 "name": req.name,
                                 "language": req.language,
                                 "grade": req.grade,
+                                "school": req.school,
+                                "board": req.board,
+                                "college": req.college,
+                                "dob": req.dob,
                             },
                         }
                     ).user
@@ -217,14 +338,18 @@ def register(req: RegisterReq):
             raise HTTPException(status_code=400, detail="Registration failed")
         email = getattr(user, "email", email)
         _admin_confirm_email(email)
-        uid = _our_uid(client, email, req.name, req.language, req.grade)
-        out = {
-            "user": {
-                "id": uid,
-                "email": email,
-                "name": req.name,
-            }
-        }
+        uid = _our_uid(
+            client,
+            email,
+            req.name,
+            req.language,
+            req.grade,
+            req.school,
+            req.board,
+            req.college,
+            req.dob,
+        )
+        out = {"user": _full_user(client, uid, email, req.name)}
         try:
             sess = client.auth.sign_in_with_password(
                 {"email": email, "password": req.password}
@@ -271,11 +396,12 @@ def login(req: LoginReq):
         uid = _our_uid(client, email)
         return {
             "session": {"access_token": session.access_token},
-            "user": {
-                "id": uid,
-                "email": email,
-                "name": getattr(user, "user_metadata", {}).get("name", "User"),
-            },
+            "user": _full_user(
+                client,
+                uid,
+                email,
+                getattr(user, "user_metadata", {}).get("name", "User"),
+            ),
         }
 
     u = local_auth.verify(req.email, req.password)
@@ -305,11 +431,12 @@ def me(authorization: Optional[str] = Header(None)):
             client, email, getattr(user, "user_metadata", {}).get("name", "")
         )
         return {
-            "user": {
-                "id": uid,
-                "email": email,
-                "name": getattr(user, "user_metadata", {}).get("name", "User"),
-            }
+            "user": _full_user(
+                client,
+                uid,
+                email,
+                getattr(user, "user_metadata", {}).get("name", "User"),
+            )
         }
 
     u = local_auth.get_user_by_token(_token(authorization))
@@ -321,39 +448,41 @@ def me(authorization: Optional[str] = Header(None)):
 @router.put("/profile")
 def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None)):
     meta = {}
-    if req.name:
-        meta["name"] = req.name
     if req.language:
         meta["language"] = req.language
     if req.grade:
         meta["grade"] = req.grade
+    if req.school:
+        meta["school"] = req.school
+    if req.board:
+        meta["board"] = req.board
+    if req.college:
+        meta["college"] = req.college
+    if req.dob:
+        meta["dob"] = req.dob
 
     if db_available():
         client = _require_client()
         token = _token(authorization)
+        uid = resolve_uid(authorization)
+        email = ""
         try:
-            resp = client.auth.update_user({"data": meta})
-            user = resp.user
-            uid = getattr(user, "id", None)
-            if uid:
-                try:
-                    client.table("users").update(meta).eq("id", uid).execute()
-                except Exception:
-                    pass
-            return {
-                "user": {
-                    "email": getattr(user, "email", ""),
-                    "name": getattr(user, "user_metadata", {}).get("name", req.name),
-                    "language": getattr(user, "user_metadata", {}).get(
-                        "language", req.language
-                    ),
-                    "grade": getattr(user, "user_metadata", {}).get("grade", req.grade),
-                }
-            }
-        except Exception as e:
-            raise HTTPException(
-                status_code=400, detail="Could not update profile: " + str(e)
-            )
+            email = getattr(client.auth.get_user(token).user, "email", "")
+        except Exception:
+            email = ""
+        if not uid:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        try:
+            client.table("users").update(meta).eq("id", uid).execute()
+        except Exception:
+            pass
+        try:
+            auth_meta = {k: meta[k] for k in ("language", "grade") if k in meta}
+            if auth_meta:
+                client.auth.update_user({"data": auth_meta})
+        except Exception:
+            pass
+        return {"user": _full_user(client, uid, email)}
 
     email = _email_from_token(authorization)
     if not email:
@@ -369,8 +498,10 @@ def list_sgpa(authorization: Optional[str] = Header(None)):
     if db_available():
         client = _require_client()
         token = _token(authorization)
+        uid = resolve_uid(authorization)
+        if not uid:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
         try:
-            uid = client.auth.get_user(token).user.id
             res = client.table("sgpa_entries").select("*").eq("user_id", uid).execute()
             return {"entries": res.data or []}
         except Exception as e:
@@ -389,8 +520,10 @@ def add_sgpa(req: SgpaReq, authorization: Optional[str] = Header(None)):
     if db_available():
         client = _require_client()
         token = _token(authorization)
+        uid = resolve_uid(authorization)
+        if not uid:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
         try:
-            uid = client.auth.get_user(token).user.id
             res = (
                 client.table("sgpa_entries")
                 .insert(

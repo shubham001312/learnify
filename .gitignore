@@ -28,3 +28,6 @@ uvicorn.err
 *.log
 _syntax_check_tmp.py
 .DS_Store
+
+# one-time DB migration scripts (may contain secrets)
+migrate_*.py

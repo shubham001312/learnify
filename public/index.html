@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Learnify — Your AI Study Companion</title>
   <link rel="icon" href="assets/logo.jpeg">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0ea5a4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Learnify">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
 
@@ -85,6 +91,9 @@
     <section id="tab-veda" class="tab-pane">
       <div class="chat-wrap">
         <div class="chat-head">
+          <button class="icon-btn" id="veda-hist" title="Chat history">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          </button>
           <div class="veda-av">V</div>
           <div>
             <div class="name" data-i18n="veda_title">Veda AI</div>
@@ -94,6 +103,11 @@
           <button class="icon-btn" id="veda-new" title="New chat">+
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           </button>
+        </div>
+
+        <div class="veda-hist-panel" id="veda-hist-panel" hidden>
+          <div class="vh-head">Chats <button class="vh-close" id="veda-hist-close">×</button></div>
+          <div class="vh-list" id="veda-chat-list"></div>
         </div>
 
         <div class="chat-scroll" id="chat-messages">
@@ -633,6 +647,13 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=3"></script>
+  <script type="module" src="src/app.js?v=4"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
