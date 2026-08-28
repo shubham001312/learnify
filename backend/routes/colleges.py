@@ -8,6 +8,7 @@ from backend.database.local_db import (
     query_colleges as local_query_colleges,
     get_college as local_get_college,
     list_states as local_list_states,
+    list_cities as local_list_cities,
     get_reviews as local_get_reviews,
     add_review as local_add_review,
 )
@@ -112,6 +113,22 @@ def states():
         pass
     states = sorted({c.get("state") for c in SEED_COLLEGES if c.get("state")})
     return {"states": states}
+
+
+@router.get("/colleges/cities")
+def cities(state: Optional[str] = None):
+    try:
+        if db_available():
+            return {"cities": supabase_db.list_cities(state)}
+    except Exception:
+        pass
+    try:
+        if local_db_available():
+            return {"cities": local_list_cities(state)}
+    except Exception:
+        pass
+    cols = [c for c in SEED_COLLEGES if (state is None or c.get("state") == state)]
+    return {"cities": sorted({c.get("city") for c in cols if c.get("city")})}
 
 
 @router.get("/colleges/{college_id}")

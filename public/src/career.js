@@ -1,4 +1,4 @@
-import { api, el, qs, esc } from './utils.js?v=15';
+import { api, el, qs, esc } from './utils.js?v=16';
 
 let scholarships = [];
 
@@ -40,6 +40,24 @@ export function initCareer() {
   ];
   stateSel.insertAdjacentHTML('beforeend',
     ALL_STATES.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join(''));
+
+  async function populateDistricts(state) {
+    const dSel = el('f-district');
+    if (!dSel) return;
+    const url = state
+      ? '/api/colleges/cities?state=' + encodeURIComponent(state)
+      : '/api/colleges/cities';
+    try {
+      const d = await api(url);
+      const cities = (d && d.cities) || [];
+      const cur = dSel.value;
+      dSel.innerHTML = '<option value="">Any district / city</option>' +
+        cities.map((c) => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+      if (cur) dSel.value = cur;
+    } catch (e) { /* ignore */ }
+  }
+  if (stateSel) stateSel.addEventListener('change', () => populateDistricts(stateSel.value));
+  populateDistricts('');
 
   function typeLabel(t) {
     return t === 'govt' ? 'Government' : t === 'private' ? 'Private' : t === 'top100' ? 'Top Ranked' : 'All';

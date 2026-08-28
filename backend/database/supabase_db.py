@@ -51,7 +51,7 @@ def query_colleges(
         qb = qb.eq("state", state)
 
     if district:
-        qb = qb.ilike("district", f"%{district}%")
+        qb = qb.or_(f"district.ilike.%{district}%,city.ilike.%{district}%")
 
     if q:
         qb = qb.or_(f"name.ilike.*{q}*,city.ilike.*{q}*,state.ilike.*{q}*")
@@ -98,6 +98,15 @@ def list_states():
     client = get_client()
     res = client.table("colleges").select("state").execute()
     return sorted({r["state"] for r in (res.data or []) if r.get("state")})
+
+
+def list_cities(state=None):
+    client = get_client()
+    qb = client.table("colleges").select("city")
+    if state:
+        qb = qb.eq("state", state)
+    res = qb.execute()
+    return sorted({r["city"] for r in (res.data or []) if r.get("city")})
 
 
 def get_reviews(college_id):

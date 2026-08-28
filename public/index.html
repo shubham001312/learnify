@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
 
@@ -401,9 +401,17 @@
           <label>School</label>
           <input type="text" id="auth-school" placeholder="School name">
           <label>Board</label>
-          <input type="text" id="auth-board" placeholder="CBSE / ICSE / State">
+          <select id="auth-board">
+            <option value="">Select board</option>
+            <option>CBSE</option>
+            <option>ICSE</option>
+            <option>IB</option>
+            <option>Cambridge / IGCSE</option>
+            <option>State Board</option>
+            <option>Other</option>
+          </select>
           <label>College</label>
-          <input type="text" id="auth-college" placeholder="College (if any)">
+          <input type="text" id="auth-college" list="dl-college" autocomplete="off" placeholder="College (if any)">
           <label>Date of birth</label>
           <input type="date" id="auth-dob">
         </div>
@@ -642,12 +650,39 @@
       <div class="field"><label>Date of birth</label><input type="date" id="edit-dob"></div>
       <div class="modal-sub">Academics</div>
       <div class="field"><label>School</label><input type="text" id="edit-school" placeholder="School name"></div>
-      <div class="field"><label>Board</label><input type="text" id="edit-board" placeholder="CBSE / ICSE / State"></div>
-      <div class="field"><label>College</label><input type="text" id="edit-college" placeholder="College / University"></div>
-      <div class="field"><label>Target exam</label><input type="text" id="edit-target" placeholder="JEE / NEET / UPSC ..."></div>
+      <div class="field"><label>Board</label>
+        <select id="edit-board">
+          <option value="">Select board</option>
+          <option>CBSE</option>
+          <option>ICSE</option>
+          <option>IB</option>
+          <option>Cambridge / IGCSE</option>
+          <option>State Board</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>College</label><input type="text" id="edit-college" list="dl-college" autocomplete="off" placeholder="College / University"></div>
+      <div class="field"><label>Target exam</label>
+        <select id="edit-target">
+          <option value="">Select exam</option>
+          <option>JEE Main</option>
+          <option>JEE Advanced</option>
+          <option>NEET</option>
+          <option>CET / State CET</option>
+          <option>CUET</option>
+          <option>GATE</option>
+          <option>CAT</option>
+          <option>CLAT</option>
+          <option>UPSC</option>
+          <option>SSC</option>
+          <option>Other</option>
+        </select>
+      </div>
       <div class="modal-sub">Location</div>
-      <div class="field"><label>State</label><input type="text" id="edit-state" placeholder="e.g. Maharashtra"></div>
-      <div class="field"><label>City</label><input type="text" id="edit-city" placeholder="e.g. Pune"></div>
+      <div class="field"><label>State</label>
+        <select id="edit-state"><option value="">Select state</option></select>
+      </div>
+      <div class="field"><label>City</label><input type="text" id="edit-city" list="dl-city" autocomplete="off" placeholder="e.g. Pune"></div>
       <div class="field"><label>Short bio / goal</label><textarea id="edit-bio" rows="2" placeholder="One line about your goal"></textarea></div>
       <button class="btn primary block" id="edit-save" data-i18n="save_changes">Save changes</button>
       <div class="doc-status" id="edit-status"></div>
@@ -660,7 +695,17 @@
       <h3 class="modal-title">✏️ Edit Marks</h3>
       <input type="hidden" id="acad-id">
       <div class="field"><label>Exam</label><input type="text" id="acad-exam" placeholder="10th / 12th / Diploma"></div>
-      <div class="field"><label>Board</label><input type="text" id="acad-board" placeholder="CBSE / ICSE / State"></div>
+      <div class="field"><label>Board</label>
+        <select id="acad-board">
+          <option value="">Select board</option>
+          <option>CBSE</option>
+          <option>ICSE</option>
+          <option>IB</option>
+          <option>Cambridge / IGCSE</option>
+          <option>State Board</option>
+          <option>Other</option>
+        </select>
+      </div>
       <div class="field"><label>Year</label><input type="number" id="acad-year" placeholder="2024"></div>
       <div class="field"><label>Percentage</label><input type="number" step="0.01" id="acad-pct" placeholder="85.5"></div>
       <div class="field"><label>Marks (JSON)</label><textarea id="acad-marks" rows="3" placeholder='{"Math":90,"Science":85}'></textarea></div>
@@ -1120,12 +1165,33 @@
         <select id="f-state"><option value="">Any state</option></select>
       </div>
       <div class="ff">
-        <label for="f-district">District</label>
-        <input id="f-district" type="text" placeholder="e.g. Pune, Ranchi">
+        <label for="f-district">District / City</label>
+        <select id="f-district"><option value="">Any district / city</option></select>
       </div>
       <div class="ff">
-        <label for="f-stream">Stream</label>
-        <input id="f-stream" type="text" placeholder="e.g. CSE, MBA, BTech">
+        <label for="f-stream">Stream / Branch</label>
+        <select id="f-stream">
+          <option value="">Any stream</option>
+          <option>CSE</option>
+          <option>CSE (AI &amp; ML)</option>
+          <option>ECE</option>
+          <option>EEE</option>
+          <option>Mechanical</option>
+          <option>Civil</option>
+          <option>Chemical</option>
+          <option>IT</option>
+          <option>Biotechnology</option>
+          <option>Aerospace</option>
+          <option>Automobile</option>
+          <option>Data Science</option>
+          <option>MBA</option>
+          <option>MCA</option>
+          <option>BBA</option>
+          <option>B.Com</option>
+          <option>MBBS</option>
+          <option>Pharmacy</option>
+          <option>Architecture</option>
+        </select>
       </div>
       <div class="ff two">
         <div>
@@ -1162,7 +1228,10 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=15"></script>
+  <datalist id="dl-college"></datalist>
+  <datalist id="dl-city"></datalist>
+
+  <script type="module" src="src/app.js?v=16"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

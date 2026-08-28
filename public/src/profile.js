@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=15';
-import { applyLanguage } from './i18n.js?v=15';
-import { logout, openLogin } from './auth.js?v=15';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=16';
+import { applyLanguage } from './i18n.js?v=16';
+import { logout, openLogin } from './auth.js?v=16';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -13,6 +13,35 @@ function setSgpa(arr) {
 }
 
 export function initProfile() {
+  const STATES = [
+    'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+    'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
+    'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+    'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim',
+    'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
+  ];
+  const stSel = el('edit-state');
+  if (stSel) {
+    stSel.insertAdjacentHTML('beforeend',
+      STATES.map((s) => '<option value="' + s + '">' + s + '</option>').join(''));
+  }
+  // College & city suggestion datalists
+  api('/colleges?limit=400').then((d) => {
+    const dl = document.getElementById('dl-college');
+    if (dl) {
+      const names = Array.from(new Set(((d && d.colleges) || []).map((c) => c.name).filter(Boolean)));
+      dl.innerHTML = names.map((n) => '<option value="' + esc(n) + '"></option>').join('');
+    }
+  }).catch(() => {});
+  api('/colleges/cities').then((d) => {
+    const dl = document.getElementById('dl-city');
+    if (dl) {
+      const cities = (d && d.cities) || [];
+      dl.innerHTML = cities.map((c) => '<option value="' + esc(c) + '"></option>').join('');
+    }
+  }).catch(() => {});
+
   const token = getToken();
   const loggedOut = el('profile-loggedout');
   const main = el('profile-main');

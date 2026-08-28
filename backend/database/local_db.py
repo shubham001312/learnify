@@ -59,7 +59,8 @@ def query_colleges(
         wheres.append("state = ?")
         params.append(state)
     if district:
-        wheres.append("district LIKE ?")
+        wheres.append("(district LIKE ? OR city LIKE ?)")
+        params.append("%" + district + "%")
         params.append("%" + district + "%")
     if q:
         wheres.append("name LIKE ?")
@@ -120,6 +121,23 @@ def list_states():
     states = [r["state"] for r in cur.fetchall()]
     conn.close()
     return states
+
+
+def list_cities(state=None):
+    conn = _connect()
+    cur = conn.cursor()
+    if state:
+        cur.execute(
+            "SELECT DISTINCT city FROM colleges WHERE city IS NOT NULL AND state = ? ORDER BY city",
+            (state,),
+        )
+    else:
+        cur.execute(
+            "SELECT DISTINCT city FROM colleges WHERE city IS NOT NULL ORDER BY city"
+        )
+    cities = [r["city"] for r in cur.fetchall()]
+    conn.close()
+    return cities
 
 
 def ensure_reviews_table():
