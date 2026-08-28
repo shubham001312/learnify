@@ -1,4 +1,4 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=19';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=20';
 
 let _careerData = [];
 let _careerCats = [];
@@ -96,12 +96,12 @@ export function openCareer(id) {
     const ask = el('career-ask-veda');
     if (ask) ask.addEventListener('click', () => {
       const prompt = 'Give me a clear roadmap to become a ' + c.title + ' in India: required exams, top colleges, skills to build, and the first 3 steps I should take now.';
-      if (window.askVeda) window.askVeda(prompt);
-      else setView('veda', true);
-    });
-    const explore = el('career-explore-colleges');
-    if (explore) explore.addEventListener('click', () => setView('college', true));
-    openPage('career-detail');
+    if (window.askVeda) window.askVeda(prompt);
+    else window.setViewNav('veda', true);
+  });
+  const explore = el('career-explore-colleges');
+  if (explore) explore.addEventListener('click', () => window.setViewNav('college', true));
+  window.openPage('career-detail');
   }).catch(() => toast('Could not open career', 'info'));
 }
 window.openCareer = openCareer;

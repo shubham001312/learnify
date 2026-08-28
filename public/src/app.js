@@ -1,17 +1,17 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=19';
-import { applyLanguage } from './i18n.js?v=19';
-import { initNotifications, addNotification } from './notifications.js?v=19';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=20';
+import { applyLanguage } from './i18n.js?v=20';
+import { initNotifications, addNotification } from './notifications.js?v=20';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=19';
-import { initVeda } from './veda.js?v=19';
-import { initCareer } from './career.js?v=19';
-import { initCareers } from './careers.js?v=19';
-import { initProfile } from './profile.js?v=19';
-import { initPremium } from './premium.js?v=19';
-import { api, el, toast, esc } from './utils.js?v=19';
-import { playClick } from './sound.js?v=19';
-import { initStudyTools } from './tools.js?v=19';
+import { initAuth, openLogin } from './auth.js?v=20';
+import { initVeda } from './veda.js?v=20';
+import { initCareer } from './career.js?v=20';
+import { initCareers } from './careers.js?v=20';
+import { initProfile } from './profile.js?v=20';
+import { initPremium } from './premium.js?v=20';
+import { api, el, toast, esc } from './utils.js?v=20';
+import { playClick } from './sound.js?v=20';
+import { initStudyTools } from './tools.js?v=20';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -923,6 +923,8 @@ function openModalCard(html) {
 
 window.askVeda = askVeda;
 window.setViewNav = setView;
+window.openPage = openPage;
+window.loadHomeSuggestions = loadHomeSuggestions;
 
 function renderReviews(list) {
   if (!list || !list.length) {
