@@ -1,5 +1,5 @@
-import { api, el, toast, getToken, isAuthed, getUser, setUser } from './utils.js?v=14';
-import { openLogin } from './auth.js?v=14';
+import { api, el, toast, getToken, isAuthed, getUser, setUser } from './utils.js?v=15';
+import { openLogin } from './auth.js?v=15';
 
 function loadRazorpay(key) {
   return new Promise((resolve, reject) => {

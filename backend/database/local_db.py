@@ -35,6 +35,7 @@ def query_colleges(
     state=None,
     q=None,
     stream=None,
+    district=None,
     top=False,
     min_rank=None,
     min_package=None,
@@ -57,6 +58,9 @@ def query_colleges(
     if state:
         wheres.append("state = ?")
         params.append(state)
+    if district:
+        wheres.append("district LIKE ?")
+        params.append("%" + district + "%")
     if q:
         wheres.append("name LIKE ?")
         params.append("%" + q + "%")

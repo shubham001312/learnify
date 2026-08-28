@@ -1,4 +1,4 @@
-import { api, el, qs, esc } from './utils.js?v=14';
+import { api, el, qs, esc } from './utils.js?v=15';
 
 let scholarships = [];
 
@@ -17,6 +17,7 @@ export function initCareer() {
   let currentType = '';
   let currentState = '';
   let currentStream = '';
+  let currentDistrict = '';
   let currentMinPkg = null;
   let currentMinRank = null;
   let currentSort = 'default';
@@ -28,12 +29,17 @@ export function initCareer() {
   let reqToken = 0;
   const colMap = {};
 
-  // Populate state dropdown
-  api('/colleges/states').then((d) => {
-    const states = (d && d.states) || [];
-    stateSel.insertAdjacentHTML('beforeend',
-      states.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join(''));
-  }).catch(() => {});
+  // Populate state dropdown with ALL Indian states & UTs
+  const ALL_STATES = [
+    'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+    'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
+    'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+    'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim',
+    'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
+  ];
+  stateSel.insertAdjacentHTML('beforeend',
+    ALL_STATES.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join(''));
 
   function typeLabel(t) {
     return t === 'govt' ? 'Government' : t === 'private' ? 'Private' : t === 'top100' ? 'Top Ranked' : 'All';
@@ -49,6 +55,7 @@ export function initCareer() {
       state: currentState,
       q: currentQ,
       stream: currentStream,
+      district: currentDistrict,
       min_package: currentMinPkg,
       min_rank: currentMinRank,
       sort: currentSort,
@@ -63,6 +70,7 @@ export function initCareer() {
     if (f.state) p.state = f.state;
     if (f.q) p.q = f.q;
     if (f.stream) p.stream = f.stream;
+    if (f.district) p.district = f.district;
     if (f.min_package != null) p.min_package = f.min_package;
     if (f.min_rank != null) p.min_rank = f.min_rank;
     if (f.sort && f.sort !== 'default') p.sort = f.sort;
@@ -83,6 +91,7 @@ export function initCareer() {
     if (currentType && currentType !== 'top100') chips.push(typeLabel(currentType));
     if (currentType === 'top100') chips.push('Top Ranked');
     if (currentState) chips.push(currentState);
+    if (currentDistrict) chips.push(currentDistrict);
     if (currentStream) chips.push(currentStream);
     if (currentMinPkg != null) chips.push('≥ ₹' + currentMinPkg + ' LPA');
     if (currentMinRank != null) chips.push('NIRF ≤ ' + currentMinRank);
@@ -195,6 +204,7 @@ export function initCareer() {
       p.classList.toggle('active', (p.dataset.type || '') === currentType);
     });
     if (stateSel) stateSel.value = currentState;
+    el('f-district').value = currentDistrict;
     el('f-stream').value = currentStream;
     el('f-pkg').value = currentMinPkg != null ? currentMinPkg : '';
     el('f-rank').value = currentMinRank != null ? currentMinRank : '';
@@ -205,6 +215,7 @@ export function initCareer() {
     const active = document.querySelector('#f-type .fpill.active');
     currentType = (active && active.dataset.type) || '';
     currentState = stateSel ? stateSel.value : '';
+    currentDistrict = el('f-district').value.trim();
     currentStream = el('f-stream').value.trim();
     const pkg = parseFloat(el('f-pkg').value);
     const rk = parseInt(el('f-rank').value, 10);
@@ -216,7 +227,7 @@ export function initCareer() {
   }
 
   function resetFilters() {
-    currentType = ''; currentState = ''; currentStream = '';
+    currentType = ''; currentState = ''; currentStream = ''; currentDistrict = '';
     currentMinPkg = null; currentMinRank = null; currentSort = 'default';
     syncFilterModal();
     closeFilterModal();

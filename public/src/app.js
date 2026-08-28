@@ -1,16 +1,16 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=14';
-import { applyLanguage } from './i18n.js?v=14';
-import { initNotifications, addNotification } from './notifications.js?v=14';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=15';
+import { applyLanguage } from './i18n.js?v=15';
+import { initNotifications, addNotification } from './notifications.js?v=15';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=14';
-import { initVeda } from './veda.js?v=14';
-import { initCareer } from './career.js?v=14';
-import { initProfile } from './profile.js?v=14';
-import { initPremium } from './premium.js?v=14';
-import { api, el, toast, esc } from './utils.js?v=14';
-import { playClick } from './sound.js?v=14';
-import { initStudyTools } from './tools.js?v=14';
+import { initAuth, openLogin } from './auth.js?v=15';
+import { initVeda } from './veda.js?v=15';
+import { initCareer } from './career.js?v=15';
+import { initProfile } from './profile.js?v=15';
+import { initPremium } from './premium.js?v=15';
+import { api, el, toast, esc } from './utils.js?v=15';
+import { playClick } from './sound.js?v=15';
+import { initStudyTools } from './tools.js?v=15';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -29,7 +29,6 @@ function openPage(name) {
   if (!p) return;
   document.querySelectorAll('.fullpage').forEach((x) => x.classList.remove('open'));
   p.classList.add('open');
-  document.body.style.overflow = 'hidden';
   if (name === 'resume') { ensureResumeRows(); renderResume(); }
   if (name === 'planner') { if (window.loadPlan) loadPlan(); }
   if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
@@ -37,15 +36,23 @@ function openPage(name) {
 }
 function closePage() {
   document.querySelectorAll('.fullpage').forEach((x) => x.classList.remove('open'));
-  document.body.style.overflow = '';
 }
+
+/* ── Global scroll lock: lock background whenever any overlay is open ── */
+function _syncScrollLock() {
+  const overlay = document.querySelector('.fullpage.open, .modal.open');
+  document.documentElement.classList.toggle('no-scroll', !!overlay);
+}
+const _lockObs = new MutationObserver(_syncScrollLock);
+_lockObs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+_syncScrollLock();
 
 /* ── Persistent, history-aware navigation ──
    Tabs and full-page tools are tracked in the URL hash + localStorage so a
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
 const _TABS = ['home', 'veda', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }

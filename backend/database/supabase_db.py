@@ -27,6 +27,7 @@ def query_colleges(
     state=None,
     q=None,
     stream=None,
+    district=None,
     top=False,
     min_rank=None,
     min_package=None,
@@ -48,6 +49,9 @@ def query_colleges(
 
     if state:
         qb = qb.eq("state", state)
+
+    if district:
+        qb = qb.ilike("district", f"%{district}%")
 
     if q:
         qb = qb.or_(f"name.ilike.*{q}*,city.ilike.*{q}*,state.ilike.*{q}*")
