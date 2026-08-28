@@ -783,8 +783,9 @@ function openCollegeModal(c) {
     ? '<span class="dm-type ' + (type === 'private' ? 'type-priv' : 'type-govt') + '">' + (type === 'private' ? 'Private' : 'Government') + '</span>'
     : '';
 
-  const loc = [c.address, c.district, c.city || c.location, c.state, c.pin_code]
-    .filter(Boolean).join(', ');
+  const loc = c.address
+    ? c.address
+    : [c.district, c.city || c.location, c.state, c.pin_code].filter(Boolean).join(', ');
 
   let mapHtml = '';
   if (c.lat != null && c.lng != null) {
