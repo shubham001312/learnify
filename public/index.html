@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=41">
+  <link rel="stylesheet" href="styles.css?v=42">
 </head>
 <body>
 
@@ -139,9 +139,6 @@
             </div>
           </div>
           <span class="cb-spacer"></span>
-          <button class="icon-btn" id="veda-quiz" title="Quiz me">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 4.3 2.4c-.8.5-1.5.9-1.5 2.1"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
-          </button>
           <button class="icon-btn" id="veda-new" title="New chat">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           </button>
@@ -396,16 +393,6 @@
   </nav>
 
   <!-- ============ QUIZ POPUP (Veda) ============ -->
-  <div id="quiz-modal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-head">
-        <b>Quiz Mode</b>
-        <button class="modal-close" aria-label="Close">&times;</button>
-      </div>
-      <div id="quiz-body" class="modal-body"></div>
-    </div>
-  </div>
-
   <!-- ============ CAREER QUIZ MODAL ============ -->
   <div class="modal" id="career-quiz-modal">
     <div class="modal-card career-quiz">
@@ -1389,8 +1376,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=41"></script>
-  <script type="module" src="src/app.js?v=41"></script>
+  <script src="vendor/jspdf.umd.min.js?v=42"></script>
+  <script type="module" src="src/app.js?v=42"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

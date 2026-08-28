@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=41';
-import { openLogin } from './auth.js?v=41';
-import { playChatDing } from './sound.js?v=41';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=42';
+import { openLogin } from './auth.js?v=42';
+import { playChatDing } from './sound.js?v=42';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -484,30 +484,4 @@ export function initVeda() {
     window.sendMessage();
   });
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendMessage(); });
-
-  const quizBtn = el('veda-quiz');
-  if (quizBtn) quizBtn.addEventListener('click', startQuiz);
-  const qModal = el('quiz-modal');
-  if (qModal) {
-    qModal.addEventListener('click', (e) => { if (e.target === qModal) closeQuiz(); });
-    const qClose = qModal.querySelector('.modal-close');
-    if (qClose) qClose.addEventListener('click', closeQuiz);
-  }
-}
-
-function closeQuiz() {
-  const m = el('quiz-modal');
-  if (m) m.classList.remove('show');
-  const body = el('quiz-body');
-  if (body) body.innerHTML = '';
-}
-
-async function startQuiz() {
-  if (!getToken()) { toast('Please log in to use Quiz mode.', 'info'); openLogin(); return; }
-  const u = getUser();
-  currentMode = 'chat';
-  const topic = (u && (u.target_exam || u.grade)) ? (u.target_exam || u.grade) : 'general studies';
-  const input = el('chat-input');
-  if (input) input.value = 'Quiz me on ' + topic + ' — ask me ONE question at a time and tell me if I am right, like a fun practice test.';
-  await window.sendMessage();
 }
