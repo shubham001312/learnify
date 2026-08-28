@@ -119,11 +119,7 @@ def google_scholarship_search(query, num=10):
         )
         data = resp.json()
         if resp.status_code != 200 or data.get("error"):
-            gerr = data.get("error", {})
-            return [], {
-                "source": "error",
-                "note": "Google CSE: " + str(gerr.get("message", resp.text)[:200]),
-            }
+            return internal_scholarship_match(query, num)
         items = [
             {
                 "title": i.get("title"),
@@ -141,4 +137,4 @@ def google_scholarship_search(query, num=10):
             "remaining": max(0, DAILY_QUOTA - state["count"]),
         }
     except Exception as e:
-        return [], {"source": "error", "note": str(e)}
+        return internal_scholarship_match(query, num)
