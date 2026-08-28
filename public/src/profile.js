@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=34';
-import { applyLanguage } from './i18n.js?v=34';
-import { logout, openLogin } from './auth.js?v=34';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=35';
+import { applyLanguage } from './i18n.js?v=35';
+import { logout, openLogin } from './auth.js?v=35';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];

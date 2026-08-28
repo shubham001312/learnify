@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=34';
-import { applyLanguage } from './i18n.js?v=34';
-import { initNotifications, addNotification } from './notifications.js?v=34';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=35';
+import { applyLanguage } from './i18n.js?v=35';
+import { initNotifications, addNotification } from './notifications.js?v=35';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=34';
-import { initVeda } from './veda.js?v=34';
-import { initCareer } from './career.js?v=34';
-import { initCareers } from './careers.js?v=34';
-import { initProfile } from './profile.js?v=34';
-import { initPremium } from './premium.js?v=34';
-import { api, el, toast, esc } from './utils.js?v=34';
-import { iconSvg, suggestionIcon } from './icons.js?v=34';
-import { playClick } from './sound.js?v=34';
-import { initStudyTools } from './tools.js?v=34';
+import { initAuth, openLogin } from './auth.js?v=35';
+import { initVeda } from './veda.js?v=35';
+import { initCareer } from './career.js?v=35';
+import { initCareers } from './careers.js?v=35';
+import { initProfile } from './profile.js?v=35';
+import { initPremium } from './premium.js?v=35';
+import { api, el, toast, esc } from './utils.js?v=35';
+import { iconSvg, suggestionIcon } from './icons.js?v=35';
+import { playClick } from './sound.js?v=35';
+import { initStudyTools } from './tools.js?v=35';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1251,13 +1251,14 @@ function initGlobalSearch() {
   const closeBtn = document.getElementById('search-overlay-close');
   const clearBtn = document.getElementById('search-clear');
   const wrap = document.getElementById('top-search-wrap');
-  if (!gs || !overlay || !input) return;
+  if (!overlay || !input) return;
+  const gsEl = () => document.getElementById('global-search');
 
-  function openSearch(e) {
-    if (e && e.preventDefault) e.preventDefault();
+  function openSearch() {
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
-    input.value = gs.value.trim();
+    const g = gsEl();
+    input.value = g ? g.value.trim() : '';
     showSuggestions();
     renderSuggestions();
     setTimeout(() => input.focus(), 30);
@@ -1265,21 +1266,25 @@ function initGlobalSearch() {
   function closeSearch() {
     overlay.classList.remove('open');
     overlay.setAttribute('aria-hidden', 'true');
-    gs.blur();
+    const g = gsEl(); if (g) g.blur();
   }
   window.__closeSearch = closeSearch;
 
-  // Open on any interaction with the search bar / icon (stop propagation so the
-  // document-level close handler never sees — and immediately reverts — the open).
-  gs.addEventListener('focus', openSearch);
-  gs.addEventListener('mousedown', (e) => { e.stopPropagation(); openSearch(e); });
-  gs.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); });
-  if (wrap) {
-    wrap.addEventListener('mousedown', (e) => { if (e.target !== input) { e.stopPropagation(); openSearch(e); } });
-    wrap.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); });
-    const icon = wrap.querySelector('svg');
-    if (icon) { icon.style.cursor = 'pointer'; icon.addEventListener('click', (e) => { e.stopPropagation(); openSearch(e); }); }
-  }
+  // Open via document-level delegation (capture phase): any mousedown that starts
+  // within the search bar / icon opens the overlay. Immune to the input node being
+  // replaced or the click target resolving to an ancestor; runs before the close
+  // handler so the same click can never immediately close the overlay.
+  document.addEventListener('mousedown', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('#top-search-wrap')) {
+      if (!overlay.classList.contains('open')) { e.preventDefault(); openSearch(); }
+    }
+  }, true);
+  // Also open when the search input receives focus (keyboard / tap-to-focus).
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t && t.id === 'global-search' && !overlay.classList.contains('open')) openSearch();
+  });
 
   input.addEventListener('input', () => {
     clearTimeout(_searchTimer);
@@ -1297,11 +1302,13 @@ function initGlobalSearch() {
   if (closeBtn) closeBtn.addEventListener('click', closeSearch);
   if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); showSuggestions(); });
 
+  // Close only on a click that is truly outside both the overlay and the search bar.
   document.addEventListener('click', (e) => {
     if (!overlay.classList.contains('open')) return;
-    if (overlay.contains(e.target)) return;
-    if (wrap && wrap.contains(e.target)) return;
-    if (e.target === gs || (gs && gs.contains(e.target))) return;
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('#search-overlay')) return;
+    if (t.closest('#top-search-wrap')) return;
     closeSearch();
   });
 }
