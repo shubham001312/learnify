@@ -7,7 +7,7 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
 try:
@@ -208,7 +208,7 @@ if _MULTIPART_OK:
     @router.post("/upload")
     def upload(
         file: UploadFile = File(...),
-        authorization: Optional[str] = None,
+        authorization: Optional[str] = Header(None, alias="Authorization"),
     ):
         try:
             uid = resolve_uid(authorization) or "demo"
@@ -377,7 +377,7 @@ def update_academic(
 
 
 @router.get("")
-def list_documents(authorization: Optional[str] = None):
+def list_documents(authorization: Optional[str] = Header(None, alias="Authorization")):
     uid = resolve_uid(authorization)
     if not uid or not db_available():
         return {"documents": []}
@@ -398,7 +398,7 @@ def list_documents(authorization: Optional[str] = None):
 
 
 @router.get("/academic")
-def list_academic(authorization: Optional[str] = None):
+def list_academic(authorization: Optional[str] = Header(None, alias="Authorization")):
     uid = resolve_uid(authorization)
     if not uid or not db_available():
         return {"records": []}
