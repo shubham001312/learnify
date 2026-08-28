@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=43';
-import { openLogin } from './auth.js?v=43';
-import { playChatDing } from './sound.js?v=43';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=44';
+import { openLogin } from './auth.js?v=44';
+import { playChatDing } from './sound.js?v=44';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
