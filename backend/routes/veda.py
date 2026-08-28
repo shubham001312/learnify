@@ -233,7 +233,10 @@ def chat(req: ChatReq):
         except Exception:
             scholarship_block = ""
 
-    user_block = _user_context(req.user_id) or ""
+    try:
+        user_block = _user_context(req.user_id) or ""
+    except Exception:
+        user_block = ""
 
     context_block = ""
     if user_block:
@@ -255,11 +258,15 @@ def chat(req: ChatReq):
     full_messages = [{"role": "system", "content": system_prompt}]
     full_messages.extend(req.messages)
 
-    chat_id = _ensure_chat(req.user_id, req.chat_id, last_msg or "New chat")
+    try:
+        chat_id = _ensure_chat(req.user_id, req.chat_id, last_msg or "New chat")
+    except Exception:
+        chat_id = req.chat_id or "default"
 
     def event_stream():
         collected = []
         try:
+            yield " "  # flush headers immediately so the client receives bytes at once
             for token in ai_stream(full_messages):
                 collected.append(token)
                 yield token

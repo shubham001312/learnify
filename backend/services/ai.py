@@ -24,7 +24,7 @@ FALLBACK_MODELS = [
 
 def chat(
     messages: list[dict],
-    model: str = "nvidia/nemotron-3.5-lightning:free",
+    model: str = "openai/gpt-4o-mini",
     temperature: float = 0.7,
 ) -> str:
     """Return an assistant reply from OpenRouter, with free-model fallback."""
@@ -59,7 +59,7 @@ def _call_stream(model: str, messages: list[dict], temperature: float):
         "stream": True,
     }
     resp = requests.post(
-        OPENROUTER_URL, headers=headers, json=payload, stream=True, timeout=30
+        OPENROUTER_URL, headers=headers, json=payload, stream=True, timeout=(8, 25)
     )
     resp.raise_for_status()
     for line in resp.iter_lines(decode_unicode=True):
@@ -81,7 +81,7 @@ def _call_stream(model: str, messages: list[dict], temperature: float):
 
 def stream_chat(
     messages: list[dict],
-    model: str = "nvidia/nemotron-3.5-lightning:free",
+    model: str = "openai/gpt-4o-mini",
     temperature: float = 0.7,
 ):
     """Stream an assistant reply, falling through free models on failure.
@@ -92,7 +92,7 @@ def stream_chat(
         raise RuntimeError("OPENROUTER_API_KEY_1 is not configured")
 
     order = [model] + [m for m in FALLBACK_MODELS if m != model]
-    for mdl in order:
+    for mdl in order[:2]:
         try:
             yielded = False
             for tok in _call_stream(mdl, messages, temperature):
