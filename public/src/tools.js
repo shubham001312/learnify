@@ -21,14 +21,32 @@ function wirePremiumTools() {
       if (!isPremium()) { openModal('premium-modal'); return; }
       b.classList.add('is-pro');
       const which = b.dataset.premium;
-      if (which === 'quiz') openModal('quiz-modal');
+      if (which === 'quiz') { if (window.setViewNav) window.setViewNav('quiz', true); }
       else if (which === 'roadmap') {
         if (window.askVeda) window.askVeda('Build a step-by-step, personalised AI upskilling & career roadmap for me as an Indian student, with weekly milestones and free resources.');
       } else if (which === 'scholarship') {
-        if (window.setViewNav) window.setViewNav('scholarships', true);
+        runSmartMatch();
       }
     });
   });
+}
+
+// Smart Scholarship Match (Pro): uses the live web-search API (3rd integration)
+// to surface real, current scholarships instead of only the curated list.
+function runSmartMatch() {
+  if (window.setViewNav) window.setViewNav('scholarships', true);
+  setTimeout(() => {
+    const q = el('sch-live-q');
+    const go = el('sch-live-go');
+    if (q && go) {
+      const u = getUser() || {};
+      const loc = [u.state, u.board].filter(Boolean).join(' ');
+      q.value = (loc ? loc + ' ' : '') + 'scholarships for Indian students 2026';
+      go.click();
+      const meta = el('sch-live-meta');
+      if (meta) meta.textContent = 'Smart Match · live web search';
+    }
+  }, 350);
 }
 
 // Stream /api/veda/chat and return the full reply text (the endpoint streams plain text).
@@ -173,6 +191,16 @@ function wireNotes() {
     area.select();
     try { navigator.clipboard.writeText(area.value); toast('Notes copied', 'ok'); } catch (_) { document.execCommand('copy'); }
   });
+  const exp = el('notes-export');
+  exp && exp.addEventListener('click', () => {
+    playClick();
+    if (!isPremium()) { openModal('premium-modal'); return; }
+    const blob = new Blob([area.value], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'learnify-notes.txt'; a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Notes exported', 'ok');
+  });
 }
 
 function wireSummarizer() {
@@ -186,7 +214,11 @@ function wireSummarizer() {
     out.textContent = '';
     out.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
     gen.disabled = true; gen.textContent = 'Summarizing…';
-    const len = el('sum-len').value;
+    let len = el('sum-len').value;
+    if (!isPremium() && len === 'detailed') {
+      len = 'medium'; el('sum-len').value = 'medium';
+      toast('Detailed summaries are a Pro feature — using Medium.', 'info');
+    }
     try {
       const reply = await vedaText({
         user_id: ((getUser() || {}).email) || 'demo',
@@ -198,6 +230,25 @@ function wireSummarizer() {
     } finally {
       gen.disabled = false; gen.textContent = 'Summarize';
     }
+  });
+  const copy = el('sum-copy');
+  copy && copy.addEventListener('click', () => {
+    playClick();
+    const t = (el('sum-output').textContent || '').trim();
+    if (!t) { toast('Nothing to copy yet.', 'info'); return; }
+    try { navigator.clipboard.writeText(t); toast('Summary copied', 'ok'); } catch (_) {}
+  });
+  const exp = el('sum-export');
+  exp && exp.addEventListener('click', () => {
+    playClick();
+    if (!isPremium()) { openModal('premium-modal'); return; }
+    const t = (el('sum-output').textContent || '').trim();
+    if (!t) { toast('Nothing to export yet.', 'info'); return; }
+    const blob = new Blob([t], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'learnify-summary.txt'; a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Summary exported', 'ok');
   });
 }
 

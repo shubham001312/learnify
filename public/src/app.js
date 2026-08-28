@@ -45,7 +45,7 @@ function closePage() {
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
 const _TABS = ['home', 'veda', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
