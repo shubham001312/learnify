@@ -64,7 +64,7 @@ def _search_colleges(q, num):
     ][:num]
 
 
-@router.get("/global")
+@router.get("/search/global")
 def global_search(q: str = Query(..., min_length=2), num: int = 8):
     """Search across careers, companies and colleges in one call."""
     careers = [
