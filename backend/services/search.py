@@ -41,7 +41,7 @@ def google_scholarship_search(query, num=10):
     cx = os.environ.get("GOOGLE_CSE_CX") or os.environ.get("GOOGLE_CSE_ID")
     sites = os.environ.get(
         "GOOGLE_CSE_SITES",
-        "scholarships.gov.in,buddy4study.com,national scholarship portal,education.gov.in",
+        "scholarships.gov.in,buddy4study.com,nsp.gov.in",
     )
     state = _load()
     today = _today()
@@ -70,11 +70,9 @@ def google_scholarship_search(query, num=10):
 
     q = query
     if sites:
-        q = (
-            query
-            + " "
-            + " ".join("site:" + s.strip() for s in sites.split(",") if s.strip())
-        )
+        site_clauses = ["site:" + s.strip() for s in sites.split(",") if s.strip()]
+        if site_clauses:
+            q = query + " (" + " OR ".join(site_clauses) + ")"
     try:
         resp = requests.get(
             GOOGLE_ENDPOINT,
