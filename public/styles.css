@@ -467,7 +467,7 @@
 .modal {
   position: fixed; inset: 0; background: rgba(15,23,42,0.45);
   display: none; align-items: center; justify-content: center;
-  z-index: 200; padding: 18px; backdrop-filter: blur(4px);
+  z-index: 400; padding: 18px; backdrop-filter: blur(4px);
 }
 .modal.open { display: flex; animation: fade .18s ease; }
 .modal-card {
