@@ -1,12 +1,16 @@
 import json
 import concurrent.futures as _cf
+import urllib.parse
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from backend.services.ai import stream_chat as ai_stream
+from backend.services.ai import (
+    stream_chat as ai_stream,
+    extract_profile as ai_extract_profile,
+)
 from backend.services.rag import retrieve as rag_retrieve
 
 from backend.database.client import db_available, get_client
@@ -133,8 +137,14 @@ SYSTEM_BASE = (
     "never invent numbers.\n"
     "SCHOLARSHIPS: if asked, answer strictly from the REAL SCHOLARSHIP DATABASE in context. "
     "Do not invent schemes; never mention KVPY (discontinued).\n"
-    "FORMATTING: Write clean friendly plain-text. No markdown asterisks or bullet glyphs. "
-    "Short paragraphs, simple line breaks only."
+    "PRECISION & PROFILE BUILDING: Be concrete and specific, not vague. When essential info "
+    "for a good answer is missing (e.g. they ask 'best college for me' but their stream / "
+    "state / marks are unknown), ask ONE short, specific question at a time to collect it "
+    "(stream, class & marks, target exam, state, goal). Do NOT ask many questions at once. "
+    "Once you have enough, give a precise, structured answer with real names/examples.\n"
+    "FORMATTING: Use clean, readable markdown to structure answers — short ## headings when "
+    "helpful, **bold** key terms, bullet lists (-) for options/steps, and numbered lists for "
+    "sequences. Keep paragraphs short and friendly. Do not use horizontal rules."
 )
 
 
@@ -186,7 +196,10 @@ def _user_context(user_id: str) -> str:
         client = get_client()
         res = (
             client.table("users")
-            .select("name,grade,language,school,board,college,dob,premium")
+            .select(
+                "name,grade,language,school,board,college,dob,premium,"
+                "gender,state,city,target_exam,stream,career_goal,bio"
+            )
             .eq("id", user_id)
             .limit(1)
             .execute()
@@ -206,6 +219,20 @@ def _user_context(user_id: str) -> str:
             parts.append(f"- Board: {u['board']}")
         if u.get("college"):
             parts.append(f"- College: {u['college']}")
+        if u.get("stream"):
+            parts.append(f"- Stream / field: {u['stream']}")
+        if u.get("target_exam"):
+            parts.append(f"- Target exam: {u['target_exam']}")
+        if u.get("state"):
+            parts.append(f"- State: {u['state']}")
+        if u.get("city"):
+            parts.append(f"- City: {u['city']}")
+        if u.get("gender"):
+            parts.append(f"- Gender: {u['gender']}")
+        if u.get("career_goal"):
+            parts.append(f"- Career goal: {u['career_goal']}")
+        if u.get("bio"):
+            parts.append(f"- Bio: {u['bio']}")
         if u.get("dob"):
             parts.append(f"- Date of birth: {u['dob']}")
 
@@ -300,10 +327,103 @@ def _persist_turn(user_id, chat_id, user_msg, assistant_msg):
         pass
 
 
+def _extract_and_save_profile(user_id: str, text: str) -> dict:
+    """Two-way profile sync: pull structured facts the user mentioned in chat and
+    persist them to their profile (users) and academic records, so future answers
+    are precise. Returns a compact delta dict for UI feedback (empty if nothing)."""
+    if not user_id or user_id in ("demo", "auth-user") or not db_available():
+        return {}
+    try:
+        data = ai_extract_profile(text)
+    except Exception:
+        return {}
+    if not data:
+        return {}
+
+    client = get_client()
+    # 1) Plain profile fields -> users table.
+    PROFILE_COLS = [
+        "name",
+        "gender",
+        "grade",
+        "school",
+        "board",
+        "college",
+        "state",
+        "city",
+        "target_exam",
+        "stream",
+        "career_goal",
+        "language",
+        "bio",
+    ]
+    update = {}
+    for f in PROFILE_COLS:
+        v = (data.get(f) or "").strip()
+        if v:
+            update[f] = v
+    if update:
+        try:
+            client.table("users").update(update).eq("id", user_id).execute()
+        except Exception:
+            update = {}
+
+    # 2) Academic marks -> academic_records (dedupe by exam so re-stating doesn't spam).
+    academic = []
+    exam = (data.get("exam") or "").strip()
+    marks = (data.get("marks") or "").strip()
+    pct = (data.get("percentage") or "").strip()
+    year = (data.get("year") or "").strip()
+    if exam and (marks or pct):
+        try:
+            existing = (
+                client.table("academic_records")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("exam", exam)
+                .execute()
+            )
+            for row in existing.data or []:
+                client.table("academic_records").delete().eq("id", row["id"]).execute()
+            pct_val = float(pct) if pct.replace(".", "", 1).isdigit() else None
+            rec = {
+                "user_id": user_id,
+                "exam": exam,
+                "board": (data.get("board") or "").strip(),
+                "marks": marks,
+                "total": None,
+                "percentage": pct_val,
+                "year": int(year) if year.isdigit() else None,
+                "raw_text": text[:500],
+            }
+            client.table("academic_records").insert(rec).execute()
+            academic.append({"exam": exam, "value": pct or marks})
+        except Exception:
+            pass
+
+    deltas = {}
+    if update:
+        deltas["profile"] = update
+    if academic:
+        deltas["academic"] = academic
+    return deltas
+
+
 @router.post("/chat")
 def chat(req: ChatReq):
     user_messages = [m for m in req.messages if m.get("role") == "user"]
     last_msg = user_messages[-1].get("content", "") if user_messages else ""
+
+    # Two-way profile sync: pull any facts the user just stated into their profile
+    # so Veda's answer (and all future ones) can be precise.
+    profile_deltas = {}
+    try:
+        profile_deltas = (
+            _with_timeout(lambda: _extract_and_save_profile(req.user_id, last_msg), 4)
+            or {}
+        )
+    except Exception:
+        profile_deltas = {}
 
     ctx = []
     scholarship_block = ""
@@ -381,7 +501,12 @@ def chat(req: ChatReq):
         finally:
             _persist_turn(req.user_id, chat_id, last_msg, "".join(collected))
 
-    return StreamingResponse(event_stream(), media_type="text/plain; charset=utf-8")
+    resp = StreamingResponse(event_stream(), media_type="text/plain; charset=utf-8")
+    if profile_deltas:
+        resp.headers["X-Profile-Updated"] = urllib.parse.quote(
+            json.dumps(profile_deltas)
+        )
+    return resp
 
 
 # ───────────────────────── chat history ─────────────────────────

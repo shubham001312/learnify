@@ -1,4 +1,4 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda } from './utils.js';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js';
 import { openLogin } from './auth.js';
 import { playChatDing } from './sound.js';
 
@@ -32,7 +32,9 @@ function appendBubble(who, text) {
   const u = getUser();
   const av = who === 'user' ? (u ? (u.name || 'S').charAt(0).toUpperCase() : 'S') : 'V';
   row.innerHTML = `<div class="msg-av ${avClass}">${av}</div><div class="bubble ${avClass}"></div>`;
-  row.querySelector('.bubble').textContent = text;
+  const bubble = row.querySelector('.bubble');
+  if (who === 'v') bubble.innerHTML = renderMarkdown(text);
+  else bubble.textContent = text;
   wrap.appendChild(row);
   return row.querySelector('.bubble');
 }
@@ -60,6 +62,17 @@ function removeTyping() {
   if (t) t.remove();
 }
 function scrollDown() { const w = el('chat-messages'); if (w) w.scrollTop = w.scrollHeight; }
+
+function showProfileToast(d) {
+  const parts = [];
+  if (d.profile) {
+    for (const k in d.profile) parts.push(k + ' → ' + d.profile[k]);
+  }
+  if (d.academic) {
+    d.academic.forEach((a) => parts.push('Marks: ' + a.exam + ' ' + a.value));
+  }
+  if (parts.length) toast('✅ Profile updated — ' + parts.join(', '), 'success');
+}
 
 async function loadChatList() {
   if (!getToken()) { chatList = []; renderChatList(); return; }
@@ -200,6 +213,17 @@ export function initVeda() {
         body: JSON.stringify({ user_id: userId, messages, language: getLang(), chat_id: currentChatId })
       });
       if (!resp.ok) throw new Error('Veda request failed (' + resp.status + ')');
+
+      // Two-way profile sync: show a toast when Veda saved facts from the chat.
+      const pu = resp.headers.get('X-Profile-Updated');
+      if (pu) {
+        try {
+          const d = JSON.parse(decodeURIComponent(pu));
+          showProfileToast(d);
+          api('/auth/me').then((r) => { if (r && r.user) setUser(r.user); }).catch(() => {});
+        } catch (_) {}
+      }
+
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let text = '';
@@ -210,7 +234,7 @@ export function initVeda() {
         const { done, value } = await reader.read();
         if (done) break;
         text += decoder.decode(value, { stream: true });
-        if (streamEl) streamEl.textContent = text;
+        if (streamEl) streamEl.innerHTML = renderMarkdown(text);
         if (!dinged && text.trim()) { dinged = true; try { playChatDing(); } catch (_) {} }
         scrollDown();
       }

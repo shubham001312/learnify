@@ -71,13 +71,14 @@ def _call_stream(
         GROQ_URL, headers=_headers(), json=payload, stream=True, timeout=(connect, read)
     )
     resp.raise_for_status()
-    # Groq's SSE stream omits a charset header, so `requests` would otherwise
-    # decode the bytes as ISO-8859-1 and corrupt multi-byte chars (emojis,
-    # curly quotes) into mojibake. Force UTF-8 decoding.
-    resp.encoding = "utf-8"
-    for line in resp.iter_lines(decode_unicode=True):
-        if not line:
+    # Read RAW bytes and decode each complete SSE line as UTF-8. Using
+    # `decode_unicode=True` would decode per-chunk, splitting multi-byte chars
+    # (emojis, curly quotes) across chunk boundaries and producing U+FFFD
+    # mojibake. Splitting on newlines first keeps each line's bytes intact.
+    for raw in resp.iter_lines(decode_unicode=False):
+        if not raw:
             continue
+        line = raw.decode("utf-8", errors="replace")
         if not line.startswith("data:"):
             continue
         data = line[len("data:") :].strip()
@@ -157,6 +158,100 @@ def analyze(text: str, model: str = ANALYZE_MODEL) -> dict:
         "summary": str(parsed.get("summary", (text or "")[:200])),
         "entities": parsed.get("entities", []),
     }
+
+
+def _call_json(model: str, messages: list[dict], temperature: float = 0.2) -> dict:
+    """Call Groq in JSON mode and parse the returned object."""
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured")
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "response_format": {"type": "json_object"},
+    }
+    resp = requests.post(GROQ_URL, headers=_headers(), json=payload, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    content = data["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
+# Profile fields we can persist. (Public `users` columns + academic record.)
+_PROFILE_FIELDS = [
+    "name",
+    "gender",
+    "grade",
+    "school",
+    "board",
+    "college",
+    "state",
+    "city",
+    "target_exam",
+    "stream",
+    "career_goal",
+    "language",
+    "bio",
+    "exam",
+    "marks",
+    "percentage",
+    "year",
+]
+
+
+def extract_profile(text: str) -> dict:
+    """Extract structured student-profile info from free-text chat input.
+
+    Returns a dict of only the fields that were clearly present. Used to keep
+    the user's profile in sync with what they casually mention in chat.
+    """
+    if not GROQ_API_KEY or not text or not text.strip():
+        return {}
+    prompt = (
+        "You are a profile extractor for an Indian student study app. "
+        "Read the user's message and extract any student-profile facts. "
+        "Respond with ONE JSON object. For each field, output the value if "
+        "clearly stated, else an empty string. Fields:\n"
+        "- name: student's name\n"
+        "- gender: 'Male' / 'Female' / 'Other'\n"
+        "- grade: class or year of study (e.g. '12th', '2nd year B.Tech')\n"
+        "- school: school name\n"
+        "- board: education board (CBSE / ICSE / State / IB / etc.)\n"
+        "- college: college name\n"
+        "- state: Indian state of residence\n"
+        "- city: city of residence\n"
+        "- target_exam: exam being prepared for (JEE / NEET / CET / GATE / UPSC / CA / CAT / boards / etc.)\n"
+        "- stream: field of study (Engineering / Medical / Commerce / Arts / Science / etc.)\n"
+        "- career_goal: intended career\n"
+        "- language: preferred language (English / Hindi / etc.)\n"
+        "- bio: short self description\n"
+        "- exam: an academic exam/marks entry name (e.g. '12th Boards', 'JEE Main') ONLY if marks are mentioned\n"
+        "- marks: marks/score text for that exam (e.g. '450/500' or 'Maths 95, Physics 88')\n"
+        "- percentage: overall percentage number if stated (as a string, e.g. '95')\n"
+        "- year: year of that exam (e.g. 2024) if stated\n"
+        "Set exam/marks/percentage/year together when the user states academic "
+        "marks/score/percentage. Output JSON only, no prose."
+    )
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": text},
+    ]
+    last_err = None
+    for mdl in ["groq/compound-mini", "groq/compound", "openai/gpt-oss-120b"]:
+        try:
+            obj = _call_json(mdl, messages)
+            if isinstance(obj, dict):
+                return {
+                    k: str(obj.get(k, "")).strip()
+                    for k in _PROFILE_FIELDS
+                    if obj.get(k)
+                }
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        raise last_err
+    return {}
 
 
 def embed(text: str) -> list[float] | None:

@@ -129,3 +129,117 @@ export function onReady(fn) {
     fn();
   }
 }
+
+// Lightweight, safe markdown renderer for Veda's chat replies.
+// Input is HTML-escaped first, so user/AI text can never inject markup.
+export function renderMarkdown(src) {
+  if (!src) return '';
+  const esc = (s) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const inline = (s) => {
+    // links [text](https://...)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => {
+      const safe = u.replace(/"/g, '%22');
+      return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${t}</a>`;
+    });
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); // bold
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>'); // italic
+    s = s.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>'); // italic _
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>'); // inline code
+    return s;
+  };
+
+  const lines = esc(src).split('\n');
+  let html = '';
+  let para = [];
+  let listType = null;
+
+  const flushPara = () => {
+    if (para.length) {
+      html += '<p>' + inline(para.join('<br>')) + '</p>';
+      para = [];
+    }
+  };
+  const closeList = () => {
+    if (listType) {
+      html += '</' + listType + '>';
+      listType = null;
+    }
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (/^```/.test(line)) {
+      flushPara();
+      closeList();
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        buf.push(lines[i]);
+        i++;
+      }
+      i++;
+      html += '<pre><code>' + buf.join('\n') + '</code></pre>';
+      continue;
+    }
+
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) {
+      flushPara();
+      closeList();
+      html += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`;
+      i++;
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      flushPara();
+      closeList();
+      html += '<blockquote>' + inline(line.replace(/^>\s?/, '')) + '</blockquote>';
+      i++;
+      continue;
+    }
+
+    const ul = line.match(/^\s*[-*]\s+(.*)$/);
+    if (ul) {
+      flushPara();
+      if (listType !== 'ul') {
+        closeList();
+        html += '<ul>';
+        listType = 'ul';
+      }
+      html += '<li>' + inline(ul[1]) + '</li>';
+      i++;
+      continue;
+    }
+
+    const ol = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (ol) {
+      flushPara();
+      if (listType !== 'ol') {
+        closeList();
+        html += '<ol>';
+        listType = 'ol';
+      }
+      html += '<li>' + inline(ol[1]) + '</li>';
+      i++;
+      continue;
+    }
+
+    if (!line.trim()) {
+      flushPara();
+      closeList();
+      i++;
+      continue;
+    }
+
+    para.push(line);
+    i++;
+  }
+  flushPara();
+  closeList();
+  return html;
+}
