@@ -168,17 +168,18 @@
     .so-close { background: none; border: none; font-size: 14px; font-weight: 600; color: var(--teal); cursor: pointer; padding: 6px 8px; flex-shrink: 0; }
     .so-close:hover { color: var(--teal-deep); }
     .so-body { flex: 1; overflow-y: auto; width: 100%; max-width: 760px; margin: 0 auto; padding: 18px 16px 40px; }
-    .so-sec { margin-bottom: 24px; }
-    .so-sec-head { font: 700 12px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 12px; }
-    .so-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .so-sec { margin-bottom: 26px; }
+    .so-sec-head { font: 700 13px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 14px; }
+    .so-chips { display: flex; flex-wrap: wrap; gap: 10px; }
     .so-chip {
-      display: inline-flex; align-items: center; gap: 8px; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; cursor: pointer;
-      font: 600 13px var(--font-body); color: var(--text); transition: all .12s var(--ease); text-align: left;
+      display: inline-flex; align-items: center; gap: 10px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px; padding: 12px 18px; cursor: pointer;
+      font: 600 14.5px var(--font-body); color: var(--text); transition: all .12s var(--ease); text-align: left;
+      min-height: 46px;
     }
-    .so-chip:hover { border-color: var(--teal); background: var(--surface-2); transform: translateY(-1px); }
-    .so-chip .ic { font-size: 15px; }
-    .so-chip .sub { color: var(--sub); font-weight: 400; font-size: 11.5px; }
+    .so-chip:hover { border-color: var(--teal); background: var(--surface-2); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .so-chip .ic { font-size: 20px; flex-shrink: 0; }
+    .so-chip .sub { color: var(--sub); font-weight: 400; font-size: 12.5px; }
     .so-group { margin-bottom: 20px; }
     .so-group-head { font: 700 12px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 10px; }
     .so-row {
@@ -198,6 +199,9 @@
     .so-row-arrow { color: var(--sub); font-size: 22px; flex-shrink: 0; transition: transform .12s; }
     .so-row:hover .so-row-arrow { transform: translateX(3px); }
     .so-empty, .so-loading { text-align: center; padding: 48px 16px; color: var(--sub); font-size: 14px; }
+    @media (max-width: 600px) {
+      .so-chip { flex: 1 1 calc(50% - 10px); justify-content: flex-start; }
+    }
 
     .top-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .icon-btn {
