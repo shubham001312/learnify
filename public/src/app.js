@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=46';
-import { applyLanguage } from './i18n.js?v=46';
-import { initNotifications, addNotification } from './notifications.js?v=46';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=47';
+import { applyLanguage } from './i18n.js?v=47';
+import { initNotifications, addNotification } from './notifications.js?v=47';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=46';
-import { initVeda } from './veda.js?v=46';
-import { initCareer } from './career.js?v=46';
-import { initCareers } from './careers.js?v=46';
-import { initProfile } from './profile.js?v=46';
-import { initPremium } from './premium.js?v=46';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=46';
-import { iconSvg, suggestionIcon } from './icons.js?v=46';
-import { playClick } from './sound.js?v=46';
-import { initStudyTools } from './tools.js?v=46';
+import { initAuth, openLogin } from './auth.js?v=47';
+import { initVeda } from './veda.js?v=47';
+import { initCareer } from './career.js?v=47';
+import { initCareers } from './careers.js?v=47';
+import { initProfile } from './profile.js?v=47';
+import { initPremium } from './premium.js?v=47';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=47';
+import { iconSvg, suggestionIcon } from './icons.js?v=47';
+import { playClick } from './sound.js?v=47';
+import { initStudyTools } from './tools.js?v=47';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1402,6 +1402,12 @@ function doSearch(q) {
       if (window.__closeSearch) window.__closeSearch();
       navigateFromSearch(type, id);
     }));
+    const fix = results.querySelector('.so-dym-btn');
+    if (fix) fix.addEventListener('click', () => {
+      const q2 = fix.dataset.fix;
+      const inp = el('search-input');
+      inp.value = q2; showResults(); doSearch(q2); inp.focus();
+    });
   }).catch(() => { results.innerHTML = '<div class="so-empty">Search failed. Try again.</div>'; });
 }
 
@@ -1415,8 +1421,15 @@ function renderSearchResults(d) {
   const careers = d.careers || [];
   const companies = d.companies || [];
   const colleges = d.colleges || [];
-  if (!careers.length && !companies.length && !colleges.length)
+  const ai = d.ai_answer;
+  const suggestion = d.suggestion;
+  const hasDb = careers.length || companies.length || colleges.length;
+  if (!hasDb && !ai)
     return '<div class="so-empty">No matches found. Try a different search.</div>';
+  let html = '';
+  if (suggestion) {
+    html += '<div class="so-dym">Did you mean <button class="so-dym-btn" data-fix="' + esc(suggestion) + '">' + esc(suggestion) + '</button>?</div>';
+  }
   const group = (title, icon, items, type, subFn) => {
     if (!items.length) return '';
     const rows = items.map((it) =>
@@ -1429,9 +1442,16 @@ function renderSearchResults(d) {
     ).join('');
     return '<div class="so-group"><div class="so-group-head">' + icon + ' ' + esc(title) + ' (' + items.length + ')</div>' + rows + '</div>';
   };
-  return group('Careers', '🎯', careers, 'career', (c) => c.tagline || c.category) +
-         group('Companies', '💼', companies, 'company', (c) => c.sector || '') +
-         group('Colleges', '🎓', colleges, 'college', (c) => [c.city, c.state].filter(Boolean).join(', '));
+  if (hasDb) {
+    html += group('Careers', '🎯', careers, 'career', (c) => c.tagline || c.category) +
+            group('Companies', '💼', companies, 'company', (c) => [c.sector, c.headquarters].filter(Boolean).join(' · ')) +
+            group('Colleges', '🎓', colleges, 'college', (c) => [c.city, c.state].filter(Boolean).join(', '));
+  }
+  if (ai) {
+    html += '<div class="so-group"><div class="so-group-head">✨ Answer from Veda (AI)</div>' +
+            '<div class="ai-card">' + renderMarkdown(ai) + '</div></div>';
+  }
+  return html;
 }
 
 function openCollegeFromSearch(id) {

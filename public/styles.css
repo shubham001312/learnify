@@ -218,6 +218,25 @@
     .dm-skel .sk { height: 14px; border-radius: 6px; }
     .dm-skel .sk-box { height: 56px; border-radius: 12px; }
 
+    /* Did-you-mean + AI answer inside search */
+    .so-dym { margin: 2px 2px 18px; font-size: 14px; color: var(--sub); }
+    .so-dym-btn { background: rgba(14,165,164,0.1); border: 1px solid rgba(14,165,164,0.35); color: var(--teal-deep); font-weight: 700; border-radius: 9px; padding: 5px 12px; cursor: pointer; font-size: 14px; margin-left: 4px; }
+    .so-dym-btn:hover { background: rgba(14,165,164,0.18); }
+    .ai-card { background: linear-gradient(135deg, rgba(224,165,38,0.08), rgba(14,165,164,0.06)); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--text); }
+    .ai-card p { margin: 6px 0 0; } .ai-card p:first-child { margin-top: 0; }
+    .ai-card strong { color: var(--gold-deep); }
+    .dm-stat.sal { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); border-radius: 12px; padding: 10px 12px; }
+    .dm-stat.sal b { color: var(--green); }
+    @media (max-width: 600px) {
+      .so-row { padding: 11px 12px; gap: 11px; min-height: 54px; border-radius: 12px; }
+      .so-row-ic { width: 38px; height: 38px; border-radius: 10px; font-size: 19px; }
+      .so-row-name { font-size: 14px; }
+      .so-row-sub { font-size: 12px; margin-top: 2px; }
+      .so-row-arrow { font-size: 18px; }
+      .so-body { padding: 16px 14px 40px; }
+      .so-dym { font-size: 13px; }
+    }
+
     .top-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .icon-btn {
       width: 38px; height: 38px; border-radius: 12px;

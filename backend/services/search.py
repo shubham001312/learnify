@@ -39,12 +39,14 @@ def internal_scholarship_match(query, num=10):
     """Free, key-less matching against our own scholarship database."""
     try:
         from backend.database.supabase_db import list_scholarships
+
         rows = list_scholarships() or []
     except Exception:
         rows = []
     if not rows:
         try:
             from backend.database.seed import SEED_SCHOLARSHIPS
+
             rows = SEED_SCHOLARSHIPS
         except Exception:
             rows = []
@@ -52,8 +54,18 @@ def internal_scholarship_match(query, num=10):
     qwords = {w for w in re.findall(r"[a-z0-9]+", ql) if len(w) > 2}
     scored = []
     for s in rows:
-        text = " ".join(str(s.get(k, "")) for k in
-                       ("name", "eligibility", "description", "category", "state", "provider", "amount")).lower()
+        text = " ".join(
+            str(s.get(k, ""))
+            for k in (
+                "name",
+                "eligibility",
+                "description",
+                "category",
+                "state",
+                "provider",
+                "amount",
+            )
+        ).lower()
         score = sum(1 for w in qwords if w in text)
         if s.get("state") and s.get("state").lower() in ql:
             score += 3
@@ -66,13 +78,22 @@ def internal_scholarship_match(query, num=10):
         top = [s for _, s in scored][:num]
     items = []
     for s in top:
-        items.append({
-            "title": s.get("name"),
-            "link": s.get("link") or "#",
-            "snippet": ((s.get("amount") or "") + " · " + (s.get("eligibility") or s.get("description") or ""))[:240],
-            "source": s.get("provider") or "Learnify DB",
-        })
-    return items, {"source": "database", "note": "Matched from our scholarship database."}
+        items.append(
+            {
+                "title": s.get("name"),
+                "link": s.get("link") or "#",
+                "snippet": (
+                    (s.get("amount") or "")
+                    + " · "
+                    + (s.get("eligibility") or s.get("description") or "")
+                )[:240],
+                "source": s.get("provider") or "Learnify DB",
+            }
+        )
+    return items, {
+        "source": "database",
+        "note": "Matched from our scholarship database.",
+    }
 
 
 def google_scholarship_search(query, num=10):
@@ -138,3 +159,162 @@ def google_scholarship_search(query, num=10):
         }
     except Exception as e:
         return internal_scholarship_match(query, num)
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Smart global search: typo-tolerant, relevance-ranked (Google-style ranking),
+# runs in-memory over the curated dataset so results return in microseconds.
+# ───────────────────────────────────────────────────────────────────────────
+import re
+import difflib
+
+from backend.database.seed_careers import list_careers
+from backend.database.seed_companies import list_companies
+from backend.database.seed import SEED_COLLEGES
+from backend.database.client import db_available, get_client
+from backend.database import local_db
+
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9 ]", " ", (s or "").lower())
+
+
+def _tokens(s):
+    return [t for t in _norm(s).split() if len(t) > 1]
+
+
+def _ratio(a, b):
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
+def _score(query, fields):
+    """fields: list of (text, weight). Returns a relevance score."""
+    qt = _tokens(query)
+    if not qt:
+        return 0.0
+    qn = _norm(query)
+    score = 0.0
+    for text, w in fields:
+        t = _norm(text)
+        if qn in t:
+            score += 3.0 * w
+        for tok in qt:
+            words = t.split()
+            if tok in words:
+                score += w
+            else:
+                best = 0.0
+                for wd in words:
+                    r = _ratio(tok, wd)
+                    if r > best:
+                        best = r
+                if best >= 0.8:
+                    score += 0.6 * w
+                elif best >= 0.65:
+                    score += 0.25 * w
+    return score
+
+
+def _rank(items, q, field_fn):
+    scored = []
+    for it in items:
+        s = _score(q, field_fn(it))
+        if s > 0:
+            scored.append((s, it))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored
+
+
+def _colleges(q, num):
+    ql = _norm(q)
+    try:
+        if db_available():
+            res = (
+                get_client()
+                .table("colleges")
+                .select("id,name,city,state,type")
+                .ilike("name", f"%{ql}%")
+                .limit(num * 3)
+                .execute()
+            )
+            rows = res.data or []
+        elif local_db.db_available():
+            rows = local_db.query_colleges(q=q)[: num * 3]
+        else:
+            rows = [
+                r for r in SEED_COLLEGES if ql in (r.get("name", "") or "").lower()
+            ][: num * 3]
+    except Exception:
+        rows = [r for r in SEED_COLLEGES if ql in (r.get("name", "") or "").lower()][
+            : num * 3
+        ]
+    scored = _rank(
+        rows,
+        q,
+        lambda c: [
+            (c.get("name", ""), 2),
+            ((c.get("city") or "") + " " + (c.get("state") or ""), 1),
+        ],
+    )
+    return [c for _, c in scored][:num]
+
+
+def _spell(q):
+    """Return a typo-corrected version of the query, or None."""
+    toks = (q or "").split()
+    vocab = set()
+    for c in list_careers():
+        vocab.update(_tokens(c.get("title", "")))
+    for c in list_companies():
+        vocab.update(_tokens(c.get("name", "")))
+    for c in SEED_COLLEGES:
+        vocab.update(_tokens(c.get("name", "")))
+    for i, t in enumerate(toks):
+        nt = _norm(t)
+        if len(nt) < 4 or nt in vocab:
+            continue
+        cand, cr = None, 0.0
+        for v in vocab:
+            r = _ratio(nt, v)
+            if r > cr:
+                cr, cand = r, v
+        if 0.8 <= cr < 0.99:
+            fixed = list(toks)
+            fixed[i] = cand
+            return " ".join(fixed)
+    return None
+
+
+def smart_global_search(q, num=8):
+    q = (q or "").strip()
+    if len(q) < 2:
+        return {"careers": [], "companies": [], "colleges": [], "suggestion": None}
+    careers = _rank(
+        list_careers(),
+        q,
+        lambda c: [
+            (c.get("title", ""), 2),
+            (c.get("category", ""), 1.5),
+            (c.get("tagline", ""), 1),
+        ],
+    )[:num]
+    companies = _rank(
+        list_companies(),
+        q,
+        lambda c: [
+            (c.get("name", ""), 2),
+            (c.get("sector", ""), 1.2),
+            (c.get("description", ""), 0.6),
+        ],
+    )[:num]
+    colleges = _colleges(q, num)
+    return {
+        "careers": [c for _, c in careers],
+        "companies": [c for _, c in companies],
+        "colleges": colleges,
+        "suggestion": _spell(q),
+    }

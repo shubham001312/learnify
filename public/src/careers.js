@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=46';
-import { iconSvg, careerIcon } from './icons.js?v=46';
+import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=47';
+import { iconSvg, careerIcon } from './icons.js?v=47';
 
 let _careerData = [];
 let _careerCats = [];
@@ -438,16 +438,29 @@ function companyHTML(co) {
   const rel = (co.related_careers || []).map((r) =>
     '<button class="rel-chip" data-go-career="' + esc(r.id) + '">' + esc(r.title) + '</button>'
   ).join('');
+  const roles = (co.roles && co.roles.length)
+    ? '<div class="dm-chips">' + co.roles.map((r) => '<span class="dm-chip">' + esc(r) + '</span>').join('') + '</div>'
+    : '';
+  const salary = co.avg_salary
+    ? '<div class="dm-stat sal"><small>Typical starting CTC</small><b>' + esc(co.avg_salary) + '</b></div>'
+    : '';
+  const hq = co.headquarters
+    ? '<div class="dm-sec"><h4>📍 Headquarters</h4><p>' + esc(co.headquarters) + '</p></div>'
+    : '';
+  const meta = [co.ctype, co.sector].filter(Boolean).join(' · ');
   return (
     '<button class="modal-x" data-close onclick="closeCompany()">&times;</button>' +
     '<div class="company-detail">' +
       '<div class="cd-hero">' +
         '<div class="cd-ic">' + iconSvg('briefcase') + '</div>' +
-        '<div><div class="cd-cat">' + esc(co.sector || 'Company') + '</div>' +
+        '<div><div class="cd-cat">' + esc(meta || 'Company') + '</div>' +
         '<h2>' + esc(co.name) + '</h2></div>' +
       '</div>' +
       (co.description ? '<div class="dm-sec"><h4>About</h4><p>' + esc(co.description) + '</p></div>' : '') +
-      (co.website ? '<div class="dm-sec"><button class="btn primary" id="co-open-site">🌐 Visit official website ↗</button></div>' : '') +
+      '<div class="dm-stats">' + salary + '</div>' +
+      hq +
+      (roles ? '<div class="dm-sec"><h4>🎯 Roles offered</h4>' + roles + '</div>' : '') +
+      (co.website ? '<div class="dm-sec"><button class="btn primary block" id="co-open-site">🌐 Visit official website ↗</button></div>' : '') +
       (rel ? '<div class="dm-sec"><h4>Careers here relate to</h4><div class="rel-wrap">' + rel + '</div></div>' : '') +
     '</div>'
   );

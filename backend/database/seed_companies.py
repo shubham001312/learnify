@@ -856,6 +856,219 @@ COMPANIES = [
 ]
 
 
+# ── Derive richer profile fields (clearly sector-typical, not fabricated per-co) ──
+HQ_OVERRIDES = {
+    "google": "Mountain View, USA (India: Bengaluru)",
+    "microsoft": "Redmond, USA (India: Bengaluru / Hyderabad)",
+    "amazon": "Seattle, USA (India: Bengaluru / Hyderabad)",
+    "apple": "Cupertino, USA (India: Hyderabad)",
+    "meta": "Menlo Park, USA (India: Bengaluru)",
+    "nvidia": "Santa Clara, USA (India: Bengaluru / Pune)",
+    "intel": "Santa Clara, USA (India: Bengaluru)",
+    "qualcomm": "San Diego, USA (India: Bengaluru / Hyderabad)",
+    "samsung": "Suwon, South Korea (India: Bengaluru / Noida)",
+    "cisco": "San Jose, USA (India: Bengaluru / Chennai)",
+    "ibm": "Armonk, USA (India: Bengaluru / Kochi)",
+    "accenture": "Dublin, Ireland (India: Bengaluru / Mumbai)",
+    "adobe": "San Jose, USA (India: Noida / Bengaluru)",
+    "deloitte": "London, UK (India: Hyderabad / Mumbai)",
+    "ey": "London, UK (India: Bengaluru / Mumbai)",
+    "kpmg": "Amstelveen, Netherlands (India: Bengaluru / Mumbai)",
+    "pwc": "London, UK (India: Bengaluru / Kolkata)",
+    "goldmansachs": "New York, USA (India: Bengaluru)",
+    "jpmorgan": "New York, USA (India: Mumbai / Bengaluru)",
+    "morganstanley": "New York, USA (India: Mumbai)",
+    "bayer": "Leverkusen, Germany (India: Mumbai / Bengaluru)",
+    "nestle": "Vevey, Switzerland (India: Gurugram)",
+    "pepsico": "Purchase, USA (India: Gurugram)",
+    "siemens": "Munich, Germany (India: Bengaluru / Mumbai)",
+    "bosch": "Gerlingen, Germany (India: Bengaluru)",
+    "thermofisher": "Waltham, USA (India: Bengaluru)",
+    "ogilvy": "New York, USA (India: Mumbai / Bengaluru)",
+    "mckinsey": "New York, USA (India: Gurugram / Bengaluru)",
+    "bcg": "Boston, USA (India: New Delhi / Bengaluru)",
+    "bain": "Boston, USA (India: Gurugram / Mumbai)",
+    "tcs": "Mumbai, India",
+    "infosys": "Bengaluru, India",
+    "wipro": "Bengaluru, India",
+    "hcltech": "Noida, India",
+    "techmahindra": "Pune, India",
+    "cognizant": "Teaneck, USA (India: Chennai / Bengaluru)",
+    "reliance": "Mumbai, India",
+    "ril": "Mumbai, India",
+    "tatagroup": "Mumbai, India",
+    "tatamotors": "Mumbai, India",
+    "mahindra": "Mumbai, India",
+    "maruti": "New Delhi, India",
+    "lnt": "Mumbai, India",
+    "airtel": "New Delhi, India",
+    "reljio": "Mumbai, India",
+    "hdfcbank": "Mumbai, India",
+    "icicibank": "Mumbai, India",
+    "sbi": "Mumbai, India",
+    "axisbank": "Mumbai, India",
+    "flipkart": "Bengaluru, India",
+    "myntra": "Bengaluru, India",
+    "asianpaints": "Mumbai, India",
+    "godrej": "Mumbai, India",
+    "itc": "Kolkata, India",
+    "oyo": "Gurugram, India",
+    "makemytrip": "Gurugram, India",
+    "decathlon": "Bengaluru, India",
+    "isro": "Bengaluru, India",
+    "drdo": "New Delhi, India",
+    "aiims": "New Delhi, India",
+    "iisc": "Bengaluru, India",
+    "upsc": "New Delhi, India",
+}
+
+
+def _sector_profile(sector):
+    s = (sector or "").lower()
+    if any(
+        k in s
+        for k in (
+            "it ",
+            "consult",
+            "software",
+            "cloud",
+            "internet",
+            "technology",
+            "semicon",
+            "electronics",
+            "digital",
+            "network",
+        )
+    ):
+        return (
+            [
+                "Software Engineer",
+                "Systems Engineer",
+                "Data Analyst",
+                "Consultant",
+                "Product Manager",
+            ],
+            "₹3.5–8 LPA (fresher)",
+            "MNC / Tech",
+        )
+    if any(k in s for k in ("bank", "finance", "investment", "financial", "audit")):
+        return (
+            ["Analyst", "Associate", "Risk Manager", "Audit Executive"],
+            "₹4–9 LPA (fresher)",
+            "Finance",
+        )
+    if "management" in s:
+        return (
+            ["Consultant", "Business Analyst", "Project Manager"],
+            "₹6–12 LPA (fresher)",
+            "Consulting",
+        )
+    if any(
+        k in s
+        for k in ("health", "pharma", "vaccine", "biotech", "oncology", "medicine")
+    ):
+        return (
+            [
+                "Doctor",
+                "Research Associate",
+                "Clinical Specialist",
+                "Medical Representative",
+            ],
+            "₹4–10 LPA (fresher)",
+            "Healthcare",
+        )
+    if "law" in s:
+        return (
+            ["Associate", "Legal Researcher", "Paralegal"],
+            "₹3–7 LPA (fresher)",
+            "Law Firm",
+        )
+    if any(k in s for k in ("design", "advertising", "creative")):
+        return (
+            ["Designer", "Creative Lead", "UX/UI Designer"],
+            "₹3–7 LPA (fresher)",
+            "Creative",
+        )
+    if any(k in s for k in ("media", "public relations", "news")):
+        return (
+            ["Content Producer", "PR Executive", "Journalist"],
+            "₹3–6 LPA (fresher)",
+            "Media",
+        )
+    if any(
+        k in s
+        for k in (
+            "automotive",
+            "aerospace",
+            "defence",
+            "space",
+            "engineering",
+            "power",
+            "energy",
+            "construction",
+            "mobility",
+        )
+    ):
+        return (
+            ["Engineer (Core)", "R&D Engineer", "Production Manager"],
+            "₹3.5–7 LPA (fresher)",
+            "Core / PSU",
+        )
+    if "government" in s:
+        return (
+            ["Officer (Govt)", "Civil Servant", "PSU Executive"],
+            "₹5–10 LPA (Govt scale)",
+            "Government / PSU",
+        )
+    if any(k in s for k in ("hotel", "hospitality", "travel", "sports")):
+        return (
+            ["Operations Executive", "Guest Relations", "Management Trainee"],
+            "₹2.5–5 LPA (fresher)",
+            "Hospitality",
+        )
+    if any(k in s for k in ("agri", "food", "fertil", "nutrition", "beverage")):
+        return (
+            ["Agri Officer", "R&D Executive", "Sales Manager"],
+            "₹3–6 LPA (fresher)",
+            "FMCG / Agri",
+        )
+    if any(k in s for k in ("research", "science")):
+        return (
+            ["Research Scientist", "Research Fellow", "Lab Analyst"],
+            "₹4–8 LPA (fresher)",
+            "Research",
+        )
+    if any(k in s for k in ("e-commerce", "retail")):
+        return (
+            ["Category Manager", "Operations Analyst", "Software Engineer"],
+            "₹3.5–8 LPA (fresher)",
+            "Consumer Tech",
+        )
+    return (
+        ["Engineer", "Analyst", "Manager", "Executive"],
+        "₹3.5–7 LPA (fresher)",
+        "Company",
+    )
+
+
+def _sector_hq(sector):
+    s = (sector or "").lower()
+    if any(k in s for k in ("government", "defence", "space", "public")):
+        return "India"
+    return "India (major hubs: Bengaluru, Mumbai, Delhi NCR)"
+
+
+def _enrich(c):
+    out = dict(c)
+    sector = c.get("sector", "")
+    roles, salary, ctype = _sector_profile(sector)
+    out["headquarters"] = HQ_OVERRIDES.get(c["id"]) or _sector_hq(sector)
+    out["roles"] = c.get("roles") or roles
+    out["avg_salary"] = c.get("avg_salary") or salary
+    out["ctype"] = c.get("ctype") or ctype
+    return out
+
+
 def list_companies(career=None, q=None, sector=None):
     out = COMPANIES
     if career:
@@ -878,7 +1091,7 @@ def list_companies(career=None, q=None, sector=None):
 def get_company(cid):
     for c in COMPANIES:
         if c["id"] == cid:
-            return c
+            return _enrich(c)
     return None
 
 

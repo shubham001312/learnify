@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query
 
-from backend.services.search import google_scholarship_search
+from backend.services.search import google_scholarship_search, smart_global_search
+from backend.services.ai import chat
 from backend.database.seed_careers import list_careers
 from backend.database.seed_companies import list_companies
 from backend.database.client import db_available, get_client
@@ -66,24 +67,52 @@ def _search_colleges(q, num):
 
 @router.get("/search/global")
 def global_search(q: str = Query(..., min_length=2), num: int = 8):
-    """Search across careers, companies and colleges in one call."""
+    """Typo-tolerant, relevance-ranked search across careers, companies and
+    colleges. When nothing in the database matches, an AI-generated answer is
+    returned so the user never hits a dead end."""
+    res = smart_global_search(q, num=num)
     careers = [
         {
             "id": c["id"],
             "title": c["title"],
             "category": c["category"],
-            "tagline": c["tagline"],
+            "tagline": c.get("tagline"),
         }
-        for c in list_careers(q=q)
+        for c in res["careers"]
     ][:num]
     companies = [
-        {"id": co["id"], "name": co["name"], "sector": co["sector"]}
-        for co in list_companies(q=q)
+        {
+            "id": co["id"],
+            "name": co["name"],
+            "sector": co["sector"],
+            "headquarters": co.get("headquarters"),
+        }
+        for co in res["companies"]
     ][:num]
-    colleges = _search_colleges(q, num)
+    colleges = res["colleges"][:num]
+
+    total = len(careers) + len(companies) + len(colleges)
+    ai_answer = None
+    if total == 0:
+        try:
+            ai_answer = chat(
+                [
+                    {
+                        "role": "system",
+                        "content": "You are Veda, a concise career guide for Indian students. "
+                        "Answer the query in 2-3 short, factual sentences. No markdown headings, no emojis.",
+                    },
+                    {"role": "user", "content": q},
+                ]
+            )
+        except Exception:
+            ai_answer = None
+
     return {
         "query": q,
         "careers": careers,
         "companies": companies,
         "colleges": colleges,
+        "suggestion": res["suggestion"],
+        "ai_answer": ai_answer,
     }
