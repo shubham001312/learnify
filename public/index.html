@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=38">
 </head>
 <body>
 
@@ -131,7 +131,13 @@
           <button class="icon-btn" id="veda-hist" title="Chat history">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           </button>
-          <div class="veda-status" id="veda-status"><span class="dot"></span> <span id="veda-status-text" data-i18n="veda_online">Online</span></div>
+          <div class="veda-brand">
+            <div class="veda-av">V</div>
+            <div class="veda-id">
+              <div class="veda-name" data-i18n="veda_title">Veda AI</div>
+              <div class="veda-status" id="veda-status"><span class="dot"></span> <span id="veda-status-text" data-i18n="veda_online">Online</span></div>
+            </div>
+          </div>
           <span class="cb-spacer"></span>
           <button class="icon-btn" id="veda-quiz" title="Quiz me">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 4.3 2.4c-.8.5-1.5.9-1.5 2.1"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
@@ -1383,8 +1389,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=37"></script>
-  <script type="module" src="src/app.js?v=37"></script>
+  <script src="vendor/jspdf.umd.min.js?v=38"></script>
+  <script type="module" src="src/app.js?v=38"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
