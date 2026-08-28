@@ -14,23 +14,31 @@ def db_available() -> bool:
     )
 
 
+def _make(url: str, key: str):
+    from supabase import create_client
+
+    # Apply a network timeout so a slow/unreachable Supabase fails fast instead
+    # of hanging the request (and the serverless function) indefinitely.
+    try:
+        from supabase import ClientOptions
+
+        opts = ClientOptions(postgrest_client_timeout=10, storage_client_timeout=10)
+        return create_client(url, key, options=opts)
+    except Exception:
+        return create_client(url, key)
+
+
 def get_client():
     global _client
     if _client is None:
-        from supabase import create_client
-
-        _client = create_client(
-            os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"]
-        )
+        _client = _make(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
     return _client
 
 
 def get_anon_client():
     global _anon_client
     if _anon_client is None:
-        from supabase import create_client
-
-        _anon_client = create_client(
+        _anon_client = _make(
             os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"]
         )
     return _anon_client

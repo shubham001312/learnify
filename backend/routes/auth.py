@@ -1,4 +1,6 @@
+import concurrent.futures as _cf
 import datetime
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -9,6 +11,18 @@ from backend.services import local_auth
 from backend.services.uid import generate_uid
 
 router = APIRouter()
+
+AUTH_TIMEOUT = 8  # seconds — fail fast instead of hanging on a slow auth backend
+
+
+def _call_limited(fn, timeout: int = AUTH_TIMEOUT):
+    """Run a (network) call in a worker thread and raise on timeout."""
+    with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(fn)
+        try:
+            return fut.result(timeout=timeout)
+        except _cf.TimeoutError:
+            raise RuntimeError("Auth service timed out")
 
 
 class RegisterReq(BaseModel):
@@ -49,8 +63,68 @@ class SgpaReq(BaseModel):
     sgpa: float
 
 
+SITE_URL = os.environ.get("SITE_URL", "https://learnify.hosteler.shop/")
+
+
 def _token(authorization: Optional[str]) -> str:
     return (authorization or "").replace("Bearer ", "").strip()
+
+
+def _issue_app_token(uid: str, email: str) -> str:
+    """Issue our own signed, refresh-free app session token (7-day)."""
+    return local_auth.sign_app_token(email, uid)
+
+
+def _current_app_user(authorization: Optional[str]) -> Optional[dict]:
+    """Resolve {uid, email} from our signed app token (preferred), falling back
+    to a Supabase access token or a legacy local token. Returns None if invalid."""
+    token = _token(authorization)
+    if not token:
+        return None
+    dec = local_auth.decode_token(token)
+    if dec and dec.get("uid"):
+        return {"uid": dec["uid"], "email": dec["email"]}
+    u = local_auth.get_user_by_token(token)
+    if u:
+        return {"uid": u.get("id"), "email": u.get("email")}
+    if db_available():
+        try:
+            client = _require_client()
+            ur = _call_limited(lambda: client.auth.get_user(token))
+            user = getattr(ur, "user", None)
+            if user:
+                email = getattr(user, "email", "")
+                uid = _our_uid(
+                    client, email, getattr(user, "user_metadata", {}).get("name", "")
+                )
+                return {"uid": uid, "email": email}
+        except Exception:
+            pass
+    return None
+
+
+def _supabase_signin(client, email: str, password: str):
+    """Validate credentials and return {uid, email, session} or None."""
+    try:
+        resp = _call_limited(
+            lambda: client.auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
+        )
+        sess = getattr(resp, "session", None)
+        user = getattr(resp, "user", None)
+        if not sess or not user:
+            return None
+        uid = _our_uid(
+            client, email, getattr(user, "user_metadata", {}).get("name", "")
+        )
+        return {
+            "uid": uid,
+            "email": email,
+            "session": {"access_token": _issue_app_token(uid, email)},
+        }
+    except Exception:
+        return None
 
 
 def _email_from_token(authorization: Optional[str]) -> Optional[str]:
@@ -172,7 +246,8 @@ def _full_user(client, uid, email_fallback="", name_fallback=""):
 def _admin_confirm_email(email: str):
     """Best-effort: mark a user's email confirmed via the service-role admin API
     so newly registered (or previously unconfirmed) accounts can sign in immediately."""
-    try:
+
+    def _do():
         svc = get_client()
         target = None
         try:
@@ -193,6 +268,9 @@ def _admin_confirm_email(email: str):
             uid = getattr(target, "id", None)
             if uid:
                 svc.auth.admin.update_user_by_id(uid, {"email_confirm": True})
+
+    try:
+        _call_limited(_do, timeout=6)
     except Exception:
         pass
 
@@ -272,25 +350,24 @@ def register(req: RegisterReq):
         svc = get_client()
         email = req.email
         user = None
+        payload = {
+            "email": email,
+            "password": req.password,
+            "options": {
+                "emailRedirectTo": SITE_URL,
+                "data": {
+                    "name": req.name,
+                    "language": req.language,
+                    "grade": req.grade,
+                    "school": req.school,
+                    "board": req.board,
+                    "college": req.college,
+                    "dob": req.dob,
+                },
+            },
+        }
         try:
-            resp = client.auth.sign_up(
-                {
-                    "email": email,
-                    "password": req.password,
-                    "options": {
-                        "emailRedirectTo": "https://learnify.hosteler.shop/",
-                        "data": {
-                            "name": req.name,
-                            "language": req.language,
-                            "grade": req.grade,
-                            "school": req.school,
-                            "board": req.board,
-                            "college": req.college,
-                            "dob": req.dob,
-                        },
-                    },
-                }
-            )
+            resp = _call_limited(lambda: client.auth.sign_up(payload))
             user = resp.user
         except Exception as e:
             msg = str(e).lower()
@@ -317,7 +394,7 @@ def register(req: RegisterReq):
                     )
                     return {
                         "user": _full_user(client, uid, email, req.name),
-                        "session": {"access_token": sess.access_token},
+                        "session": {"access_token": _issue_app_token(uid, email)},
                     }
                 raise HTTPException(
                     status_code=401, detail="Account exists but password is incorrect."
@@ -372,25 +449,28 @@ def register(req: RegisterReq):
                 req.college,
                 req.dob,
             )
-            out = {"user": _full_user(client, uid, email, req.name)}
-            try:
-                sess = client.auth.sign_in_with_password(
-                    {"email": email, "password": req.password}
-                ).session
-            except Exception:
-                sess = None
-            if sess:
-                out["session"] = {"access_token": sess.access_token}
-            return out
+            return {
+                "user": _full_user(client, uid, email, req.name),
+                "session": {"access_token": _issue_app_token(uid, email)},
+            }
 
-        # New, unconfirmed account — ask the user to confirm via email.
+        # New account: confirm (best-effort) and sign the user in immediately so
+        # they are never blocked on email confirmation.
+        _admin_confirm_email(email)
+        uid = _our_uid(
+            client,
+            email,
+            req.name,
+            req.language,
+            req.grade,
+            req.school,
+            req.board,
+            req.college,
+            req.dob,
+        )
         return {
-            "user": {
-                "id": getattr(user, "id", ""),
-                "email": email,
-                "name": req.name,
-            },
-            "needs_confirmation": True,
+            "user": _full_user(client, uid, email, req.name),
+            "session": {"access_token": _issue_app_token(uid, email)},
         }
 
     # Local fallback (Supabase not configured)
@@ -408,33 +488,16 @@ def register(req: RegisterReq):
 def login(req: LoginReq):
     if db_available():
         client = _require_client()
-        try:
-            resp = client.auth.sign_in_with_password(
-                {"email": req.email, "password": req.password}
-            )
-        except Exception as e:
-            msg = str(e).lower()
-            if "not confirmed" in msg or "email not confirm" in msg:
-                _admin_confirm_email(req.email)
-                resp = client.auth.sign_in_with_password(
-                    {"email": req.email, "password": req.password}
-                )
-            else:
-                raise HTTPException(status_code=401, detail="Invalid email or password")
-        session = resp.session
-        user = resp.user
-        if not session or not user:
+        sin = _supabase_signin(client, req.email, req.password)
+        if not sin:
+            # Possibly an unconfirmed account — confirm and retry once.
+            _admin_confirm_email(req.email)
+            sin = _supabase_signin(client, req.email, req.password)
+        if not sin:
             raise HTTPException(status_code=401, detail="Invalid email or password")
-        email = getattr(user, "email", req.email)
-        uid = _our_uid(client, email)
         return {
-            "session": {"access_token": session.access_token},
-            "user": _full_user(
-                client,
-                uid,
-                email,
-                getattr(user, "user_metadata", {}).get("name", "User"),
-            ),
+            "session": sin["session"],
+            "user": _full_user(client, sin["uid"], req.email),
         }
 
     u = local_auth.verify(req.email, req.password)
@@ -461,12 +524,14 @@ def confirm(
     token = None
     try:
         if code:
-            res = client.auth.exchange_code_for_session({"code": code})
+            res = _call_limited(
+                lambda: client.auth.exchange_code_for_session({"code": code})
+            )
             sess = getattr(res, "session", None)
             user = getattr(res, "user", None)
             token = getattr(sess, "access_token", None) if sess else None
         elif access_token:
-            ur = client.auth.get_user(access_token)
+            ur = _call_limited(lambda: client.auth.get_user(access_token))
             user = getattr(ur, "user", None)
             token = access_token
     except Exception as e:
@@ -478,7 +543,7 @@ def confirm(
     _admin_confirm_email(email)
     uid = _our_uid(client, email, name)
     return {
-        "session": {"access_token": token},
+        "session": {"access_token": _issue_app_token(uid, email)},
         "user": _full_user(client, uid, email, name),
     }
 
@@ -487,30 +552,12 @@ def confirm(
 def me(authorization: Optional[str] = Header(None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
-
+    cu = _current_app_user(authorization)
+    if not cu:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     if db_available():
-        token = _token(authorization)
         client = _require_client()
-        try:
-            user_resp = client.auth.get_user(token)
-            user = user_resp.user
-        except Exception:
-            user = None
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
-        email = getattr(user, "email", "")
-        uid = _our_uid(
-            client, email, getattr(user, "user_metadata", {}).get("name", "")
-        )
-        return {
-            "user": _full_user(
-                client,
-                uid,
-                email,
-                getattr(user, "user_metadata", {}).get("name", "User"),
-            )
-        }
-
+        return {"user": _full_user(client, cu["uid"], cu["email"])}
     u = local_auth.get_user_by_token(_token(authorization))
     if not u:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -522,24 +569,30 @@ def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None))
     # Persist every supplied field (name was previously dropped — now fixed).
     meta = {}
     for f in (
-        "name", "language", "grade", "school", "board", "college", "dob",
-        "phone", "gender", "state", "city", "target_exam", "bio",
+        "name",
+        "language",
+        "grade",
+        "school",
+        "board",
+        "college",
+        "dob",
+        "phone",
+        "gender",
+        "state",
+        "city",
+        "target_exam",
+        "bio",
     ):
         val = getattr(req, f, "")
         if val is not None:
             meta[f] = val
 
+    cu = _current_app_user(authorization)
+    if not cu:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     if db_available():
         client = _require_client()
-        token = _token(authorization)
-        uid = resolve_uid(authorization)
-        email = ""
-        try:
-            email = getattr(client.auth.get_user(token).user, "email", "")
-        except Exception:
-            email = ""
-        if not uid:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        uid = cu["uid"]
         try:
             client.table("users").update(meta).eq("id", uid).execute()
         except Exception:
@@ -550,12 +603,9 @@ def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None))
                 client.auth.update_user({"data": auth_meta})
         except Exception:
             pass
-        return {"user": _full_user(client, uid, email)}
+        return {"user": _full_user(client, uid, cu["email"])}
 
-    email = _email_from_token(authorization)
-    if not email:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    u = local_auth.update_user(email, meta)
+    u = local_auth.update_user(cu["email"], meta)
     if not u:
         raise HTTPException(status_code=404, detail="User not found")
     return {"user": local_auth.public_user(u)}
@@ -563,40 +613,39 @@ def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None))
 
 @router.get("/sgpa")
 def list_sgpa(authorization: Optional[str] = Header(None)):
+    cu = _current_app_user(authorization)
+    if not cu:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     if db_available():
         client = _require_client()
-        token = _token(authorization)
-        uid = resolve_uid(authorization)
-        if not uid:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
         try:
-            res = client.table("sgpa_entries").select("*").eq("user_id", uid).execute()
+            res = (
+                client.table("sgpa_entries")
+                .select("*")
+                .eq("user_id", cu["uid"])
+                .execute()
+            )
             return {"entries": res.data or []}
         except Exception as e:
             raise HTTPException(
                 status_code=401, detail="Could not load SGPA: " + str(e)
             )
-
-    email = _email_from_token(authorization)
-    if not email:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return {"entries": local_auth.list_sgpa(email)}
+    return {"entries": local_auth.list_sgpa(cu["email"])}
 
 
 @router.post("/sgpa")
 def add_sgpa(req: SgpaReq, authorization: Optional[str] = Header(None)):
+    cu = _current_app_user(authorization)
+    if not cu:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     if db_available():
         client = _require_client()
-        token = _token(authorization)
-        uid = resolve_uid(authorization)
-        if not uid:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
         try:
             res = (
                 client.table("sgpa_entries")
                 .insert(
                     {
-                        "user_id": uid,
+                        "user_id": cu["uid"],
                         "semester": req.semester,
                         "sgpa": req.sgpa,
                     }
@@ -608,9 +657,5 @@ def add_sgpa(req: SgpaReq, authorization: Optional[str] = Header(None)):
             raise HTTPException(
                 status_code=400, detail="Could not save SGPA: " + str(e)
             )
-
-    email = _email_from_token(authorization)
-    if not email:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    entry = local_auth.add_sgpa(email, req.semester, req.sgpa)
+    entry = local_auth.add_sgpa(cu["email"], req.semester, req.sgpa)
     return {"entry": entry}

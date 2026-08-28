@@ -101,6 +101,34 @@ def issue_token(user: dict) -> str:
     return _sign(user["email"], user["id"])
 
 
+def sign_app_token(email: str, uid: str) -> str:
+    """Issue a signed, refresh-free app session token (used even when Supabase
+    is the credential store, so the app never depends on Supabase token expiry)."""
+    return _sign(email, uid)
+
+
+def decode_token(token: Optional[str]) -> Optional[dict]:
+    """Verify and decode an app token without any DB lookup. Returns
+    {uid, email, exp} or None if invalid/expired."""
+    if not token:
+        return None
+    try:
+        payload, sig = token.split(".")
+    except Exception:
+        return None
+    if not hmac.compare_digest(
+        sig, hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    ):
+        return None
+    try:
+        data = json.loads(base64.urlsafe_b64decode(payload))
+    except Exception:
+        return None
+    if data.get("exp", 0) < time.time():
+        return None
+    return {"uid": data.get("uid"), "email": data.get("email"), "exp": data.get("exp")}
+
+
 def get_user_by_token(token: Optional[str]) -> Optional[dict]:
     if not token:
         return None
