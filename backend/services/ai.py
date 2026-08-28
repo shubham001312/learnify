@@ -40,7 +40,7 @@ def _order(requested: str | None, pool: list[str]) -> list[str]:
 
 def chat(
     messages: list[dict],
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "groq/compound",
     temperature: float = 0.7,
 ) -> str:
     """Return an assistant reply from Groq, with model fallback."""
@@ -90,7 +90,7 @@ def _call_stream(
 
 def stream_chat(
     messages: list[dict],
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "groq/compound",
     temperature: float = 0.7,
 ):
     """Stream an assistant reply from Groq, falling through models on failure.
