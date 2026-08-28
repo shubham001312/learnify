@@ -1,17 +1,17 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=20';
-import { applyLanguage } from './i18n.js?v=20';
-import { initNotifications, addNotification } from './notifications.js?v=20';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=21';
+import { applyLanguage } from './i18n.js?v=21';
+import { initNotifications, addNotification } from './notifications.js?v=21';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=20';
-import { initVeda } from './veda.js?v=20';
-import { initCareer } from './career.js?v=20';
-import { initCareers } from './careers.js?v=20';
-import { initProfile } from './profile.js?v=20';
-import { initPremium } from './premium.js?v=20';
-import { api, el, toast, esc } from './utils.js?v=20';
-import { playClick } from './sound.js?v=20';
-import { initStudyTools } from './tools.js?v=20';
+import { initAuth, openLogin } from './auth.js?v=21';
+import { initVeda } from './veda.js?v=21';
+import { initCareer } from './career.js?v=21';
+import { initCareers } from './careers.js?v=21';
+import { initProfile } from './profile.js?v=21';
+import { initPremium } from './premium.js?v=21';
+import { api, el, toast, esc } from './utils.js?v=21';
+import { playClick } from './sound.js?v=21';
+import { initStudyTools } from './tools.js?v=21';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -400,7 +400,7 @@ function initResume() {
     })).filter((e) => e.role || e.bullets.length);
     if (!summary && !exp.length) { toast('Add a summary or experience first.', 'info'); return; }
     const btn = el('r-ai');
-    btn.disabled = true; btn.textContent = '✨ Polishing…';
+    btn.disabled = true; btn.textContent = 'Polishing…';
     const prompt = 'You are an expert resume writer for Indian students. Improve the content to be concise, impactful and ATS-friendly. Use strong action verbs and quantify achievements where implied. Return ONLY valid JSON (no markdown fences) in this exact shape:\n{\n "summary": string,\n "experience": [ { "bullets": string[] } ]\n}\nProvide one experience object per input entry, in the same order. Do not alter names, roles or orgs.\n\nINPUT SUMMARY: ' + summary + '\n\nINPUT EXPERIENCE: ' + JSON.stringify(exp.map((e) => ({ role: e.role, org: e.org, bullets: e.bullets })));
     try {
       const d = await api('/veda/chat', {
@@ -424,7 +424,7 @@ function initResume() {
     } catch (e) {
       toast('AI polish failed: ' + e.message, 'info');
     } finally {
-      btn.disabled = false; btn.textContent = '✨ AI Polish';
+      btn.disabled = false; btn.textContent = 'AI Polish';
     }
   });
 }
@@ -704,7 +704,7 @@ function initScholarships() {
     });
     if (!scored.length) { matchedEl.innerHTML = ''; return; }
     scored.sort((a, b) => b.reasons.length - a.reasons.length);
-    matchedEl.innerHTML = '<div class="sch-section-title">🎯 Matched for you</div>' +
+    matchedEl.innerHTML = '<div class="sch-section-title">Matched for you</div>' +
       scored.slice(0, 4).map(({ s, reasons }) =>
         '<div class="sch-match" data-name="' + esc(s.name) + '"><div class="sch-match-name">' + esc(s.name) +
         '</div><div class="sch-match-reason">Because ' + reasons.map(esc).join(' · ') + '</div></div>'
@@ -1003,10 +1003,10 @@ function openCollegeModal(c) {
         (pros ? '<div class="dm-pros"><h5>✓ Pros</h5><ul>' + pros + '</ul></div>' : '') +
         (cons ? '<div class="dm-cons"><h5>✕ Cons</h5><ul>' + cons + '</ul></div>' : '') +
       '</div></div>' : '') +
-    (schols ? '<div class="dm-sec"><h4>🎓 Scholarships you may qualify for</h4><div class="dm-chips">' + schols + '</div>' +
+    (schols ? '<div class="dm-sec"><h4>Scholarships you may qualify for</h4><div class="dm-chips">' + schols + '</div>' +
         '<p class="dm-note">Eligibility depends on your category, state, and course. Open the Scholarships tab for full details, amounts, and deadlines.</p></div>' : '') +
-    '<div class="dm-sec"><h4>💸 Education Loans</h4>' + loans + '</div>' +
-    '<div class="dm-sec"><h4>⭐ Student Reviews <span class="dm-live">live</span></h4>' +
+    '<div class="dm-sec"><h4>Education Loans</h4>' + loans + '</div>' +
+    '<div class="dm-sec"><h4>Student Reviews <span class="dm-live">live</span></h4>' +
         '<div id="dm-review-list"><div class="dm-noreviews">Loading reviews…</div></div>' +
         '<form id="dm-review-form" class="review-form">' +
           '<div class="rf-row"><input id="rv-author" placeholder="Your name" maxlength="60">' +
@@ -1016,7 +1016,7 @@ function openCollegeModal(c) {
           '<button type="submit" class="btn primary sm" id="rv-submit">Submit review</button>' +
         '</form>' +
     '</div>' +
-    '<button class="btn primary block" id="dm-ask">💬 Ask Veda about this college</button>' +
+    '<button class="btn primary block" id="dm-ask">Ask Veda about this college</button>' +
     '<button class="btn ghost block" id="dm-compare">' + (compareList.some((x) => x.id === c.id) ? '✓ Added to compare' : '➕ Add to compare') + '</button>';
 
   openModalCard(html);
@@ -1090,8 +1090,8 @@ function openScholarshipModal(s) {
     (s.deadline ? '<div class="dm-sec"><h4>Deadline</h4><p>' + esc(s.deadline) + '</p></div>' : '') +
     ((s.documents && s.documents.length) ? '<div class="dm-sec"><h4>Documents required</h4><div class="dm-chips">' + (s.documents || []).map((d) => '<span class="dm-chip">' + esc(d) + '</span>').join('') + '</div></div>' : '') +
     (s.description ? '<div class="dm-sec"><h4>About</h4><p>' + esc(s.description) + '</p></div>' : '') +
-    (s.link ? '<a class="btn primary block" href="' + esc(s.link) + '" target="_blank" rel="noopener">🌐 Official site / Apply ↗</a>' : '') +
-    '<button class="btn ghost block" id="dm-sch-ask">💬 Ask Veda about this scholarship</button>';
+    (s.link ? '<a class="btn primary block" href="' + esc(s.link) + '" target="_blank" rel="noopener">Official site / Apply ↗</a>' : '') +
+    '<button class="btn ghost block" id="dm-sch-ask">Ask Veda about this scholarship</button>';
 
   openModalCard(html);
   const ask = el('dm-sch-ask');

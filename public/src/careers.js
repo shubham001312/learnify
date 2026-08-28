@@ -1,4 +1,4 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=20';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=21';
 
 let _careerData = [];
 let _careerCats = [];
@@ -122,8 +122,8 @@ function careerHTML(c) {
       '</div>' +
 
       '<div class="row gap" style="margin:6px 0 14px">' +
-        '<button class="btn primary" id="career-ask-veda">💬 Ask Veda about this</button>' +
-        '<button class="btn" id="career-explore-colleges">🏫 Explore colleges</button>' +
+        '<button class="btn primary" id="career-ask-veda">Ask Veda about this</button>' +
+        '<button class="btn" id="career-explore-colleges">Explore colleges</button>' +
       '</div>' +
 
       section('About', '<p>' + esc(c.description || '') + '</p>') +
@@ -154,7 +154,7 @@ function resetQuiz() {
   document.querySelectorAll('#career-quiz-modal .cq-opt').forEach((o) => o.classList.remove('active'));
   const notes = el('cq-notes'); if (notes) notes.value = '';
   const res = el('cq-result'); if (res) res.innerHTML = '';
-  const btn = el('cq-submit'); if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation ✨'; }
+  const btn = el('cq-submit'); if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation'; }
 }
 
 function submitQuiz() {
@@ -195,7 +195,7 @@ function submitQuiz() {
     });
   }).catch(() => {
     if (res) res.innerHTML = '<div class="slot-skeleton">Could not reach Veda. Please try again.</div>';
-    if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation ✨'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation'; }
   });
 }
 
@@ -220,7 +220,7 @@ function renderGuidance(g) {
       (also ? '<div class="dm-sec"><h4>You may also consider</h4><div class="rel-wrap">' + also + '</div></div>' : '') +
       '<div class="row gap" style="margin-top:12px">' +
         (g.career_id ? '<button class="btn primary" data-go-career="' + esc(g.career_id) + '">Open this career →</button>' : '') +
-        '<button class="btn" id="cq-ask-veda">💬 Ask Veda</button>' +
+        '<button class="btn" id="cq-ask-veda">Ask Veda</button>' +
       '</div>' +
     '</div>'
   );

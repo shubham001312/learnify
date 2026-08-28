@@ -497,11 +497,11 @@
   z-index: 400; padding: 18px; backdrop-filter: blur(4px);
 }
 .modal.open { display: flex; animation: fade .18s ease; }
-.modal-card {
-  background: var(--surface); width: min(440px, 100%); max-height: 90vh; overflow: auto;
-  border-radius: var(--r-lg); padding: 22px; position: relative;
-  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
-}
+  .modal-card {
+    background: var(--surface); width: min(440px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+    border-radius: var(--r-lg); padding: 22px; position: relative;
+    box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+  }
 .modal-x {
   position: absolute; top: 12px; right: 14px; border: none; background: transparent;
   font-size: 26px; line-height: 1; color: var(--muted); cursor: pointer;
@@ -714,15 +714,15 @@ textarea { resize: vertical; }
     .notif-empty { padding: 14px; text-align: center; color: var(--muted); font-size: 13px; }
 
     /* ───────── DEDICATED FULL PAGES ───────── */
-    .fullpage { position: fixed; inset: 0; background: var(--bg); z-index: 250; overflow-y: auto; display: none; }
+    .fullpage { position: fixed; inset: 0; background: var(--bg); z-index: 250; overflow-y: auto; -webkit-overflow-scrolling: touch; display: none; }
     .fullpage.open { display: block; }
     .fp-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: rgba(255,255,255,0.92); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
     .fp-back { background: var(--surface-2); border: none; border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text); flex-shrink: 0; }
     .fp-back:hover { background: #e9edf2; }
     .fp-title { font-family: var(--font-head); font-weight: 800; font-size: 17px; flex: 1; }
-    .fp-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .fp-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
     .fp-select { border: 1px solid var(--border); border-radius: 10px; padding: 7px 36px 7px 10px; font-size: 13px; background-color: #fff; cursor: pointer; }
-    .fp-body { max-width: 1040px; margin: 0 auto; padding: 20px 18px 40px; }
+    .fp-body { max-width: 1040px; margin: 0 auto; padding: 20px 18px calc(var(--dock-h) + 28px); }
 
     /* ───────── RESUME BUILDER ───────── */
     .resume-layout { display: grid; grid-template-columns: 380px 1fr; gap: 22px; align-items: start; }

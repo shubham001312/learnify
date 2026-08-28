@@ -666,7 +666,7 @@ def career_guidance(req: GuidanceReq):
     """Take a student's profile + a few short survey answers and return a
     personalized career-path recommendation (drawn from our careers dataset)."""
     try:
-        user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
+        user_block = _with_timeout(lambda: _user_context(req.user_id), 1.5) or ""
     except Exception:
         user_block = ""
 
