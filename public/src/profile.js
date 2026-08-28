@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=35';
-import { applyLanguage } from './i18n.js?v=35';
-import { logout, openLogin } from './auth.js?v=35';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=36';
+import { applyLanguage } from './i18n.js?v=36';
+import { logout, openLogin } from './auth.js?v=36';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -268,6 +268,8 @@ function loadAcademic() {
     academicRecs = recs;
     if (el('acad-count')) el('acad-count').textContent = recs.length ? recs.length + ' record' + (recs.length > 1 ? 's' : '') : '';
     if (el('stat-docs')) el('stat-docs').textContent = recs.length;
+    const tw = recs.find((r) => (r.exam || '').toString().toLowerCase() === '12th');
+    if (el('stat-12th')) el('stat-12th').textContent = (tw && tw.percentage != null) ? tw.percentage + '%' : '—';
     if (!recs.length) { list.innerHTML = '<small style="color:var(--sub)">No marks yet — tap “＋ Add” to enter your subjects.</small>'; return; }
     list.innerHTML = recs.map((r) => {
       const marks = (r.marks && typeof r.marks === 'object')

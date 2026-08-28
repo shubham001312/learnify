@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=35">
+  <link rel="stylesheet" href="styles.css?v=36">
 </head>
 <body>
 
@@ -127,20 +127,16 @@
     <!-- VEDA -->
     <section id="tab-veda" class="tab-pane">
       <div class="chat-wrap">
-        <div class="chat-head">
+        <div class="chat-topbar">
           <button class="icon-btn" id="veda-hist" title="Chat history">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           </button>
-          <div class="veda-av">V</div>
-          <div>
-            <div class="name" data-i18n="veda_title">Veda AI</div>
-            <div class="status"><span class="dot"></span> <span data-i18n="veda_online">Online</span></div>
-          </div>
-          <div class="meta" id="veda-quota">10 questions left today</div>
+          <div class="veda-status" id="veda-status"><span class="dot"></span> <span id="veda-status-text" data-i18n="veda_online">Online</span></div>
+          <span class="cb-spacer"></span>
           <button class="icon-btn" id="veda-quiz" title="Quiz me">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 4.3 2.4c-.8.5-1.5.9-1.5 2.1"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
           </button>
-          <button class="icon-btn" id="veda-new" title="New chat">+
+          <button class="icon-btn" id="veda-new" title="New chat">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           </button>
         </div>
@@ -179,7 +175,7 @@
               <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4z"/></svg>
             </button>
           </div>
-          <p class="chat-foot">Responses powered by Veda · <a href="#" id="veda-upgrade" data-i18n="veda_upgrade">Upgrade for unlimited</a></p>
+          <p class="chat-foot"><span id="veda-quota">10 questions left today</span> · Responses by Veda · <a href="#" id="veda-upgrade" data-i18n="veda_upgrade">Upgrade</a></p>
         </div>
       </div>
     </section>
@@ -1393,8 +1389,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=35"></script>
-  <script type="module" src="src/app.js?v=35"></script>
+  <script src="vendor/jspdf.umd.min.js?v=36"></script>
+  <script type="module" src="src/app.js?v=36"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

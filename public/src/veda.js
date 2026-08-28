@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=35';
-import { openLogin } from './auth.js?v=35';
-import { playChatDing } from './sound.js?v=35';
+import { api, el, getToken, getUser, toast, getLang, openModal, vedaQuotaLeft, incVeda, renderMarkdown, setUser } from './utils.js?v=36';
+import { openLogin } from './auth.js?v=36';
+import { playChatDing } from './sound.js?v=36';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, '');
 
@@ -11,6 +11,7 @@ let greetingHTML = '';
 let streamEl = null;
 let user = null;
 let userId = 'demo';
+let currentMode = 'chat';
 
 const CHAT_KEY = "learnify_chat";
 
@@ -35,7 +36,7 @@ function appendBubble(who, text) {
   const av = who === 'user' ? (u ? (u.name || 'S').charAt(0).toUpperCase() : 'S') : 'V';
   row.innerHTML = `<div class="msg-av ${avClass}">${av}</div><div class="bubble ${avClass}"></div>`;
   const bubble = row.querySelector('.bubble');
-  if (who === 'v') bubble.innerHTML = renderMarkdown(text);
+  if (who === 'v') { bubble.innerHTML = renderMarkdown(text); bubble.dataset.raw = text; }
   else bubble.textContent = text;
   if (who === 'v') addMsgActions(row, bubble);
   wrap.appendChild(row);
@@ -45,13 +46,33 @@ function appendBubble(who, text) {
 function addMsgActions(row, bubble) {
   const bar = document.createElement('div');
   bar.className = 'msg-actions';
-  bar.innerHTML = '<button class="msg-copy" title="Copy reply">⧉ Copy</button>';
+  bar.innerHTML = '<button class="msg-copy" title="Copy reply">⧉ Copy</button>' +
+    '<button class="msg-pdf" title="Download as PDF">⬇ PDF</button>';
   bar.querySelector('.msg-copy').addEventListener('click', () => {
-    const txt = (bubble.innerText || '').replace(/⧉\s*Copy/g, '').trim();
+    const txt = (bubble.innerText || '').replace(/[⧉⬇]\s*(Copy|PDF)/g, '').trim();
     if (navigator.clipboard) navigator.clipboard.writeText(txt)
       .then(() => toast('Copied to clipboard', 'ok')).catch(() => {});
   });
+  bar.querySelector('.msg-pdf').addEventListener('click', () => {
+    const raw = bubble.dataset.raw || (bubble.innerText || '');
+    const u = getUser();
+    const grade = (u && (u.grade || u.target_exam)) || '';
+    generateRoadmapPDF(raw, 'Veda Response' + (grade ? ' — ' + grade : ''));
+  });
   row.appendChild(bar);
+}
+
+function setVedaStatus(state) {
+  const st = document.getElementById('veda-status');
+  const txt = document.getElementById('veda-status-text');
+  if (!st) return;
+  if (state === 'typing') {
+    st.classList.add('typing');
+    if (txt) txt.textContent = 'typing…';
+  } else {
+    st.classList.remove('typing');
+    if (txt) txt.textContent = 'Online';
+  }
 }
 
 function beginStream() {
@@ -72,10 +93,12 @@ function showTyping() {
   row.className = 'msg'; row.id = 'typing-row';
   row.innerHTML = '<div class="msg-av v">V</div><div class="bubble v typing"><span></span><span></span><span></span> <i class="t-label">Veda is typing…</i></div>';
   wrap.appendChild(row); scrollDown();
+  setVedaStatus('typing');
 }
 function removeTyping() {
   const t = document.getElementById('typing-row');
   if (t) t.remove();
+  setVedaStatus('online');
 }
 function scrollDown() { const w = el('chat-messages'); if (w) w.scrollTop = w.scrollHeight; }
 
@@ -147,6 +170,7 @@ async function openChat(id) {
 
 function newChat() {
   currentChatId = null;
+  currentMode = 'chat';
   messages = [];
   const wrap = el('chat-messages');
   wrap.innerHTML = greetingHTML;
@@ -290,14 +314,13 @@ async function startRoadmap() {
   if (!getToken()) { toast('Please log in to build a roadmap.', 'info'); openLogin(); return; }
   const u = getUser();
   const grade = (u && (u.grade || u.target_exam)) || '';
-  let prompt = 'Build a detailed, personalised study & career roadmap for me as an Indian student';
+  currentMode = 'roadmap';
+  let prompt = 'Build my complete, personalised study & career roadmap as an Indian student';
   if (grade) prompt += ' preparing for ' + grade;
-  prompt += ': split it into clear phases (Foundation, Skill-building, Exams & Applications, Placement), ' +
-    'with weekly milestones, free resources, and the exact next 3 actions. Use headings and bullet points.';
+  prompt += '. Ask me anything you need to know first (one question at a time), then give me the full roadmap with phases, weekly milestones, free resources and my next 3 actions.';
   const input = el('chat-input');
   if (input) input.value = prompt;
-  const text = await window.sendMessage();
-  if (text) generateRoadmapPDF(text, 'My Learning Roadmap' + (grade ? ' — ' + grade : ''));
+  await window.sendMessage();
 }
 window.startRoadmap = startRoadmap;
 window.downloadLastRoadmap = downloadLastRoadmap;
@@ -365,7 +388,7 @@ export function initVeda() {
       const resp = await fetch('/api/veda/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, messages, language: getLang(), chat_id: currentChatId })
+        body: JSON.stringify({ user_id: userId, messages, language: getLang(), chat_id: currentChatId, mode: currentMode })
       });
       if (!resp.ok) throw new Error('Veda request failed (' + resp.status + ')');
 
@@ -389,7 +412,7 @@ export function initVeda() {
         const { done, value } = await reader.read();
         if (done) break;
         text += decoder.decode(value, { stream: true });
-        if (streamEl) streamEl.innerHTML = renderMarkdown(text);
+        if (streamEl) { streamEl.innerHTML = renderMarkdown(text); streamEl.dataset.raw = text; }
         if (!dinged && text.trim()) { dinged = true; try { playChatDing(); } catch (_) {} }
         scrollDown();
       }
@@ -447,52 +470,11 @@ function closeQuiz() {
 }
 
 async function startQuiz() {
-  const user = getUser();
-  const defTopic = (user && (user.target_exam || user.grade)) ? (user.target_exam || user.grade) : 'General studies for Indian students';
-  const topic = (window.prompt ? window.prompt('Quiz topic (e.g. Photosynthesis, Indian History, Algebra):', defTopic) : '') || defTopic;
-  const body = el('quiz-body');
-  if (!body) return;
-  body.innerHTML = '<p style="color:var(--sub)">Generating quiz on “' + esc(topic) + '”…</p>';
-  el('quiz-modal').classList.add('show');
-  try {
-    const data = await api('/veda/quiz', {
-      method: 'POST',
-      body: JSON.stringify({ topic, count: 5, difficulty: 'Mixed', language: getLang() })
-    });
-    const qs = (data && data.questions) || [];
-    if (!qs.length) { body.innerHTML = '<p style="color:var(--sub)">Could not generate a quiz right now. Try again.</p>'; return; }
-    body.innerHTML = '';
-    qs.forEach((q, qi) => {
-      const card = document.createElement('div');
-      card.className = 'quiz-q';
-      let opts = '';
-      (q.options || []).forEach((o, oi) => {
-        opts += '<button class="quiz-opt" data-q="' + qi + '" data-o="' + oi + '">' + esc(o) + '</button>';
-      });
-      card.innerHTML = '<div class="quiz-n">Q' + (qi + 1) + '. ' + esc(q.question) + '</div><div class="quiz-opts">' + opts + '</div><div class="quiz-fb" data-fb="' + qi + '"></div>';
-      body.appendChild(card);
-    });
-    body.querySelectorAll('.quiz-opt').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const qi = Number(btn.dataset.q);
-        const oi = Number(btn.dataset.o);
-        const q = qs[qi];
-        const fb = body.querySelector('.quiz-fb[data-fb="' + qi + '"]');
-        if (fb.dataset.done) return;
-        fb.dataset.done = '1';
-        const correct = oi === q.answer_index;
-        btn.classList.add(correct ? 'correct' : 'wrong');
-        if (!correct) {
-          const right = body.querySelector('.quiz-opt[data-q="' + qi + '"][data-o="' + q.answer_index + '"]');
-          if (right) right.classList.add('correct');
-        }
-        body.querySelectorAll('.quiz-opt[data-q="' + qi + '"]').forEach((b) => { b.disabled = true; });
-        fb.innerHTML = (correct ? '✅ Correct! ' : '❌ Correct answer: ' + esc(q.options[q.answer_index]) + '. ')
-          + (q.explanation ? '<span>' + esc(q.explanation) + '</span>' : '');
-        fb.classList.add(correct ? 'ok' : 'no');
-      });
-    });
-  } catch (e) {
-    body.innerHTML = '<p style="color:var(--sub)">Quiz failed: ' + esc(e && e.message ? e.message : 'error') + '</p>';
-  }
+  if (!getToken()) { toast('Please log in to use Quiz mode.', 'info'); openLogin(); return; }
+  const u = getUser();
+  currentMode = 'chat';
+  const topic = (u && (u.target_exam || u.grade)) ? (u.target_exam || u.grade) : 'general studies';
+  const input = el('chat-input');
+  if (input) input.value = 'Quiz me on ' + topic + ' — ask me ONE question at a time and tell me if I am right, like a fun practice test.';
+  await window.sendMessage();
 }

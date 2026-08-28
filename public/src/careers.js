@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=35';
-import { iconSvg, careerIcon } from './icons.js?v=35';
+import { api, el, toast, esc, openModal, closeModal, siteUrl } from './utils.js?v=36';
+import { iconSvg, careerIcon } from './icons.js?v=36';
 
 let _careerData = [];
 let _careerCats = [];
@@ -291,7 +291,6 @@ function careerHTML(c) {
   return (
     '<div class="career-detail">' +
       '<div class="cd-hero">' +
-        '<div class="cd-ic">' + iconSvg(careerIcon(c.category, c.title)) + '</div>' +
         '<div><div class="cd-cat">' + esc(c.category) + '</div>' +
         '<h2>' + esc(c.title) + '</h2>' +
         '<p class="cd-tag">' + esc(c.tagline || '') + '</p></div>' +
@@ -427,7 +426,7 @@ export function openCompany(id) {
       openCareer(b.dataset.goCareer);
     }));
     const w = card.querySelector('#co-open-site');
-    if (w) w.addEventListener('click', () => window.open('https://' + co.website, '_blank', 'noopener'));
+    if (w) w.addEventListener('click', () => { const url = siteUrl(co.website); if (url) window.open(url, '_blank', 'noopener'); });
   }).catch(() => {
     if (card) card.innerHTML = '<div class="dm-sec">Could not load company details.</div>';
   });

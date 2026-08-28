@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=35';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=35';
-import { openLogin } from './auth.js?v=35';
+import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=36';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=36';
+import { openLogin } from './auth.js?v=36';
 
 const NOTES_KEY = 'learnify_notes';
 

@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=35';
-import { applyLanguage } from './i18n.js?v=35';
-import { initNotifications, addNotification } from './notifications.js?v=35';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=36';
+import { applyLanguage } from './i18n.js?v=36';
+import { initNotifications, addNotification } from './notifications.js?v=36';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=35';
-import { initVeda } from './veda.js?v=35';
-import { initCareer } from './career.js?v=35';
-import { initCareers } from './careers.js?v=35';
-import { initProfile } from './profile.js?v=35';
-import { initPremium } from './premium.js?v=35';
-import { api, el, toast, esc } from './utils.js?v=35';
-import { iconSvg, suggestionIcon } from './icons.js?v=35';
-import { playClick } from './sound.js?v=35';
-import { initStudyTools } from './tools.js?v=35';
+import { initAuth, openLogin } from './auth.js?v=36';
+import { initVeda } from './veda.js?v=36';
+import { initCareer } from './career.js?v=36';
+import { initCareers } from './careers.js?v=36';
+import { initProfile } from './profile.js?v=36';
+import { initPremium } from './premium.js?v=36';
+import { api, el, toast, esc, siteUrl } from './utils.js?v=36';
+import { iconSvg, suggestionIcon } from './icons.js?v=36';
+import { playClick } from './sound.js?v=36';
+import { initStudyTools } from './tools.js?v=36';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -1049,7 +1049,7 @@ function openCollegeModal(c) {
     '</div>' +
     (stats.length ? '<div class="dm-stats">' + stats.join('') + '</div>' : '') +
     (loc ? '<div class="dm-sec"><h4>📍 Location</h4><p>' + esc(loc) + '</p>' +
-        (c.website ? '<a class="dm-link" href="https://' + esc(c.website) + '" target="_blank" rel="noopener">🌐 Official website ↗</a>' : '') +
+        (c.website ? '<a class="dm-link" href="' + esc(siteUrl(c.website)) + '" target="_blank" rel="noopener">🌐 Official website ↗</a>' : '') +
         (mapHtml ? mapHtml : '') + '</div>' : '') +
     ((c.affiliation || c.founded) ? '<div class="dm-sec"><h4>🏛 Affiliation & Founding</h4><p>' +
         (c.affiliation ? esc(c.affiliation) : '') +

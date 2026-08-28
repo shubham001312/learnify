@@ -41,6 +41,14 @@ export function esc(s) {
   }[m]));
 }
 
+export function siteUrl(u) {
+  if (!u) return '';
+  u = String(u).trim();
+  if (/^https?:\/\//i.test(u)) return u;
+  if (/^[\w.-]+\.[a-z]{2,}/i.test(u)) return 'https://' + u;
+  return 'https://www.google.com/search?q=' + encodeURIComponent(u);
+}
+
 const TOKEN_KEY = 'learnify_token';
 const USER_KEY = 'learnify_user';
 

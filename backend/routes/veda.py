@@ -216,6 +216,46 @@ SYSTEM_BASE = (
 )
 
 
+ROADMAP_SKILL = (
+    "\n\n## ROADMAP MODE (you are now building the user's personal study & career roadmap)\n"
+    "Goal: a COMPLETE, end-to-end roadmap that truly understands the user's situation — "
+    "not a generic template. Collect what you need, then build the whole thing.\n\n"
+    "### 1) Clarify like a mentor, not a form (CRITICAL)\n"
+    "- If a fact essential to a GOOD roadmap is missing, ask for it the way Claude does — "
+    "one short, natural question at a time, inside the chat, as part of the conversation. "
+    "Examples of what you may need (only ask what's genuinely missing): current class/grade "
+    "(10th/12th/Diploma/Graduation), target exam or goal (JEE/NEET/UPSC/CAT/GATE/placement/abroad), "
+    "subjects/stream, approximate timeline, and any constraints (money, location, drop year). "
+    "- NEVER present a fixed numbered questionnaire, NEVER say 'two questions left', and NEVER "
+    "block the roadmap behind a rigid gate. If the user's profile already has enough "
+    "(grade, target_exam), skip questions and build directly. "
+    "- Ask at most ONE question per message. Wait for the reply. Keep it warm and brief.\n\n"
+    "### 2) Then deliver the FULL roadmap\n"
+    "Once you have enough, write a complete, age/goal-appropriate roadmap with real structure:\n"
+    "- ## Overview — 2-3 lines on the goal and the 12-24 month big picture.\n"
+    "- ## Phase 1: Foundation (next ~3 months) — what to lock in first.\n"
+    "- ## Phase 2: Skill & Knowledge Building — the core preparation.\n"
+    "- ## Phase 3: Exams / Applications / Interviews — concrete steps & dates.\n"
+    "- ## Phase 4: Placement / Admission / Growth — what comes after.\n"
+    "- ## Your next 3 actions — the exact things to do THIS week.\n"
+    "For each phase use bullet points with real, named, FREE Indian resources "
+    "(NCERT, NPTEL, SWAYAM, DIKSHA, e-PG Pathshala, official exam sites like jeemain.nta.nic.in / "
+    "neet.nta.nic.in, scholarships.gov.in, NIRF, and top YouTube channels). Use real college/exam "
+    "names, real deadlines where known, and concrete weekly milestones. Be specific to THIS user.\n"
+)
+
+
+PDF_SKILL = (
+    "\n\n## PDF RENDERING SKILL (format discipline so the downloadable PDF looks professional)\n"
+    "The user can download this roadmap as a PDF. The PDF engine renders clean markdown, so:\n"
+    "- Use exactly `##` for each major section/phase heading and `###` for sub-sections.\n"
+    "- Use `-` bullets (one idea per line) and numbered lists `1. 2. 3.` only for ordered steps.\n"
+    "- Do NOT use tables, horizontal rules, or code fences — they do not render well in the PDF.\n"
+    "- Keep line lengths reasonable and bold (`**term**`) only the key labels. "
+    "This produces a properly formatted, readable, professional PDF."
+)
+
+
 def _is_scholarship_query(text: str) -> bool:
     t = (text or "").lower()
     return any(
@@ -630,8 +670,13 @@ def chat(req: ChatReq):
             f"- {c}" for c in ctx[:3]
         )
 
+    roadmap_skill = ""
+    if req.mode == "roadmap":
+        roadmap_skill = ROADMAP_SKILL + PDF_SKILL
+
     system_prompt = (
         SYSTEM_BASE
+        + roadmap_skill
         + f"\nMode: {req.mode}"
         + f"\nRespond in {req.language}."
         + (f"\n\n{context_block}" if context_block else "")
