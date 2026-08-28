@@ -1,16 +1,16 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js';
-import { applyLanguage } from './i18n.js';
-import { initNotifications, addNotification } from './notifications.js';
+import { onReady, openModal, getToken, getUser, setLang, getLang } from './utils.js?v=12';
+import { applyLanguage } from './i18n.js?v=12';
+import { initNotifications, addNotification } from './notifications.js?v=12';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js';
-import { initVeda } from './veda.js';
-import { initCareer } from './career.js';
-import { initProfile } from './profile.js';
-import { initPremium } from './premium.js';
-import { api, el, toast, esc } from './utils.js';
-import { playClick } from './sound.js';
-import { initStudyTools } from './tools.js';
+import { initAuth, openLogin } from './auth.js?v=12';
+import { initVeda } from './veda.js?v=12';
+import { initCareer } from './career.js?v=12';
+import { initProfile } from './profile.js?v=12';
+import { initPremium } from './premium.js?v=12';
+import { api, el, toast, esc } from './utils.js?v=12';
+import { playClick } from './sound.js?v=12';
+import { initStudyTools } from './tools.js?v=12';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -329,7 +329,7 @@ function initResume() {
     try {
       const d = await api('/veda/chat', {
         method: 'POST',
-        body: JSON.stringify({ user_id: (getUser() && getUser().email) || 'demo', messages: [{ role: 'user', content: prompt }], mode: 'chat', language: 'English' })
+        body: JSON.stringify({ user_id: (getUser() && getUser().email) || 'demo', messages: [{ role: 'user', content: prompt }], mode: 'chat', language: 'English', return_json: true })
       });
       const json = extractJson((d && d.reply) || '');
       if (json && json.summary !== undefined) {
@@ -512,6 +512,9 @@ function initScholarships() {
   const collegeEl = el('sch-college');
   const tabsEl = el('sch-tabs');
   const summaryEl = el('sch-summary');
+  const matchedEl = el('sch-matched');
+  const chipsEl = el('sch-chips');
+  let ALL = [];
 
   let cat = 'All';
   let q = '';
@@ -531,44 +534,68 @@ function initScholarships() {
     return cols.map((x) => String(x).toLowerCase()).includes(lc);
   }
 
-  async function load() {
+  function load() {
     listEl.innerHTML = '<div class="sch-loading">Loading scholarships…</div>';
-    const params = new URLSearchParams();
-    if (cat !== 'All') params.set('category', cat);
-    if (state) params.set('state', state);
-    if (q) params.set('q', q);
-    let data = [];
-    try {
-      const d = await api('/scholarships' + (params.toString() ? '?' + params.toString() : ''));
-      data = (d && d.scholarships) || [];
-    } catch (e) {
+    api('/scholarships').then((d) => {
+      ALL = (d && d.scholarships) || [];
+      buildChips();
+      renderMatched();
+      populateStates();
+      render();
+    }).catch(() => {
       toast('Failed to load scholarships', 'info');
-    }
-    render(data);
+      listEl.innerHTML = '<div class="sch-empty">Could not load scholarships.</div>';
+    });
   }
   window.loadScholarships = load;
 
-  function render(data) {
-    if (college) {
-      const lc = college.toLowerCase();
-      const cs = collegeState ? collegeState.toLowerCase() : null;
-      data = data.filter((s) => isApplicable(s, lc, cs));
+  function matchReasons(s, u) {
+    const reasons = [];
+    const us = (u.state || '').toLowerCase();
+    const st = (s.state || '').toLowerCase();
+    if (us && (st === us || st === 'all india' || st === 'central' || (st === 'north east' && NE_STATES.includes(us)))) {
+      reasons.push('for ' + (u.state || 'your state'));
     }
+    const elig = ((s.eligibility || '') + ' ' + (s.name || '')).toLowerCase();
+    const g = (u.gender || '').toLowerCase();
+    if (g === 'female' && /girl|women|womens|female/.test(elig)) reasons.push('for girls/women');
+    if (g === 'male' && /boy|men|male/.test(elig)) reasons.push('for boys/men');
+    if (u.board && elig.includes(u.board.toLowerCase())) reasons.push('for ' + u.board + ' students');
+    if (/(merit|topper|rank)/.test(elig)) reasons.push('merit-based');
+    return reasons;
+  }
+
+  function filtered() {
+    let data = ALL.slice();
+    const lc = college ? college.toLowerCase() : null;
+    const cs = collegeState ? collegeState.toLowerCase() : null;
+    if (cat !== 'All') data = data.filter((s) => (s.category || '').toLowerCase() === cat.toLowerCase());
+    if (state) data = data.filter((s) => (s.state || '').toLowerCase() === state.toLowerCase());
+    if (q) {
+      const qq = q.toLowerCase();
+      data = data.filter((s) => ((s.name || '') + ' ' + (s.eligibility || '') + ' ' + (s.state || '') + ' ' + (s.category || '') + ' ' + (s.amount || '')).toLowerCase().includes(qq));
+    }
+    if (lc) data = data.filter((s) => isApplicable(s, lc, cs));
+    return data;
+  }
+
+  function render() {
+    const data = filtered();
     let html = '<span class="sch-count">' + data.length + ' scholarship' + (data.length === 1 ? '' : 's') + '</span>';
     if (college) html += ' <span class="sch-filter">for ' + esc(college) + '</span>';
     if (cat !== 'All') html += ' <span class="sch-filter">' + esc(cat) + '</span>';
     if (state) html += ' <span class="sch-filter">' + esc(state) + '</span>';
+    if (q) html += ' <span class="sch-filter">“' + esc(q) + '”</span>';
     summaryEl.innerHTML = html;
 
     if (!data.length) {
-      listEl.innerHTML = '<div class="sch-empty">No scholarships match your filters.</div>';
+      listEl.innerHTML = '<div class="sch-empty">No scholarships match your filters. Try a suggestion below.</div>';
       return;
     }
 
     const lc = college ? college.toLowerCase() : null;
     const cs = collegeState ? collegeState.toLowerCase() : null;
-    const cardsHtml = data.map((s) => {
-      const c = s.colleges || [];
+    listEl.innerHTML = data.map((s) => {
       const avail = lc ? isApplicable(s, lc, cs) : null;
       const docs = (s.documents || []).map((d) => '<span class="doc-chip">' + esc(d) + '</span>').join('');
       return '<div class="sch-card cat-' + esc(String(s.category || '').toLowerCase()) + '">'
@@ -584,24 +611,87 @@ function initScholarships() {
         + (docs ? '<div class="sch-docs"><span>Documents:</span> ' + docs + '</div>' : '')
         + '</div>';
     }).join('');
-    listEl.innerHTML = cardsHtml;
     Array.from(listEl.querySelectorAll('.sch-card')).forEach((card, i) => {
       card.classList.add('clickable');
       card.addEventListener('click', () => window.openScholarshipModal(data[i]));
     });
   }
 
-  searchEl.addEventListener('input', () => { q = searchEl.value.trim(); load(); });
-  stateEl.addEventListener('change', () => { state = stateEl.value; load(); });
+  function renderMatched() {
+    if (!matchedEl) return;
+    const u = getUser() || {};
+    if (!u.state && !u.gender && !u.board && !u.target_exam) { matchedEl.innerHTML = ''; return; }
+    const scored = [];
+    ALL.forEach((s) => {
+      const reasons = matchReasons(s, u);
+      if (reasons.length) scored.push({ s, reasons: reasons.slice(0, 2) });
+    });
+    if (!scored.length) { matchedEl.innerHTML = ''; return; }
+    scored.sort((a, b) => b.reasons.length - a.reasons.length);
+    matchedEl.innerHTML = '<div class="sch-section-title">🎯 Matched for you</div>' +
+      scored.slice(0, 4).map(({ s, reasons }) =>
+        '<div class="sch-match" data-name="' + esc(s.name) + '"><div class="sch-match-name">' + esc(s.name) +
+        '</div><div class="sch-match-reason">Because ' + reasons.map(esc).join(' · ') + '</div></div>'
+      ).join('');
+    matchedEl.querySelectorAll('.sch-match').forEach((m) => {
+      m.addEventListener('click', () => {
+        const s = ALL.find((x) => x.name === m.dataset.name);
+        if (s) window.openScholarshipModal(s);
+      });
+    });
+  }
+
+  function buildChips() {
+    if (!chipsEl) return;
+    const u = getUser() || {};
+    const chips = [];
+    if (u.state) chips.push({ label: 'In ' + u.state, q: u.state });
+    if ((u.gender || '').toLowerCase() === 'female') chips.push({ label: 'For girls/women', q: 'girl women' });
+    if (u.board) chips.push({ label: u.board + ' students', q: u.board });
+    [
+      { label: 'Government', cat: 'Government' },
+      { label: 'State', cat: 'State' },
+      { label: 'Girls/Women', q: 'girl women' },
+      { label: 'SC/ST/OBC', q: 'sc st obc' },
+      { label: 'Minority', q: 'minority' },
+      { label: 'Merit-based', q: 'merit' },
+      { label: 'Engineering', q: 'engineering' },
+    ].forEach((c) => chips.push(c));
+    chipsEl.innerHTML = chips.map((c, i) => '<button class="sch-chip" data-i="' + i + '">' + esc(c.label) + '</button>').join('');
+    chipsEl.querySelectorAll('.sch-chip').forEach((b) => {
+      b.addEventListener('click', () => {
+        const c = chips[Number(b.dataset.i)];
+        q = c.q || ''; searchEl.value = q;
+        if (c.cat) {
+          cat = c.cat;
+          tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.toggle('active', x.dataset.cat === cat));
+        } else {
+          cat = 'All';
+          tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.toggle('active', x.dataset.cat === 'All'));
+        }
+        render();
+        matchedEl && matchedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    });
+  }
+  searchEl.addEventListener('input', () => { q = searchEl.value.trim(); render(); });
+  stateEl.addEventListener('change', () => { state = stateEl.value; render(); });
+
   tabsEl.querySelectorAll('.sch-tab').forEach((b) => b.addEventListener('click', () => {
     tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.remove('active'));
     b.classList.add('active');
     cat = b.dataset.cat;
-    load();
+    render();
   }));
 
-  const states = ['Central', 'North East', 'West Bengal', 'Kerala', 'Tamil Nadu', 'Karnataka', 'Maharashtra', 'Uttar Pradesh', 'Bihar', 'Gujarat', 'Rajasthan', 'Odisha', 'All India'];
-  stateEl.insertAdjacentHTML('beforeend', states.map((s) => '<option value="' + s + '">' + s + '</option>').join(''));
+  function populateStates() {
+    if (!stateEl) return;
+    const set = new Set();
+    ALL.forEach((s) => { if (s.state) set.add(String(s.state)); });
+    const opts = Array.from(set).sort((a, b) => a.localeCompare(b));
+    stateEl.innerHTML = '<option value="">All states</option>' + opts.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+    stateEl.value = state;
+  }
 
   // College autocomplete (43k colleges -> type-ahead, not a dropdown)
   const suggestEl = el('sch-suggest');

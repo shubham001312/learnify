@@ -791,6 +791,17 @@ textarea { resize: vertical; }
     .sch-elig span, .sch-deadline span, .sch-docs span { font-weight: 700; color: var(--muted); }
     .sch-docs .doc-chip { display: inline-block; background: #f1f4f8; border-radius: 6px; padding: 2px 8px; margin: 3px 4px 0 0; font-size: 11.5px; color: #3b4658; }
 
+    .sch-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .sch-chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; color: var(--sub); cursor: pointer; transition: all .15s; }
+    .sch-chip:hover { border-color: var(--teal); color: var(--teal); background: rgba(14,165,164,0.06); }
+
+    .sch-matched { margin-bottom: 18px; }
+    .sch-section-title { font: 700 15px var(--font-head); color: var(--text); margin-bottom: 10px; }
+    .sch-match { background: linear-gradient(135deg, rgba(14,165,164,0.08), rgba(224,165,38,0.08)); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, transform .1s; }
+    .sch-match:hover { border-color: var(--teal); transform: translateY(-1px); }
+    .sch-match-name { font: 700 14px var(--font-head); color: var(--text); margin-bottom: 3px; }
+    .sch-match-reason { font-size: 12.5px; color: var(--sub); }
+
     .sch-college-wrap { position: relative; flex: 1; min-width: 220px; }
     .sch-college { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 11px 38px 11px 12px; font-size: 14px; background-color: #fff; color: var(--text); outline: none; box-sizing: border-box; }
     .sch-college:focus { border-color: rgba(224,165,38,0.5); }

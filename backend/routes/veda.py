@@ -4,12 +4,14 @@ import urllib.parse
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 
 from backend.services.ai import (
     stream_chat as ai_stream,
     extract_profile as ai_extract_profile,
+    generate_quiz as ai_generate_quiz,
+    _call_json,
 )
 from backend.services.rag import retrieve as rag_retrieve
 
@@ -117,6 +119,15 @@ class ChatReq(BaseModel):
     mode: str = "chat"
     language: str = "English"
     chat_id: Optional[str] = None
+    return_json: bool = False
+
+
+class QuizReq(BaseModel):
+    user_id: str = "demo"
+    topic: str
+    count: int = 5
+    difficulty: str = "Mixed"
+    language: str = "English"
 
 
 SYSTEM_BASE = (
@@ -414,6 +425,26 @@ def chat(req: ChatReq):
     user_messages = [m for m in req.messages if m.get("role") == "user"]
     last_msg = user_messages[-1].get("content", "") if user_messages else ""
 
+    # Non-streaming JSON mode (used by structured tools like Resume Polish that
+    # need a guaranteed parseable object back instead of a text stream).
+    if req.return_json:
+        full = [
+            {
+                "role": "system",
+                "content": "You are a precise assistant. Respond with valid JSON only, no markdown fences.",
+            }
+        ] + req.messages
+        try:
+            parsed = (
+                _with_timeout(lambda: _call_json("openai/gpt-oss-120b", full, 0.2), 25)
+                or {}
+            )
+        except Exception:
+            parsed = {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+        return JSONResponse({"reply": json.dumps(parsed)})
+
     # Two-way profile sync: pull any facts the user just stated into their profile
     # so Veda's answer (and all future ones) can be precise.
     profile_deltas = {}
@@ -507,6 +538,20 @@ def chat(req: ChatReq):
             json.dumps(profile_deltas)
         )
     return resp
+
+
+@router.post("/quiz")
+def quiz(req: QuizReq):
+    """Generate an MCQ quiz on a topic (structured JSON for the frontend)."""
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic is required")
+    count = max(1, min(20, int(req.count or 5)))
+    try:
+        data = ai_generate_quiz(topic, count, req.difficulty, req.language)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=502, detail="Quiz generation failed: " + str(e))
 
 
 # ───────────────────────── chat history ─────────────────────────

@@ -254,6 +254,61 @@ def extract_profile(text: str) -> dict:
     return {}
 
 
+def generate_quiz(
+    topic: str, count: int = 5, difficulty: str = "Mixed", language: str = "English"
+) -> dict:
+    """Generate a multiple-choice quiz as structured JSON.
+
+    Returns {"questions": [{"question", "options":[4], "answer_index":int,
+    "explanation":str}, ...]}.
+    """
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured")
+    sys_prompt = (
+        "You are an expert Indian academic tutor. Generate a multiple-choice quiz. "
+        "Respond with ONE JSON object of the form "
+        '{"questions":[ {"question": string, "options": [string, string, string, string], '
+        '"answer_index": integer 0-3, "explanation": string} ]}. '
+        f"Language: {language}. Difficulty: {difficulty}. Topic: {topic}. "
+        f"Generate exactly {count} questions accurate to the Indian curriculum. "
+        "Distractors must be plausible. Output JSON only, no prose."
+    )
+    messages = [{"role": "system", "content": sys_prompt}]
+    last_err = None
+    for mdl in [ANALYZE_MODEL, "groq/compound", "openai/gpt-oss-120b"]:
+        try:
+            obj = _call_json(mdl, messages, temperature=0.5)
+            qs = obj.get("questions") or []
+            clean = []
+            for q in qs:
+                opts = q.get("options") or []
+                if not isinstance(opts, list):
+                    opts = [str(opts)]
+                opts = [str(o) for o in opts][:4]
+                try:
+                    ai_idx = int(q.get("answer_index"))
+                except Exception:
+                    ai_idx = 0
+                if not (0 <= ai_idx < len(opts)):
+                    ai_idx = 0
+                clean.append(
+                    {
+                        "question": str(q.get("question", "")),
+                        "options": opts,
+                        "answer_index": ai_idx,
+                        "explanation": str(q.get("explanation", "") or ""),
+                    }
+                )
+            if clean:
+                return {"questions": clean}
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        raise last_err
+    raise RuntimeError("Quiz generation failed")
+
+
 def embed(text: str) -> list[float] | None:
     """Return embedding vector or None (callers fall back to keyword retrieval).
 

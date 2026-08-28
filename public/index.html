@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
 
@@ -560,12 +560,14 @@
           <div class="sch-suggest" id="sch-suggest"></div>
         </div>
       </div>
+      <div class="sch-chips" id="sch-chips"></div>
       <div class="sch-tabs" id="sch-tabs">
         <button class="sch-tab active" data-cat="All">All</button>
         <button class="sch-tab" data-cat="Government">Government</button>
         <button class="sch-tab" data-cat="Private">Private</button>
         <button class="sch-tab" data-cat="State">State</button>
       </div>
+      <div class="sch-matched" id="sch-matched"></div>
       <div class="sch-live">
         <div class="sch-live-head">🌐 Live scholarship search <span class="sch-live-meta" id="sch-live-meta"></span></div>
         <div class="sch-live-bar">
@@ -835,7 +837,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script type="module" src="src/app.js?v=11"></script>
+  <script type="module" src="src/app.js?v=12"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
