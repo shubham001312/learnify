@@ -211,7 +211,7 @@ export function initVeda() {
         if (done) break;
         text += decoder.decode(value, { stream: true });
         if (streamEl) streamEl.textContent = text;
-        if (!dinged && text.trim()) { dinged = true; playChatDing(); }
+        if (!dinged && text.trim()) { dinged = true; try { playChatDing(); } catch (_) {} }
         scrollDown();
       }
       messages.push({ role: 'assistant', content: text });

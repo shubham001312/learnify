@@ -1,4 +1,5 @@
 import json
+import concurrent.futures as _cf
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -13,6 +14,60 @@ from backend.database.seed import SEED_SCHOLARSHIPS
 
 
 router = APIRouter()
+
+
+def _with_timeout(fn, timeout, default=None):
+    """Run fn in a worker thread; return `default` if it exceeds `timeout`.
+
+    Prevents a slow downstream call (DB, embeddings) from hanging the whole
+    chat request before the first byte is ever sent to the client.
+    """
+    try:
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(fn).result(timeout=timeout)
+    except Exception:
+        return default
+
+
+def _local_reply(text: str) -> str:
+    """Rule-based fallback so Veda always returns something useful, even if the
+    AI provider is down or slow. Returns plain friendly text (no markdown)."""
+    t = (text or "").lower()
+    if any(g in t for g in ("hi", "hello", "hey", "namaste", "नमस्ते", "how are you", "good morning", "good evening")):
+        return (
+            "Hey! I'm Veda, your study companion. Tell me what you're working on "
+            "today — a subject, an exam, or a career question — and I'll help you out. ✨"
+        )
+    if "scholarship" in t or "छात्रवृत्ति" in t or "fellowship" in t:
+        lines = _scholarship_context(text)[:6]
+        return (
+            "Here are some real scholarships you can explore:\n"
+            + "\n".join(lines)
+            + "\n\nOpen the Scholarships tab for the full list and apply links."
+        )
+    if "college" in t or "university" in t or "कॉलेज" in t or "campus" in t:
+        return (
+            "You can explore top Indian colleges (IITs, NITs, IISc and more) in the "
+            "Colleges tab — filter by NIRF rank, stream and state, and compare them "
+            "side by side. Tell me your stream or exam and I can suggest a few!"
+        )
+    if any(e in t for e in ("jee", "neet", "upsc", "ca ", "cat ", "gate", "boards", "exam", "परीक्षा")):
+        return (
+            "For exam prep, a simple plan works best: break the syllabus into weekly "
+            "targets, revise with active recall, and solve previous years' papers. "
+            "Tell me which exam and your timeline — I'll help you build a study plan."
+        )
+    if any(s in t for s in ("study", "tips", "motivat", "stress", "anxious", "sad", "tired", "पढ़ाई")):
+        return (
+            "You've got this! Small consistent steps beat cramming. Take a 5-minute "
+            "break, hydrate, and tackle one topic at a time. I'm here if you want a "
+            "quick study plan or just to talk. 💪"
+        )
+    return (
+        "I'm Veda, your study companion. I can help with subjects, exam prep "
+        "(JEE/NEET/boards), careers, colleges, scholarships and study planning. "
+        "What would you like help with right now?"
+    )
 
 
 class ChatReq(BaseModel):
@@ -81,7 +136,7 @@ def _scholarship_context(query: str) -> List[str]:
         lines.append(
             f"- {s.get('name')} | {s.get('category')} | {s.get('state', 'All India')} | "
             f"Amount: {s.get('amount')} | Eligibility: {s.get('eligibility')} | "
-            f"Deadline: {s.get('deadline')} | Apply: {s.get('application_link')}"
+            f"Deadline: {s.get('deadline')} | Apply: {s.get('link')}"
         )
     return lines
 
@@ -216,7 +271,7 @@ def chat(req: ChatReq):
     ctx = []
     scholarship_block = ""
     try:
-        ctx = rag_retrieve(last_msg, req.user_id) or []
+        ctx = _with_timeout(lambda: rag_retrieve(last_msg, req.user_id), 3) or []
     except Exception:
         ctx = []
 
@@ -234,7 +289,7 @@ def chat(req: ChatReq):
             scholarship_block = ""
 
     try:
-        user_block = _user_context(req.user_id) or ""
+        user_block = _with_timeout(lambda: _user_context(req.user_id), 3) or ""
     except Exception:
         user_block = ""
 
@@ -259,7 +314,9 @@ def chat(req: ChatReq):
     full_messages.extend(req.messages)
 
     try:
-        chat_id = _ensure_chat(req.user_id, req.chat_id, last_msg or "New chat")
+        chat_id = _with_timeout(
+            lambda: _ensure_chat(req.user_id, req.chat_id, last_msg or "New chat"), 3
+        ) or (req.chat_id or "default")
     except Exception:
         chat_id = req.chat_id or "default"
 
@@ -267,9 +324,16 @@ def chat(req: ChatReq):
         collected = []
         try:
             yield " "  # flush headers immediately so the client receives bytes at once
-            for token in ai_stream(full_messages):
-                collected.append(token)
-                yield token
+            try:
+                for token in ai_stream(full_messages):
+                    collected.append(token)
+                    yield token
+            except Exception:
+                # AI provider failed/slow: fall back to a helpful local reply so the
+                # user always gets an answer instead of a dead end.
+                fb = _local_reply(last_msg)
+                collected.append(fb)
+                yield fb
         except Exception:
             err = (
                 "\n\nI'm really sorry — I'm having a small hiccup connecting right "

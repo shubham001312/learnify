@@ -44,7 +44,7 @@ def chat(
     )
 
 
-def _call_stream(model: str, messages: list[dict], temperature: float):
+def _call_stream(model: str, messages: list[dict], temperature: float, connect=6, read=15):
     """Yield assistant tokens as they arrive from OpenRouter (SSE)."""
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY_1}",
@@ -59,7 +59,7 @@ def _call_stream(model: str, messages: list[dict], temperature: float):
         "stream": True,
     }
     resp = requests.post(
-        OPENROUTER_URL, headers=headers, json=payload, stream=True, timeout=(8, 25)
+        OPENROUTER_URL, headers=headers, json=payload, stream=True, timeout=(connect, read)
     )
     resp.raise_for_status()
     for line in resp.iter_lines(decode_unicode=True):
@@ -91,17 +91,20 @@ def stream_chat(
     if not OPENROUTER_API_KEY_1:
         raise RuntimeError("OPENROUTER_API_KEY_1 is not configured")
 
+    # Try every model (best-first) so a single flaky provider never kills the chat.
     order = [model] + [m for m in FALLBACK_MODELS if m != model]
-    for mdl in order[:2]:
+    last_err = None
+    for mdl in order:
         try:
             yielded = False
-            for tok in _call_stream(mdl, messages, temperature):
+            for tok in _call_stream(mdl, messages, temperature, connect=6, read=15):
                 yielded = True
                 yield tok
-            if not yielded:
-                raise RuntimeError("OpenRouter returned an empty response")
-            return
-        except Exception:
+            if yielded:
+                return
+            raise RuntimeError("OpenRouter returned an empty response")
+        except Exception as e:
+            last_err = e
             continue
     raise RuntimeError(
         "Veda is temporarily unavailable (AI provider busy). Please try again in a moment."
