@@ -167,7 +167,7 @@
     .so-clear:hover { color: var(--text); }
     .so-close { background: none; border: none; font-size: 14px; font-weight: 600; color: var(--teal); cursor: pointer; padding: 6px 8px; flex-shrink: 0; }
     .so-close:hover { color: var(--teal-deep); }
-    .so-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; width: 100%; max-width: 100%; background: var(--bg); margin: 0; padding: 20px 22px 48px; }
+    .so-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; width: 100%; max-width: 100%; background: var(--bg); margin: 0; padding: 20px 22px 48px; }
     .so-sec { margin-bottom: 26px; }
     .so-sec-head { font: 700 13px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: 14px; }
     .so-chips { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -193,9 +193,9 @@
     .so-row-ic.career { background: rgba(224,165,38,0.12); color: var(--gold-deep); }
     .so-row-ic.company { background: rgba(14,165,164,0.12); color: var(--teal); }
     .so-row-ic.college { background: rgba(99,102,241,0.12); color: #6366f1; }
-    .so-row-info { flex: 1; min-width: 0; }
-    .so-row-name { font: 600 15.5px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .so-row-sub { font: 400 13px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+.so-row-info { flex: 1; min-width: 0; }
+.so-row-name { font: 600 15.5px var(--font-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.so-row-sub { font: 400 13px var(--font-body); color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; min-width: 0; }
     .so-row-arrow { color: var(--sub); font-size: 22px; flex-shrink: 0; transition: transform .12s; }
     .so-row:hover .so-row-arrow { transform: translateX(3px); }
     .so-empty, .so-loading { text-align: center; padding: 48px 16px; color: var(--sub); font-size: 14px; }

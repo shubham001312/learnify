@@ -1,4 +1,4 @@
-import { api, setToken, getToken, clearToken, setUser, clearUser, el, toast } from './utils.js?v=48';
+import { api, setToken, getToken, clearToken, setUser, clearUser, el, toast } from './utils.js?v=49';
 
 let mode = 'login';
 
