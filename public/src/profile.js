@@ -1,6 +1,6 @@
-import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=26';
-import { applyLanguage } from './i18n.js?v=26';
-import { logout, openLogin } from './auth.js?v=26';
+import { api, el, getToken, getUser, setUser, clearToken, clearUser, toast, isAuthed, getLang, setLang } from './utils.js?v=27';
+import { applyLanguage } from './i18n.js?v=27';
+import { logout, openLogin } from './auth.js?v=27';
 
 const SGPA_KEY = 'learnify_sgpa';
 let academicRecs = [];
@@ -324,11 +324,33 @@ function renderAcadSubjects(exam, stream, marks) {
       '<input type="number" min="0" max="100" step="0.01" class="acad-mark" data-sub="' + esc(s) + '" value="' + esc(v) + '" placeholder="0–100"></div>';
   }).join('');
   wrap.querySelectorAll('.acad-mark').forEach((inp) => inp.addEventListener('input', computeAcadSummary));
+  const customWrap = el('acad-custom');
+  if (customWrap) {
+    customWrap.innerHTML = '';
+    const preset = new Set(subs);
+    Object.entries(marks || {}).forEach(([k, v]) => {
+      if (!preset.has(k)) addCustomRow(customWrap, k, v);
+    });
+  }
   computeAcadSummary();
+}
+
+function addCustomRow(container, name, val) {
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'acad-custom-row';
+  row.innerHTML = '<input type="text" class="acad-sub-name" placeholder="Subject name" value="' + esc(name || '') + '">' +
+    '<input type="number" min="0" max="100" step="0.01" class="acad-mark-custom" placeholder="0–100" value="' + esc(val != null ? val : '') + '">' +
+    '<button type="button" class="acad-rm" title="Remove" aria-label="Remove subject">×</button>';
+  row.querySelector('.acad-mark-custom').addEventListener('input', computeAcadSummary);
+  row.querySelector('.acad-sub-name').addEventListener('input', computeAcadSummary);
+  row.querySelector('.acad-rm').addEventListener('click', () => { row.remove(); computeAcadSummary(); });
+  container.appendChild(row);
 }
 
 function computeAcadSummary() {
   const wrap = el('acad-subjects');
+  const customWrap = el('acad-custom');
   const sumEl = el('acad-summary');
   if (!wrap || !sumEl) return;
   const marks = {};
@@ -336,6 +358,11 @@ function computeAcadSummary() {
   wrap.querySelectorAll('.acad-mark').forEach((inp) => {
     const val = parseFloat(inp.value);
     if (!isNaN(val)) { marks[inp.dataset.sub] = val; total += val; count++; }
+  });
+  if (customWrap) customWrap.querySelectorAll('.acad-custom-row').forEach((row) => {
+    const nm = row.querySelector('.acad-sub-name').value.trim();
+    const mv = parseFloat(row.querySelector('.acad-mark-custom').value);
+    if (nm && !isNaN(mv)) { marks[nm] = mv; total += mv; count++; }
   });
   acadCurrentMarks = marks;
   if (count === 0) { sumEl.innerHTML = ''; return; }
@@ -374,6 +401,7 @@ if (el('acad-exam')) el('acad-exam').addEventListener('change', () => {
 if (el('acad-stream')) el('acad-stream').addEventListener('change', () => {
   renderAcadSubjects(el('acad-exam').value, el('acad-stream').value, {});
 });
+if (el('acad-add-subject')) el('acad-add-subject').addEventListener('click', () => addCustomRow(el('acad-custom')));
 
 if (el('acad-save')) el('acad-save').addEventListener('click', () => {
   const id = el('acad-id').value;

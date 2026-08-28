@@ -631,6 +631,15 @@ textarea { resize: vertical; }
 .acad-summary { margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 12px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 10px; font-size: 13.5px; color: var(--text); }
 .acad-summary b { color: var(--gold-deep); }
 #acad-stream-wrap { margin-top: 2px; }
+.acad-custom { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.acad-custom-row { display: flex; align-items: center; gap: 8px; }
+.acad-sub-name { flex: 1 1 auto; min-width: 0; border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; font: 600 14px var(--font-body); color: var(--text); background: var(--card); outline: none; box-sizing: border-box; }
+.acad-sub-name:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
+.acad-mark-custom { width: 96px; border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; font: 600 14px var(--font-body); color: var(--text); background: var(--card); outline: none; box-sizing: border-box; }
+.acad-mark-custom:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
+.acad-rm { border: none; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 8px; flex: 0 0 auto; }
+.acad-rm:hover { color: #c0392b; background: rgba(192,57,43,.1); }
+#acad-add-subject { margin-top: 10px; }
 
 /* ===== DOC PREVIEW MODAL ===== */
 .modal-overlay {

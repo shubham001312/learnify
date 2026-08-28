@@ -27,6 +27,14 @@ const ICON_PATHS = {
   rupee: '<path d="M7 4h10M12 4v16M7 8h8a3 3 0 0 1 0 6H7"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
   star: '<path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z"/>',
+  computer: '<rect x="4" y="5" width="16" height="10" rx="1"/><path d="M2 20h20"/>',
+  cpu: '<rect x="7" y="7" width="10" height="10" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  building: '<path d="M4 21V6l8-3 8 3v15"/><path d="M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>',
+  plane: '<path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a1 1 0 0 0-.9 1.7l4.3 2.6L9 15l-2.5 2.5a1 1 0 0 0 1.4 1.4L11 16.5l2.6 4.3a1 1 0 0 0 1.7-.9z"/>',
+  car: '<path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13"/><rect x="3" y="13" width="18" height="6" rx="1"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/>',
+  dna: '<path d="M5 3c0 6 14 6 14 12M19 3c0 6-14 6-14 12M5 21c0-2 14-2 14 0M5 3c0 2 14 2 14 0M7 7h10M7 17h10"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.8-.7-.7-2.8 2.8-2.6z"/>',
 };
 
 export function iconSvg(name, cls) {
@@ -50,25 +58,33 @@ const CATEGORY_ICON = {
 };
 
 const TITLE_HINT = [
+  [/computer|csc|information tech|software|it\b|i\.t\./i, 'computer'],
+  [/artificial intelligence|\bai\b|machine learning|\bml\b|data scien|robotics|neural/i, 'cpu'],
+  [/aerospace|aeronautical|aircraft/i, 'plane'],
+  [/automobile|automotive|mechanical/i, 'wrench'],
+  [/civil engin|structur/i, 'building'],
+  [/electrical|electronics|\bece\b|\beee\b/i, 'bolt'],
+  [/chemical/i, 'flask'],
+  [/biotech|bio.?tech|genetic/i, 'dna'],
   [/doctor|medic|surgeon|nurs|physician|dentist/i, 'heart'],
-  [/engine|architect|developer|technician/i, 'cog'],
+  [/architect/i, 'building'],
+  [/developer|programmer|engineer/i, 'cog'],
   [/scien|research|physic|chemist|biolog|math/i, 'flask'],
   [/finance|account|econom|bank|business|commerce|mba|manage/i, 'chart'],
   [/law|legal|advocate|judge/i, 'scale'],
   [/design|artist|animat|ux|ui|creative|fashion/i, 'palette'],
-  [/civil|ias|ips|govt|ublic|service/i, 'landmark'],
+  [/ias|ips|govt|ublic|service/i, 'landmark'],
   [/defen|army|navy|air force|military|police/i, 'shield'],
   [/agri|farm|horticult|food scien/i, 'leaf'],
   [/media|journal|film|news|communication|writer/i, 'megaphone'],
   [/sport|hotel|hospitality|tourism|event/i, 'trophy'],
   [/teach|professor|lecturer|edu/i, 'book'],
-  [/software|coding|data|ai|ml|computer/i, 'cog'],
 ];
 
 export function careerIcon(category, title) {
-  if (category && CATEGORY_ICON[category]) return CATEGORY_ICON[category];
   const t = title || '';
   for (const [re, name] of TITLE_HINT) if (re.test(t)) return name;
+  if (category && CATEGORY_ICON[category]) return CATEGORY_ICON[category];
   return 'compass';
 }
 
