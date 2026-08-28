@@ -1,4 +1,4 @@
-import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=21';
+import { api, el, toast, esc, openModal, closeModal } from './utils.js?v=22';
 
 let _careerData = [];
 let _careerCats = [];

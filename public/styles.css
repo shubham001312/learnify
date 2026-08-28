@@ -871,6 +871,8 @@ textarea { resize: vertical; }
     @media (max-width: 820px) {
       .resume-layout, .planner-layout { grid-template-columns: 1fr; }
       .resume-preview-wrap { position: static; }
+      .fp-head { flex-wrap: wrap; }
+      .fp-actions { width: 100%; }
     }
 
     /* ───────── PRINT (PDF export) ───────── */
