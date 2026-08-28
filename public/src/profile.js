@@ -100,10 +100,21 @@ export function initProfile() {
   // edit profile
   const openEdit = () => {
     const u = getUser() || {};
-    el('edit-name').value = u.name || '';
-    el('edit-grade').value = u.grade || '';
-    el('edit-lang').value = getLang();
-    el('edit-status').textContent = '';
+    const set = (id, v) => { const e = el(id); if (e) e.value = v || ''; };
+    set('edit-name', u.name);
+    set('edit-grade', u.grade);
+    set('edit-lang', getLang());
+    set('edit-phone', u.phone);
+    set('edit-gender', u.gender);
+    set('edit-state', u.state);
+    set('edit-city', u.city);
+    set('edit-school', u.school);
+    set('edit-board', u.board);
+    set('edit-college', u.college);
+    set('edit-target', u.target_exam);
+    set('edit-dob', u.dob);
+    set('edit-bio', u.bio);
+    const st = el('edit-status'); if (st) st.textContent = '';
     import('./utils.js').then((m) => m.openModal('edit-modal'));
   };
   if (el('profile-edit-pen')) el('profile-edit-pen').addEventListener('click', openEdit);
@@ -120,19 +131,27 @@ export function initProfile() {
 
   if (el('edit-save')) el('edit-save').addEventListener('click', () => {
     const payload = {
-      name: el('edit-name').value.trim(),
-      grade: el('edit-grade').value.trim(),
-      language: el('edit-lang').value
+      name: (el('edit-name').value || '').trim(),
+      grade: (el('edit-grade').value || '').trim(),
+      language: el('edit-lang').value,
+      school: (el('edit-school').value || '').trim(),
+      board: (el('edit-board').value || '').trim(),
+      college: (el('edit-college').value || '').trim(),
+      dob: (el('edit-dob').value || '').trim(),
+      phone: (el('edit-phone').value || '').trim(),
+      gender: (el('edit-gender').value || '').trim(),
+      state: (el('edit-state').value || '').trim(),
+      city: (el('edit-city').value || '').trim(),
+      target_exam: (el('edit-target').value || '').trim(),
+      bio: (el('edit-bio').value || '').trim(),
     };
     const status = el('edit-status');
     status.textContent = 'Saving…';
     status.style.color = 'var(--sub)';
-    api('/profile', { method: 'PUT', body: JSON.stringify(payload) })
+    api('/auth/profile', { method: 'PUT', body: JSON.stringify(payload) })
       .catch(() => null) // offline fallback below
       .then((d) => {
-        const merged = Object.assign({}, getUser() || {}, {
-          name: payload.name, grade: payload.grade, language: payload.language
-        });
+        const merged = Object.assign({}, getUser() || {}, payload);
         setUser(merged);
         applyUser(merged);
         setLang(payload.language);
@@ -230,6 +249,18 @@ function applyUser(u) {
     }
   }
   if (el('home-name')) el('home-name').textContent = name;
+    const det = el('profile-details');
+    if (det) {
+      const rows = [];
+      const add = (k, v) => { if (v) rows.push('<div class="pdet"><span>' + esc(k) + '</span><b>' + esc(v) + '</b></div>'); };
+      add('State', u.state); add('City', u.city); add('School', u.school);
+      add('Board', u.board); add('College', u.college); add('Target exam', u.target_exam);
+      add('Gender', u.gender); add('Phone', u.phone);
+      if (u.age != null) add('Age', u.age);
+      det.innerHTML = rows.join('');
+      const bioEl = el('profile-bio');
+      if (bioEl) bioEl.textContent = u.bio || '';
+    }
   if (el('profile-badge')) el('profile-badge').style.display = u.premium ? '' : 'none';
   if (el('sub-label')) el('sub-label').textContent = u.premium ? 'Pro ⚡' : 'Free';
   const mi = el('member-info');

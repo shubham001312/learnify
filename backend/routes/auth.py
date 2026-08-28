@@ -24,12 +24,19 @@ class RegisterReq(BaseModel):
 
 
 class ProfileReq(BaseModel):
+    name: str = ""
     language: str = ""
     grade: str = ""
     school: str = ""
     board: str = ""
     college: str = ""
     dob: str = ""
+    phone: str = ""
+    gender: str = ""
+    state: str = ""
+    city: str = ""
+    target_exam: str = ""
+    bio: str = ""
 
 
 class LoginReq(BaseModel):
@@ -128,6 +135,12 @@ def _profile_from_row(row: dict, email_fallback="", name_fallback=""):
         "board": row.get("board") or "",
         "college": row.get("college") or "",
         "dob": dob or "",
+        "phone": row.get("phone") or "",
+        "gender": row.get("gender") or "",
+        "state": row.get("state") or "",
+        "city": row.get("city") or "",
+        "target_exam": row.get("target_exam") or "",
+        "bio": row.get("bio") or "",
         "age": _age_from_dob(dob),
         "created_at": row.get("created_at") or "",
     }
@@ -506,19 +519,15 @@ def me(authorization: Optional[str] = Header(None)):
 
 @router.put("/profile")
 def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None)):
+    # Persist every supplied field (name was previously dropped — now fixed).
     meta = {}
-    if req.language:
-        meta["language"] = req.language
-    if req.grade:
-        meta["grade"] = req.grade
-    if req.school:
-        meta["school"] = req.school
-    if req.board:
-        meta["board"] = req.board
-    if req.college:
-        meta["college"] = req.college
-    if req.dob:
-        meta["dob"] = req.dob
+    for f in (
+        "name", "language", "grade", "school", "board", "college", "dob",
+        "phone", "gender", "state", "city", "target_exam", "bio",
+    ):
+        val = getattr(req, f, "")
+        if val is not None:
+            meta[f] = val
 
     if db_available():
         client = _require_client()
@@ -536,7 +545,7 @@ def update_profile(req: ProfileReq, authorization: Optional[str] = Header(None))
         except Exception:
             pass
         try:
-            auth_meta = {k: meta[k] for k in ("language", "grade") if k in meta}
+            auth_meta = {k: meta[k] for k in ("name", "language", "grade") if k in meta}
             if auth_meta:
                 client.auth.update_user({"data": auth_meta})
         except Exception:

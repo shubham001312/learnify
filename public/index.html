@@ -221,6 +221,8 @@
           <span class="pro-pill" id="profile-badge" style="display:none">⚡ Pro</span>
           <button class="edit-pen" id="profile-edit-pen" title="Edit profile">✎</button>
           <div class="member-info" id="member-info"></div>
+          <div class="profile-details" id="profile-details"></div>
+          <div class="profile-bio" id="profile-bio"></div>
         </div>
 
         <div class="stats">
@@ -602,6 +604,26 @@
           <option value="Tamil">தமிழ் (Tamil)</option>
         </select>
       </div>
+      <div class="modal-sub">Contact &amp; personal</div>
+      <div class="field"><label>Phone</label><input type="tel" id="edit-phone" placeholder="10-digit mobile"></div>
+      <div class="field"><label>Gender</label>
+        <select id="edit-gender">
+          <option value="">Prefer not to say</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Date of birth</label><input type="date" id="edit-dob"></div>
+      <div class="modal-sub">Academics</div>
+      <div class="field"><label>School</label><input type="text" id="edit-school" placeholder="School name"></div>
+      <div class="field"><label>Board</label><input type="text" id="edit-board" placeholder="CBSE / ICSE / State"></div>
+      <div class="field"><label>College</label><input type="text" id="edit-college" placeholder="College / University"></div>
+      <div class="field"><label>Target exam</label><input type="text" id="edit-target" placeholder="JEE / NEET / UPSC ..."></div>
+      <div class="modal-sub">Location</div>
+      <div class="field"><label>State</label><input type="text" id="edit-state" placeholder="e.g. Maharashtra"></div>
+      <div class="field"><label>City</label><input type="text" id="edit-city" placeholder="e.g. Pune"></div>
+      <div class="field"><label>Short bio / goal</label><textarea id="edit-bio" rows="2" placeholder="One line about your goal"></textarea></div>
       <button class="btn primary block" id="edit-save" data-i18n="save_changes">Save changes</button>
       <div class="doc-status" id="edit-status"></div>
     </div>
