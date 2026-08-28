@@ -1324,11 +1324,13 @@ textarea { resize: vertical; }
     /* ── Career detail ── */
     .career-detail { padding: 2px 0; }
     .cd-hero { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
-    .cd-ic { font-size: 42px; flex: 0 0 auto; color: var(--gold-deep); }
-    .cd-ic svg { width: 46px; height: 46px; display: block; }
+    .cd-ic { font-size: 36px; flex: 0 0 auto; align-self: center; color: var(--gold-deep); }
+    .cd-ic svg { width: 36px; height: 36px; display: block; }
     .cd-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .cd-hero h2 { font-family: var(--font-head); font-weight: 800; font-size: 22px; margin: 2px 0 4px; }
     .cd-tag { font-size: 13.5px; color: var(--muted); margin: 0; }
+    .career-page-title { display: flex; align-items: center; gap: 10px; }
+    .career-page-title svg { width: 28px; height: 28px; flex: 0 0 auto; color: var(--gold-deep); }
     .dm-sec { margin: 14px 0; }
     .dm-sec h4 { font-family: var(--font-head); font-size: 14px; color: var(--text); margin: 0 0 6px; }
     .dm-sec p { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }
@@ -1357,8 +1359,8 @@ textarea { resize: vertical; }
     /* ── Guidance result ── */
     .guidance { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
     .g-head { display: flex; align-items: center; gap: 12px; }
-    .g-badge { font-size: 30px; color: var(--gold-deep); }
-    .g-badge svg { width: 30px; height: 30px; display: block; }
+    .g-badge { font-size: 26px; color: var(--gold-deep); }
+    .g-badge svg { width: 26px; height: 26px; display: block; }
     .g-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--teal); }
     .g-head h3 { font-family: var(--font-head); font-weight: 800; font-size: 18px; margin: 2px 0 0; }
     .g-match { margin-left: auto; text-align: center; font-family: var(--font-head); font-weight: 800; font-size: 22px; color: var(--gold-deep); }
