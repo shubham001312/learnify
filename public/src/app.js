@@ -1254,74 +1254,165 @@ onReady(() => {
   initGlobalSearch();
 });
 
-/* ── Header global search (careers + companies + colleges) ── */
+/* ── Header global search (dropdown panel) ── */
+let _searchTimer = null;
 function initGlobalSearch() {
   const gs = document.getElementById('global-search');
-  if (gs) gs.addEventListener('keydown', (e) => { if (e.key === 'Enter') runGlobalSearch(gs.value); });
-  const si = document.getElementById('search-input');
-  if (si) {
-    let t = null;
-    si.addEventListener('input', () => {
-      clearTimeout(t);
-      const v = si.value;
-      t = setTimeout(() => doSearch(v), 280);
-    });
+  const overlay = document.getElementById('search-overlay');
+  const input = document.getElementById('search-input');
+  const closeBtn = document.getElementById('search-overlay-close');
+  const clearBtn = document.getElementById('search-clear');
+  const wrap = document.getElementById('top-search-wrap');
+  if (!gs || !overlay || !input) return;
+
+  function openSearch() {
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    input.value = gs.value.trim();
+    showSuggestions();
+    renderSuggestions();
+    setTimeout(() => input.focus(), 30);
   }
+  function closeSearch() {
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    gs.blur();
+  }
+  window.__closeSearch = closeSearch;
+
+  gs.addEventListener('focus', openSearch);
+  gs.addEventListener('click', (e) => { e.preventDefault(); openSearch(); });
+  if (wrap) wrap.addEventListener('click', (e) => { e.preventDefault(); openSearch(); });
+
+  input.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    const v = input.value.trim();
+    if (v.length < 2) { showSuggestions(); return; }
+    showResults();
+    const results = el('search-results');
+    if (results) results.innerHTML = '<div class="so-loading">Searching…</div>';
+    _searchTimer = setTimeout(() => doSearch(v), 250);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSearch();
+    if (e.key === 'Enter') { e.preventDefault(); const v = input.value.trim(); if (v.length >= 2) doSearch(v); }
+  });
+  if (closeBtn) closeBtn.addEventListener('click', closeSearch);
+  if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); showSuggestions(); });
+
+  document.addEventListener('click', (e) => {
+    if (overlay.classList.contains('open') && !overlay.contains(e.target) && !(wrap && wrap.contains(e.target))) closeSearch();
+  });
 }
 
-function runGlobalSearch(q) {
-  q = (q || '').trim();
-  if (!q) return;
-  openModal('search-modal');
-  const si = document.getElementById('search-input');
-  if (si) si.value = q;
-  doSearch(q);
+function showSuggestions() {
+  const s = el('search-suggestions'), r = el('search-results');
+  if (s) s.style.display = 'block';
+  if (r) r.style.display = 'none';
+}
+function showResults() {
+  const s = el('search-suggestions'), r = el('search-results');
+  if (s) s.style.display = 'none';
+  if (r) r.style.display = 'block';
+}
+
+async function renderSuggestions() {
+  const s = el('search-suggestions');
+  if (!s) return;
+  s.innerHTML = '<div class="so-loading">Loading suggestions…</div>';
+  const popular = [
+    { q: 'Engineering', ic: '🎯' }, { q: 'Software companies', ic: '💼' },
+    { q: 'Government jobs', ic: '🎯' }, { q: 'Medical colleges', ic: '🎓' },
+    { q: 'IIT', ic: '🎓' }, { q: 'Design careers', ic: '🎯' },
+  ];
+  const popularHtml = '<div class="so-sec"><div class="so-sec-head">🔥 Popular searches</div><div class="so-chips">' +
+    popular.map((p) => '<button class="so-chip" data-q="' + esc(p.q) + '"><span class="ic">' + p.ic + '</span>' + esc(p.q) + '</button>').join('') +
+    '</div></div>';
+
+  let forYou = '';
+  try {
+    const a = await api('/documents/academic');
+    const grade = (a && a.grade) || '';
+    const stream = (a && a.stream) || '';
+    if (grade || stream) {
+      const d = await api('/careers?cls=' + encodeURIComponent(grade) + '&stream=' + encodeURIComponent(stream) + '&limit=5');
+      const list = (d && d.careers) || [];
+      if (list.length) {
+        forYou = '<div class="so-sec"><div class="so-sec-head">✨ Suggested for you · ' + esc(grade || stream) + '</div><div class="so-chips">' +
+          list.map((c) => '<button class="so-chip" data-gtype="career" data-gid="' + esc(c.id) + '"><span class="ic">🎯</span>' + esc(c.title) + ' <span class="sub">' + esc(c.category || '') + '</span></button>').join('') +
+          '</div></div>';
+      }
+    }
+  } catch (_) {}
+  if (!forYou) {
+    try {
+      const d = await api('/careers?limit=6');
+      const list = (d && d.careers) || [];
+      if (list.length) {
+        forYou = '<div class="so-sec"><div class="so-sec-head">✨ Explore careers</div><div class="so-chips">' +
+          list.map((c) => '<button class="so-chip" data-gtype="career" data-gid="' + esc(c.id) + '"><span class="ic">🎯</span>' + esc(c.title) + '</button>').join('') +
+          '</div></div>';
+      }
+    } catch (_) {}
+  }
+
+  s.innerHTML = forYou + popularHtml;
+  s.querySelectorAll('.so-chip[data-q]').forEach((b) => b.addEventListener('click', () => {
+    input.value = b.dataset.q; showResults(); doSearch(b.dataset.q); input.focus();
+  }));
+  s.querySelectorAll('.so-chip[data-gtype]').forEach((b) => b.addEventListener('click', () => {
+    const type = b.dataset.gtype, id = b.dataset.gid;
+    window.__closeSearch();
+    navigateFromSearch(type, id);
+  }));
 }
 
 function doSearch(q) {
   q = (q || '').trim();
-  const box = document.getElementById('search-results');
-  if (!box) return;
-  if (q.length < 2) { box.innerHTML = '<div class="dm-note">Type at least 2 characters to search.</div>'; return; }
-  box.innerHTML = '<div class="slot-skeleton">Searching…</div>';
-  api('/search/global?q=' + encodeURIComponent(q) + '&num=8').then((d) => {
-    box.innerHTML = renderGlobalResults(d || {});
-    box.querySelectorAll('[data-gtype]').forEach((b) => b.addEventListener('click', () => {
-      const type = b.dataset.gtype;
-      const id = b.dataset.gid;
-      if (type === 'career') { closeModal('search-modal'); if (window.openCareer) window.openCareer(id); }
-      else if (type === 'company') { closeModal('search-modal'); if (window.openCompany) window.openCompany(id); }
-      else if (type === 'college') { openCollegeFromSearch(id); }
+  const results = el('search-results');
+  if (!results) return;
+  if (q.length < 2) { results.innerHTML = '<div class="so-empty">Type at least 2 characters to search.</div>'; return; }
+  results.innerHTML = '<div class="so-loading">Searching…</div>';
+  api('/search/global?q=' + encodeURIComponent(q) + '&num=10').then((d) => {
+    results.innerHTML = renderSearchResults(d || {});
+    results.querySelectorAll('.so-row[data-gtype]').forEach((b) => b.addEventListener('click', () => {
+      const type = b.dataset.gtype, id = b.dataset.gid;
+      if (window.__closeSearch) window.__closeSearch();
+      navigateFromSearch(type, id);
     }));
-  }).catch(() => { box.innerHTML = '<div class="dm-note">Search failed. Please try again.</div>'; });
+  }).catch(() => { results.innerHTML = '<div class="so-empty">Search failed. Try again.</div>'; });
 }
 
-function renderGlobalResults(d) {
+function navigateFromSearch(type, id) {
+  if (type === 'career' && window.openCareer) window.openCareer(id);
+  else if (type === 'company' && window.openCompany) window.openCompany(id);
+  else if (type === 'college') openCollegeFromSearch(id);
+}
+
+function renderSearchResults(d) {
   const careers = d.careers || [];
   const companies = d.companies || [];
   const colleges = d.colleges || [];
   if (!careers.length && !companies.length && !colleges.length)
-    return '<div class="dm-note">No matches found.</div>';
-  const block = (title, items, typeGetter, subGetter) => {
+    return '<div class="so-empty">No matches found. Try a different search.</div>';
+  const group = (title, icon, items, type, subFn) => {
     if (!items.length) return '';
     const rows = items.map((it) =>
-      '<button class="sr-row" data-gtype="' + typeGetter(it) + '" data-gid="' + esc(it.id) + '">' +
-        '<span class="sr-ic">' + iconSvg(typeGetter(it) === 'company' ? 'briefcase' : (typeGetter(it) === 'college' ? 'graduation' : 'target')) + '</span>' +
-        '<span class="sr-meta"><span class="sr-nm">' + esc(it.title || it.name) + '</span>' +
-        '<span class="sr-sub">' + esc(subGetter(it) || '') + '</span></span>' +
+      '<button class="so-row" data-gtype="' + type + '" data-gid="' + esc(it.id) + '">' +
+        '<span class="so-row-ic ' + type + '">' + icon + '</span>' +
+        '<span class="so-row-info"><span class="so-row-name">' + esc(it.title || it.name) + '</span>' +
+        '<span class="so-row-sub">' + esc(subFn(it) || '') + '</span></span>' +
+        '<span class="so-row-arrow">›</span>' +
       '</button>'
     ).join('');
-    return '<div class="sr-group"><div class="sr-head">' + esc(title) + '</div>' + rows + '</div>';
+    return '<div class="so-group"><div class="so-group-head">' + icon + ' ' + esc(title) + ' (' + items.length + ')</div>' + rows + '</div>';
   };
-  return (
-    block('Careers', careers, () => 'career', (c) => c.tagline || c.category) +
-    block('Companies', companies, () => 'company', (c) => c.sector || '') +
-    block('Colleges', colleges, () => 'college', (c) => [c.city, c.state].filter(Boolean).join(', '))
-  );
+  return group('Careers', '🎯', careers, 'career', (c) => c.tagline || c.category) +
+         group('Companies', '💼', companies, 'company', (c) => c.sector || '') +
+         group('Colleges', '🎓', colleges, 'college', (c) => [c.city, c.state].filter(Boolean).join(', '));
 }
 
 function openCollegeFromSearch(id) {
-  closeModal('search-modal');
   if (window.openCollegeModal) {
     api('/colleges/' + encodeURIComponent(id)).then((c) => {
       if (c) window.openCollegeModal(c);

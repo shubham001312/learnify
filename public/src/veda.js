@@ -144,10 +144,7 @@ function syncVedaUser() {
   const upg = el('veda-upgrade');
   if (upg) upg.style.display = (user && user.premium) ? 'none' : '';
   const cav = document.querySelector('.veda-av');
-  if (cav) {
-    const ini = (((user && user.name) || 'S').charAt(0) || 'S').toUpperCase();
-    cav.textContent = (user && (user.id || user.email)) ? ini : 'V';
-  }
+  if (cav) cav.textContent = 'V';
 }
 
 export function initVeda() {

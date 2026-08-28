@@ -99,14 +99,18 @@ function wireQuiz() {
 function renderQuiz(arr) {
   const box = el('quiz-box');
   let score = 0, answered = 0;
+  const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
   box.innerHTML = '';
   arr.forEach((item, i) => {
     const wrap = document.createElement('div');
-    wrap.innerHTML = '<div class="quiz-q">' + (i + 1) + '. ' + esc(item.q || '') + '</div>';
+    const qHtml = '<div class="quiz-q">' + (i + 1) + '. ' + esc(item.q || '') + '</div>';
+    const optsHtml = '<div class="quiz-opts"></div>';
+    wrap.innerHTML = qHtml + optsHtml;
+    const optsWrap = wrap.querySelector('.quiz-opts');
     (item.options || []).forEach((opt, oi) => {
       const b = document.createElement('button');
       b.className = 'quiz-opt';
-      b.textContent = opt;
+      b.innerHTML = '<span style="font-weight:700;color:var(--gold-deep);min-width:18px">' + labels[oi] + '.</span> <span>' + esc(opt) + '</span>';
       b.addEventListener('click', () => {
         if (wrap.querySelector('.quiz-opt.sel')) return;
         b.classList.add('sel');
@@ -114,9 +118,12 @@ function renderQuiz(arr) {
         const correct = Number(item.answer) === oi;
         b.classList.add(correct ? 'correct' : 'wrong');
         if (correct) score++;
-        if (answered === arr.length) res.textContent = '🎉 You scored ' + score + ' / ' + arr.length;
+        if (answered === arr.length) {
+          const pct = Math.round((score / arr.length) * 100);
+          res.innerHTML = '🎉 You scored <b>' + score + ' / ' + arr.length + '</b> (' + pct + '%)';
+        }
       });
-      wrap.appendChild(b);
+      optsWrap.appendChild(b);
     });
     box.appendChild(wrap);
   });

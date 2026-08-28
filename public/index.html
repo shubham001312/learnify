@@ -29,9 +29,23 @@
       <img src="assets/logo.jpeg" alt="Learnify" class="brand-logo">
       <span class="brand-name">Learn<span>ify</span></span>
     </div>
-    <div class="top-search">
+    <div class="top-search" id="top-search-wrap">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input type="text" id="global-search" placeholder="Search colleges, careers, companies, ask Veda…">
+      <input type="text" id="global-search" placeholder="Search colleges, careers, companies…" autocomplete="off">
+    </div>
+    <div class="search-overlay" id="search-overlay" aria-hidden="true">
+      <div class="so-head">
+        <div class="so-search">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Search colleges, careers, companies…" autocomplete="off">
+          <button class="so-clear" id="search-clear" aria-label="Clear">&times;</button>
+        </div>
+        <button class="so-close" id="search-overlay-close">Cancel</button>
+      </div>
+      <div class="so-body">
+        <div id="search-suggestions" class="so-suggest"></div>
+        <div id="search-results" class="so-results" style="display:none"></div>
+      </div>
     </div>
       <div class="top-right">
         <button class="icon-btn" title="Notifications">
@@ -793,14 +807,7 @@
     <div class="modal-card wide" id="company-card"></div>
   </div>
 
-  <div class="modal" id="search-modal">
-    <div class="modal-card wide">
-      <button class="modal-x" data-close>&times;</button>
-      <h3 class="modal-title">🔍 Search</h3>
-      <input id="search-input" class="cf-q" type="text" placeholder="Search careers, companies, colleges…">
-      <div id="search-results" class="search-results"></div>
-    </div>
-  </div>
+
 
   <div class="modal" id="academic-modal">
     <div class="modal-card">
