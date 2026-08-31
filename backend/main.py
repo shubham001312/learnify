@@ -79,6 +79,7 @@ try:
         search,
         scanned,
         careers,
+        sgpa,
     )
 
     app.include_router(auth.router, prefix="/api/auth")
@@ -89,6 +90,7 @@ try:
     app.include_router(premium.router, prefix="/api/premium")
     app.include_router(search.router, prefix="/api")
     app.include_router(scanned.router, prefix="/api")
+    app.include_router(sgpa.router, prefix="/api/sgpa")
 except Exception as e:
     import traceback as _tb
 

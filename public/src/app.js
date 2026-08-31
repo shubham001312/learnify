@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=54';
-import { applyLanguage } from './i18n.js?v=54';
-import { initNotifications, addNotification } from './notifications.js?v=54';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=55';
+import { applyLanguage } from './i18n.js?v=55';
+import { initNotifications, addNotification } from './notifications.js?v=55';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=54';
-import { initVeda } from './veda.js?v=54';
-import { initCareer } from './career.js?v=54';
-import { initCareers } from './careers.js?v=54';
-import { initProfile } from './profile.js?v=54';
-import { initPremium } from './premium.js?v=54';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=54';
-import { iconSvg, suggestionIcon } from './icons.js?v=54';
-import { playClick } from './sound.js?v=54';
-import { initStudyTools } from './tools.js?v=54';
+import { initAuth, openLogin } from './auth.js?v=55';
+import { initVeda } from './veda.js?v=55';
+import { initCareer } from './career.js?v=55';
+import { initCareers } from './careers.js?v=55';
+import { initProfile } from './profile.js?v=55';
+import { initPremium } from './premium.js?v=55';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=55';
+import { iconSvg, suggestionIcon } from './icons.js?v=55';
+import { playClick } from './sound.js?v=55';
+import { initStudyTools } from './tools.js?v=55';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));

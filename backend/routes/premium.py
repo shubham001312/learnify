@@ -45,11 +45,7 @@ class CheckoutReq(BaseModel):
 @router.post("/checkout")
 def checkout(req: CheckoutReq):
     if not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
-        raise HTTPException(
-            status_code=503,
-            detail="Payments unavailable: Razorpay is not configured. "
-            "Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env.",
-        )
+        return {"demo": True, "message": "Razorpay not configured. Demo mode."}
 
     amount = 500 if req.plan == "trial" else 3700
 
