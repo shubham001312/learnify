@@ -1531,6 +1531,7 @@ textarea { resize: vertical; }
     .cq-opt { font-size: 13px; font-weight: 600; color: var(--sub); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; cursor: pointer; transition: all .15s var(--ease); }
     .cq-opt:hover { border-color: rgba(14,165,164,0.5); color: var(--text); }
     .cq-opt.active { color: #fff; background: var(--teal); border-color: var(--teal); }
+    .cq-opts.multi .cq-opt.active::before { content: '✓ '; font-weight: 800; }
     .muted { color: var(--sub); font-weight: 400; }
     @media (min-width: 560px) {
       .career-quiz { max-width: 620px; }

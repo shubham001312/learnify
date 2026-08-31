@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=52';
-import { iconSvg, careerIcon } from './icons.js?v=52';
+import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=53';
+import { iconSvg, careerIcon } from './icons.js?v=53';
 
 let _careerData = [];
 let _careerCats = [];
@@ -55,13 +55,17 @@ export function initCareers() {
   const reset = el('cf-reset');
   if (reset) reset.addEventListener('click', resetCareerFilters);
 
-  // Quiz option selection (single-select per group)
+  // Quiz option selection: single-select per group, multi-select for .multi groups
   document.querySelectorAll('#career-quiz-modal .cq-opts').forEach((group) => {
     group.addEventListener('click', (e) => {
       const opt = e.target.closest('.cq-opt');
       if (!opt) return;
-      group.querySelectorAll('.cq-opt').forEach((o) => o.classList.remove('active'));
-      opt.classList.add('active');
+      if (group.classList.contains('multi')) {
+        opt.classList.toggle('active');
+      } else {
+        group.querySelectorAll('.cq-opt').forEach((o) => o.classList.remove('active'));
+        opt.classList.add('active');
+      }
     });
   });
 
@@ -347,27 +351,39 @@ function resetQuiz() {
 function submitQuiz() {
   const answers = {};
   document.querySelectorAll('#career-quiz-modal .cq-opts').forEach((g) => {
-    const sel = g.querySelector('.cq-opt.active');
-    if (sel) answers[g.dataset.q] = sel.dataset.v;
+    const key = g.dataset.q;
+    if (g.classList.contains('multi')) {
+      const sels = Array.from(g.querySelectorAll('.cq-opt.active')).map((o) => o.dataset.v);
+      if (sels.length) answers[key] = sels.join('; ');
+    } else {
+      const sel = g.querySelector('.cq-opt.active');
+      if (sel) answers[key] = sel.dataset.v;
+    }
   });
   const notes = el('cq-notes');
   if (notes && notes.value.trim()) answers.notes = notes.value.trim();
 
-  if (!answers.field && !answers.priority && !answers.route) {
-    toast('Pick at least one option so Veda can help.', 'info');
+  const filled = Object.keys(answers).filter((k) => k !== 'notes');
+  if (filled.length < 2) {
+    toast('Pick at least two options so Veda can help.', 'info');
     return;
   }
 
   const btn = el('cq-submit');
-  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   const res = el('cq-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; btn.classList.add('loading'); }
   if (res) res.innerHTML = '<div class="slot-skeleton">Veda is matching your answers to the best career…</div>';
 
   const user = (typeof getUser === 'function' && getUser()) || {};
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
   api('/veda/career-guidance', {
     method: 'POST',
     body: JSON.stringify({ user_id: user.id || 'demo', answers: answers, language: (typeof getLang === 'function' && getLang()) || 'English' }),
+    signal: controller.signal,
   }).then((d) => {
+    clearTimeout(timeout);
     const g = d && d.guidance;
     if (res) res.innerHTML = renderGuidance(g);
     res.querySelectorAll('[data-go-career]').forEach((b) => b.addEventListener('click', () => {
@@ -381,8 +397,10 @@ function submitQuiz() {
       if (window.askVeda) window.askVeda('Help me plan to become a ' + t + ' in India.');
     });
   }).catch(() => {
+    clearTimeout(timeout);
     if (res) res.innerHTML = '<div class="slot-skeleton">Could not reach Veda. Please try again.</div>';
-    if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation'; }
+  }).finally(() => {
+    if (btn) { btn.disabled = false; btn.textContent = 'Get my recommendation'; btn.classList.remove('loading'); }
   });
 }
 
