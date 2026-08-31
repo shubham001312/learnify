@@ -1,5 +1,5 @@
-import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=55';
-import { iconSvg, careerIcon } from './icons.js?v=55';
+import { api, el, toast, esc, openModal, closeModal, siteUrl, skRows } from './utils.js?v=56';
+import { iconSvg, careerIcon } from './icons.js?v=56';
 
 let _careerData = [];
 let _careerCats = [];
