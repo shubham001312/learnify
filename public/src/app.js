@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=51';
-import { applyLanguage } from './i18n.js?v=51';
-import { initNotifications, addNotification } from './notifications.js?v=51';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=52';
+import { applyLanguage } from './i18n.js?v=52';
+import { initNotifications, addNotification } from './notifications.js?v=52';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=51';
-import { initVeda } from './veda.js?v=51';
-import { initCareer } from './career.js?v=51';
-import { initCareers } from './careers.js?v=51';
-import { initProfile } from './profile.js?v=51';
-import { initPremium } from './premium.js?v=51';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=51';
-import { iconSvg, suggestionIcon } from './icons.js?v=51';
-import { playClick } from './sound.js?v=51';
-import { initStudyTools } from './tools.js?v=51';
+import { initAuth, openLogin } from './auth.js?v=52';
+import { initVeda } from './veda.js?v=52';
+import { initCareer } from './career.js?v=52';
+import { initCareers } from './careers.js?v=52';
+import { initProfile } from './profile.js?v=52';
+import { initPremium } from './premium.js?v=52';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=52';
+import { iconSvg, suggestionIcon } from './icons.js?v=52';
+import { playClick } from './sound.js?v=52';
+import { initStudyTools } from './tools.js?v=52';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -250,7 +250,7 @@ function initTools() {
 function initWriting() {
   const go = el('writing-go');
   if (!go) return;
-  go.addEventListener('click', () => {
+  go.addEventListener('click', async () => {
     const text = el('writing-input').value.trim();
     const mode = el('writing-mode').value;
     if (!text) { toast('Enter some text first.', 'info'); return; }
@@ -258,15 +258,32 @@ function initWriting() {
     const out = el('writing-out');
     out.style.display = 'block';
     out.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-    api('/veda/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        user_id: (getUser() && getUser().email) || 'demo',
-        messages: [{ role: 'user', content: mode + ':\n' + text }]
-      })
-    }).then((d) => {
-      out.textContent = (d && d.reply) || 'No response.';
-    }).catch((e) => { out.textContent = '⚠️ ' + e.message; });
+    go.disabled = true; go.textContent = 'Working…';
+    try {
+      const resp = await fetch('/api/veda/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: (getUser() && getUser().email) || 'demo',
+          messages: [{ role: 'user', content: mode + ':\n' + text }]
+        })
+      });
+      if (!resp.ok) throw new Error('Request failed (' + resp.status + ')');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let result = '';
+      out.innerHTML = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value, { stream: true });
+        out.innerHTML = renderMarkdown(result);
+      }
+    } catch (e) {
+      out.innerHTML = '<span style="color:#c0392b">⚠️ ' + esc(e.message) + '</span>';
+    } finally {
+      go.disabled = false; go.textContent = 'Enhance';
+    }
   });
 }
 

@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium } from './utils.js?v=51';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=51';
-import { openLogin } from './auth.js?v=51';
+import { api, el, toast, openModal, getToken, getUser, isPremium, renderMarkdown } from './utils.js?v=52';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=52';
+import { openLogin } from './auth.js?v=52';
 
 const NOTES_KEY = 'learnify_notes';
 
@@ -111,14 +111,20 @@ function renderQuiz(arr) {
     (item.options || []).forEach((opt, oi) => {
       const b = document.createElement('button');
       b.className = 'quiz-opt';
+      b.dataset.idx = oi;
       b.innerHTML = '<span style="font-weight:700;color:var(--gold-deep);min-width:18px">' + labels[oi] + '.</span> <span>' + esc(opt) + '</span>';
       b.addEventListener('click', () => {
         if (wrap.querySelector('.quiz-opt.sel')) return;
         b.classList.add('sel');
         answered++;
-        const correct = Number(item.answer) === oi;
-        b.classList.add(correct ? 'correct' : 'wrong');
-        if (correct) score++;
+        const correctIdx = Number(item.answer);
+        const isCorrect = correctIdx === oi;
+        b.classList.add(isCorrect ? 'correct' : 'wrong');
+        if (isCorrect) score++;
+        if (!isCorrect) {
+          const correctBtn = optsWrap.querySelector('[data-idx="' + correctIdx + '"]');
+          if (correctBtn) correctBtn.classList.add('correct');
+        }
         if (answered === arr.length) {
           const pct = Math.round((score / arr.length) * 100);
           res.innerHTML = '🎉 You scored <b>' + score + ' / ' + arr.length + '</b> (' + pct + '%)';
@@ -229,7 +235,7 @@ function wireNotes() {
       };
       try {
         const reply = await vedaText({ user_id: ((getUser() || {}).email) || 'demo', messages: [{ role: 'user', content: (promptMap[mode] || promptMap.improve) + '\n\n' + src }] });
-        aiOut.innerHTML = '<div class="notes-ai-out-text">' + esc(reply || 'No output.') + '</div>';
+        aiOut.innerHTML = '<div class="notes-ai-out-text">' + renderMarkdown(reply || 'No output.') + '</div>';
       } catch (e) { aiOut.textContent = '⚠️ ' + e.message; }
       finally { aiBtn.disabled = false; aiBtn.textContent = '✨ AI Magic'; }
     });
