@@ -455,11 +455,16 @@ function _exportRoadmapPdf() {
   const raw = (body ? body.dataset.raw : '') || (body ? body.textContent : '');
   if (!raw) { toast('No roadmap to export yet.', 'info'); return; }
   const goal = (el('rm-goal') || {}).value || 'My Roadmap';
-  const blob = new Blob(['# ' + goal + '\n\n' + raw], { type: 'text/markdown' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'learnify-roadmap-' + goal.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.md'; a.click();
-  URL.revokeObjectURL(a.href);
-  toast('Roadmap exported as Markdown', 'ok');
+  if (window.generateRoadmapPDF) {
+    window.generateRoadmapPDF(raw, goal);
+  } else {
+    // Fallback: download markdown if jsPDF isn't loaded
+    const blob = new Blob(['# ' + goal + '\n\n' + raw], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'learnify-roadmap-' + goal.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.md'; a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Roadmap exported as Markdown', 'ok');
+  }
 }
 
 function esc(s) {

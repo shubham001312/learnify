@@ -357,6 +357,7 @@ async function startRoadmap() {
 }
 window.startRoadmap = startRoadmap;
 window.downloadLastRoadmap = downloadLastRoadmap;
+window.generateRoadmapPDF = generateRoadmapPDF;
 
 export function initVeda() {
   const input = el('chat-input');
