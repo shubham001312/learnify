@@ -61,11 +61,17 @@ def _call_stream(
     model: str, messages: list[dict], temperature: float, connect=6, read=20
 ):
     """Yield assistant tokens as they arrive from Groq (SSE)."""
+    # Use smaller max_tokens for faster streaming on simple queries
+    sys_content = messages[0]["content"] if messages else ""
+    is_simple = len(sys_content) < 1500 and len(messages) <= 2
+    max_tok = 1024 if is_simple else 4096
+
     payload = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "stream": True,
+        "max_tokens": max_tok,
     }
     resp = requests.post(
         GROQ_URL, headers=_headers(), json=payload, stream=True, timeout=(connect, read)
