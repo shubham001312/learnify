@@ -1289,7 +1289,11 @@ textarea { resize: vertical; }
     /* Notes / Summarizer */
     .notes-area { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--border); border-radius: 12px; padding: 12px; font: 500 14px var(--font-body); color: var(--text); background: var(--card); outline: none; box-sizing: border-box; }
     .notes-area:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
-    .sum-output { margin-top: 14px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .sum-output { margin-top: 14px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 14px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
+    .sum-rendered p { margin: 0 0 8px; }
+    .sum-rendered ul, .sum-rendered ol { margin: 4px 0 8px 18px; padding: 0; }
+    .sum-rendered li { margin-bottom: 4px; }
+    .sum-rendered strong { color: var(--teal); }
     .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
     .toggle-row { margin: 14px 0 4px; }
     .switch { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub); cursor: pointer; }

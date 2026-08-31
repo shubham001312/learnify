@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium, renderMarkdown } from './utils.js?v=53';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=53';
-import { openLogin } from './auth.js?v=53';
+import { api, el, toast, openModal, getToken, getUser, isPremium, renderMarkdown } from './utils.js?v=54';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=54';
+import { openLogin } from './auth.js?v=54';
 
 const NOTES_KEY = 'learnify_notes';
 
@@ -264,12 +264,7 @@ function wireSummarizer() {
         user_id: ((getUser() || {}).email) || 'demo',
         messages: [{ role: 'user', content: `Summarize the following text for an Indian student.\nFirst line: a one-sentence TL;DR. Then ${lenMap[len] || '5-6 clear bullet points'} (each line starting with "- "). Keep it clear and concise.\n\n` + text }]
       });
-      const lines = (reply || '').split('\n').map(l => l.trim()).filter(Boolean);
-      let tldr = '', body = [];
-      lines.forEach((l, i) => { if (i === 0) tldr = l.replace(/^[-*•]\s*/, ''); else body.push(l.replace(/^[-*•]\s*/, '')); });
-      out.innerHTML =
-        (tldr ? '<div class="sum-tldr"><span class="sum-tldr-k">TL;DR</span>' + esc(tldr) + '</div>' : '') +
-        (body.length ? '<div class="sum-bullets">' + body.map(b => '<div class="sum-b">' + esc(b) + '</div>').join('') + '</div>' : (tldr ? '' : 'No summary.'));
+      out.innerHTML = '<div class="sum-rendered">' + renderMarkdown(reply || 'No summary.') + '</div>';
     } catch (e) {
       out.textContent = '⚠️ ' + e.message;
     } finally {
@@ -279,7 +274,8 @@ function wireSummarizer() {
   const copy = el('sum-copy');
   copy && copy.addEventListener('click', () => {
     playClick();
-    const t = (el('sum-output').textContent || '').trim();
+    const rendered = el('sum-output');
+    const t = (rendered ? rendered.textContent : '').trim();
     if (!t) { toast('Nothing to copy yet.', 'info'); return; }
     try { navigator.clipboard.writeText(t); toast('Summary copied', 'ok'); } catch (_) {}
   });
@@ -287,7 +283,8 @@ function wireSummarizer() {
   exp && exp.addEventListener('click', () => {
     playClick();
     if (!isPremium()) { openModal('premium-modal'); return; }
-    const t = (el('sum-output').textContent || '').trim();
+    const rendered = el('sum-output');
+    const t = (rendered ? rendered.textContent : '').trim();
     if (!t) { toast('Nothing to export yet.', 'info'); return; }
     const blob = new Blob([t], { type: 'text/plain' });
     const a = document.createElement('a');

@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=53';
-import { applyLanguage } from './i18n.js?v=53';
-import { initNotifications, addNotification } from './notifications.js?v=53';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=54';
+import { applyLanguage } from './i18n.js?v=54';
+import { initNotifications, addNotification } from './notifications.js?v=54';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=53';
-import { initVeda } from './veda.js?v=53';
-import { initCareer } from './career.js?v=53';
-import { initCareers } from './careers.js?v=53';
-import { initProfile } from './profile.js?v=53';
-import { initPremium } from './premium.js?v=53';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=53';
-import { iconSvg, suggestionIcon } from './icons.js?v=53';
-import { playClick } from './sound.js?v=53';
-import { initStudyTools } from './tools.js?v=53';
+import { initAuth, openLogin } from './auth.js?v=54';
+import { initVeda } from './veda.js?v=54';
+import { initCareer } from './career.js?v=54';
+import { initCareers } from './careers.js?v=54';
+import { initProfile } from './profile.js?v=54';
+import { initPremium } from './premium.js?v=54';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=54';
+import { iconSvg, suggestionIcon } from './icons.js?v=54';
+import { playClick } from './sound.js?v=54';
+import { initStudyTools } from './tools.js?v=54';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -171,10 +171,13 @@ function setView(name, push = true) {
 }
 function _restoreView() {
   const hash = (location.hash || '').replace(/^#/, '');
-  const view = (hash && (_TABS.includes(hash) || _PAGES.includes(hash)))
-    ? hash
-    : (_savedTab() && _TABS.includes(_savedTab()) ? _savedTab() : 'home');
-  setView(view, false);
+  if (hash && (_TABS.includes(hash) || _PAGES.includes(hash))) {
+    setView(hash, false);
+  } else if (hash) {
+    setView('home', false);
+  } else {
+    setView('home', false);
+  }
 }
 window.addEventListener('popstate', () => {
   const v = (location.hash || '').replace(/^#/, '');
