@@ -1,6 +1,6 @@
-import { api, el, toast, openModal, getToken, getUser, isPremium, renderMarkdown } from './utils.js?v=56';
-import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=56';
-import { openLogin } from './auth.js?v=56';
+import { api, el, toast, openModal, getToken, getUser, isPremium, renderMarkdown, getLang } from './utils.js?v=57';
+import { playClick, soundEnabled, setSoundEnabled } from './sound.js?v=57';
+import { openLogin } from './auth.js?v=57';
 
 const NOTES_KEY = 'learnify_notes';
 
@@ -23,10 +23,9 @@ function wirePremiumTools() {
       const which = b.dataset.premium;
       if (which === 'quiz') { if (window.setViewNav) window.setViewNav('quiz', true); }
       else if (which === 'roadmap') {
-        if (window.startRoadmap) window.startRoadmap();
-        else if (window.askVeda) window.askVeda('Build a step-by-step, personalised AI upskilling & career roadmap for me as an Indian student, with weekly milestones and free resources.');
+        if (window.setViewNav) window.setViewNav('roadmap-pro', true);
       } else if (which === 'scholarship') {
-        runSmartMatch();
+        if (window.setViewNav) window.setViewNav('scholarship-match', true);
       }
     });
   });
@@ -301,6 +300,166 @@ function wireSoundSetting() {
   if (openBtn) openBtn.addEventListener('click', () => { if (box) box.checked = soundEnabled(); });
   const save = el('settings-save');
   if (save) save.addEventListener('click', () => { if (box) setSoundEnabled(box.checked); });
+}
+
+/* ═══════════════════════ SMART SCHOLARSHIP MATCH ═══════════════════════ */
+
+let _smInited = false;
+window.initScholarshipMatch = function () {
+  if (_smInited) return;
+  _smInited = true;
+  const u = getUser() || {};
+  // Pre-fill from user profile
+  const stateEl = el('sm-state');
+  const catEl = el('sm-category');
+  const eduEl = el('sm-edu');
+  if (stateEl) {
+    // Populate Indian states
+    const states = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh','Chandigarh','Puducherry','Andaman & Nicobar','Dadra & Nagar Haveli','Lakshadweep'];
+    stateEl.innerHTML = '<option value="">Select state</option>' + states.map(s => '<option' + (u.state === s ? ' selected' : '') + '>' + s + '</option>').join('');
+  }
+  if (catEl && u.category) {
+    const opts = catEl.options;
+    for (let i = 0; i < opts.length; i++) { if (opts[i].value === u.category || opts[i].text === u.category) { catEl.selectedIndex = i; break; } }
+  }
+  if (eduEl && u.grade) {
+    const g = u.grade.toLowerCase();
+    const opts = eduEl.options;
+    for (let i = 0; i < opts.length; i++) {
+      if ((g.includes('10') && opts[i].text.includes('10')) || (g.includes('12') && opts[i].text.includes('12')) || (g.includes('btech') || g.includes('b.tech') || g.includes('bachelor')) && opts[i].text.includes('UG')) {
+        eduEl.selectedIndex = i; break;
+      }
+    }
+  }
+  // Match button
+  const btn = el('sm-match-btn');
+  if (btn) btn.onclick = _runSmartMatch;
+};
+
+function _runSmartMatch() {
+  const state = (el('sm-state') || {}).value || '';
+  const category = (el('sm-category') || {}).value || '';
+  const income = parseInt((el('sm-income') || {}).value || '0', 10);
+  const edu = (el('sm-edu') || {}).value || '';
+  const disability = (el('sm-disability') || {}).value || 'no';
+  const gender = (el('sm-gender') || {}).value || '';
+  if (!state && !category) { toast('Please select at least your state or category.', 'info'); return; }
+  const btn = el('sm-match-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Matching…'; }
+  api('/scholarships/match', {
+    method: 'POST',
+    body: JSON.stringify({ state, category, income, education: edu, disability, gender })
+  }).then((d) => {
+    const results = d.matches || [];
+    const container = el('sm-results');
+    const summary = el('sm-summary');
+    const list = el('sm-list');
+    if (container) container.hidden = false;
+    if (summary) summary.innerHTML = '<div class="sm-count">' + results.length + ' scholarships match your profile</div>' + (results.length > 0 ? '<div class="sm-tip">Scores indicate how well you match each scholarship\'s eligibility criteria.</div>' : '');
+    if (list) {
+      if (results.length === 0) {
+        list.innerHTML = '<div class="sm-empty">No exact matches found. Try broadening your filters or <a href="#scholarships" onclick="setView(\'scholarships\',true);return false;">browse all scholarships</a>.</div>';
+      } else {
+        list.innerHTML = results.map((r) => {
+          const pct = r.score || 0;
+          const cls = pct >= 80 ? 'high' : pct >= 50 ? 'med' : 'low';
+          return '<div class="sm-card ' + cls + '">' +
+            '<div class="sm-card-top"><div class="sm-card-name">' + esc(r.name) + '</div>' +
+            '<div class="sm-score"><svg class="sm-ring" viewBox="0 0 36 36"><circle class="sm-ring-bg" cx="18" cy="18" r="15.9"/><circle class="sm-ring-fg" cx="18" cy="18" r="15.9" style="stroke-dasharray:' + pct + ' 100"/></svg><span>' + pct + '%</span></div></div>' +
+            '<div class="sm-card-meta">' +
+            '<span class="sm-tag">' + esc(r.category || '') + '</span>' +
+            '<span class="sm-tag">' + esc(r.state || '') + '</span>' +
+            (r.amount ? '<span class="sm-amount">' + esc(r.amount) + '</span>' : '') +
+            '</div>' +
+            '<div class="sm-card-elig">' + esc(r.eligibility || '') + '</div>' +
+            (r.deadline ? '<div class="sm-card-deadline">⏰ Deadline: ' + esc(r.deadline) + '</div>' : '') +
+            (r.link ? '<a class="sm-apply" href="' + esc(r.link) + '" target="_blank" rel="noopener">Apply →</a>' : '') +
+            '</div>';
+        }).join('');
+      }
+    }
+  }).catch(() => {
+    toast('Could not run matching. Try again.', 'err');
+  }).finally(() => {
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Find My Matches'; }
+  });
+}
+
+/* ═══════════════════════ AI ROADMAP PRO ═══════════════════════ */
+
+let _rmInited = false;
+window.initRoadmapPro = function () {
+  if (_rmInited) return;
+  _rmInited = true;
+  const u = getUser() || {};
+  if (u.name && el('rm-goal')) el('rm-goal').placeholder = 'e.g. ' + u.name + '\'s goal — Software Engineer, Doctor, IAS…';
+  const btn = el('rm-gen-btn');
+  if (btn) btn.onclick = _genRoadmap;
+  const pdfBtn = el('rm-pdf-btn');
+  if (pdfBtn) pdfBtn.onclick = _exportRoadmapPdf;
+  const askBtn = el('rm-ask-veda');
+  if (askBtn) askBtn.onclick = function () {
+    const goal = (el('rm-goal') || {}).value || 'career growth';
+    if (window.askVeda) window.askVeda('Give me more details and tips for my roadmap to become ' + goal);
+  };
+};
+
+async function _genRoadmap() {
+  const goal = (el('rm-goal') || {}).value.trim();
+  if (!goal) { toast('Enter your career goal first.', 'info'); return; }
+  const stage = (el('rm-stage') || {}).value || '';
+  const timeline = (el('rm-timeline') || {}).value || '12';
+  const skills = (el('rm-skills') || {}).value.trim();
+  const constraints = (el('rm-constraints') || {}).value.trim();
+  const btn = el('rm-gen-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Building your roadmap…'; }
+  const output = el('rm-output');
+  const head = el('rm-head');
+  const body = el('rm-body');
+  if (output) output.hidden = false;
+  if (head) head.innerHTML = '<div class="rm-title">🎯 ' + esc(goal) + '</div><div class="rm-meta">' + esc(stage) + ' · ' + timeline + ' months' + (skills ? ' · Skills: ' + esc(skills) : '') + '</div>';
+  if (body) body.innerHTML = '<div class="rm-loading"><div class="rm-loading-bar"></div>Analysing your goal and building a personalised plan…</div>';
+
+  try {
+    const u = getUser() || {};
+    const prompt = 'Build a detailed, step-by-step career roadmap for an Indian student.\n\n' +
+      'Goal: ' + goal + '\n' +
+      'Current stage: ' + stage + '\n' +
+      'Timeline: ' + timeline + ' months\n' +
+      (skills ? 'Existing skills: ' + skills + '\n' : '') +
+      (constraints ? 'Constraints: ' + constraints + '\n' : '') +
+      'Language: ' + (getLang() || 'English') + '\n\n' +
+      'Format your response as:\n' +
+      '## Overview\n[Brief summary]\n\n' +
+      '## Phase 1: Foundation (Months 1-X)\n- [ ] Milestone 1\n- [ ] Milestone 2\n\n## Phase 2: Build (Months X-Y)\n...\n\n## Phase 3: Launch (Months Y-Z)\n...\n\n## Key Resources\n- Free resource 1 (link if known)\n...\n\n## Your Next 3 Actions\n1. ...\n2. ...\n3. ...';
+
+    const text = await vedaText({
+      user_id: u.id || 'guest',
+      messages: [{ role: 'user', content: prompt }],
+      mode: 'roadmap',
+      language: getLang() || 'English',
+      chat_id: 'roadmap-' + Date.now()
+    });
+
+    if (body) body.innerHTML = renderMarkdown(text);
+    if (body) body.dataset.raw = text;
+  } catch (e) {
+    if (body) body.innerHTML = '<div class="rm-error">Could not generate roadmap. Please try again.</div>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Generate My Roadmap'; }
+  }
+}
+
+function _exportRoadmapPdf() {
+  const body = el('rm-body');
+  const raw = (body ? body.dataset.raw : '') || (body ? body.textContent : '');
+  if (!raw) { toast('No roadmap to export yet.', 'info'); return; }
+  const goal = (el('rm-goal') || {}).value || 'My Roadmap';
+  const blob = new Blob(['# ' + goal + '\n\n' + raw], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'learnify-roadmap-' + goal.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.md'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Roadmap exported as Markdown', 'ok');
 }
 
 function esc(s) {

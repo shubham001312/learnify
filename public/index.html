@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=56">
+  <link rel="stylesheet" href="styles.css?v=57">
 </head>
 <body>
 
@@ -1328,6 +1328,97 @@
     </div>
   </section>
 
+  <!-- ============ SMART SCHOLARSHIP MATCH ============ -->
+  <section class="fullpage sm-page" id="page-scholarship-match" data-page="scholarship-match">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>← Back</button>
+      <div class="fp-title">Smart Scholarship Match</div>
+    </div>
+    <div class="fp-body">
+      <div class="sm-hero">
+        <div class="sm-badge">AI-Powered</div>
+        <h2>Find scholarships you actually qualify for</h2>
+        <p>Fill your profile once — Veda matches you against 38+ real Indian scholarships and shows your eligibility score.</p>
+      </div>
+
+      <div class="sm-form" id="sm-form">
+        <div class="sm-row">
+          <div class="sm-field"><label>State / UT</label><select id="sm-state"><option value="">Select state</option></select></div>
+          <div class="sm-field"><label>Category</label>
+            <select id="sm-category"><option value="">Select</option><option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option><option>Minority</option></select>
+          </div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-field"><label>Family income (₹/year)</label>
+            <select id="sm-income"><option value="">Select range</option><option value="150000">Below ₹1.5 Lakh</option><option value="250000">₹1.5 – 2.5 Lakh</option><option value="500000">₹2.5 – 5 Lakh</option><option value="800000">₹5 – 8 Lakh</option><option value="1000000">₹8 – 10 Lakh</option><option value="9999999">Above ₹10 Lakh</option></select>
+          </div>
+          <div class="sm-field"><label>Education level</label>
+            <select id="sm-edu"><option value="">Select</option><option>Class 10</option><option>Class 12</option><option>Diploma</option><option>UG (Bachelor's)</option><option>PG (Master's)</option><option>PhD</option></select>
+          </div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-field"><label>Disability status</label>
+            <select id="sm-disability"><option value="no">No</option><option value="yes">Yes (PwD)</option></select>
+          </div>
+          <div class="sm-field"><label>Gender</label>
+            <select id="sm-gender"><option value="">Prefer not to say</option><option>Male</option><option>Female</option><option>Other</option></select>
+          </div>
+        </div>
+        <button class="btn primary block" id="sm-match-btn">🔍 Find My Matches</button>
+      </div>
+
+      <div id="sm-results" class="sm-results" hidden>
+        <div class="sm-summary" id="sm-summary"></div>
+        <div class="sm-list" id="sm-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AI ROADMAP PRO ============ -->
+  <section class="fullpage rm-page" id="page-roadmap-pro" data-page="roadmap-pro">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>← Back</button>
+      <div class="fp-title">AI Roadmap Pro</div>
+    </div>
+    <div class="fp-body">
+      <div class="rm-hero">
+        <div class="rm-badge">AI-Powered</div>
+        <h2>Your personalised career roadmap</h2>
+        <p>Tell Veda your goal — get a step-by-step plan with milestones, resources, and a downloadable PDF.</p>
+      </div>
+
+      <div class="rm-form" id="rm-form">
+        <div class="rm-field"><label>What's your target career or goal?</label>
+          <input type="text" id="rm-goal" placeholder="e.g. Software Engineer at Google, IAS Officer, Doctor, MBA from IIM…">
+        </div>
+        <div class="rm-row">
+          <div class="rm-field"><label>Current stage</label>
+            <select id="rm-stage"><option>Class 10</option><option>Class 12</option><option>First year college</option><option>Final year college</option><option>Fresher / Job seeker</option><option>Working professional</option></select>
+          </div>
+          <div class="rm-field"><label>Timeline</label>
+            <select id="rm-timeline"><option value="6">6 months</option><option value="12" selected>1 year</option><option value="24">2 years</option><option value="36">3+ years</option></select>
+          </div>
+        </div>
+        <div class="rm-field"><label>Skills you already have <span class="muted">(comma-separated)</span></label>
+          <input type="text" id="rm-skills" placeholder="e.g. Python, public speaking, data analysis">
+        </div>
+        <div class="rm-field"><label>Any specific constraints? <span class="muted">(optional)</span></label>
+          <input type="text" id="rm-constraints" placeholder="e.g. limited budget, can't relocate, part-time only">
+        </div>
+        <button class="btn primary block" id="rm-gen-btn">🚀 Generate My Roadmap</button>
+      </div>
+
+      <div id="rm-output" class="rm-output" hidden>
+        <div class="rm-head" id="rm-head"></div>
+        <div class="rm-body" id="rm-body"></div>
+        <div class="rm-actions">
+          <button class="btn" id="rm-pdf-btn">📄 Download PDF</button>
+          <button class="btn" id="rm-ask-veda">💬 Ask Veda about this</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="modal" id="filter-modal">
     <div class="modal-card">
       <button class="modal-x" data-close>&times;</button>
@@ -1414,8 +1505,8 @@
   <datalist id="dl-college"></datalist>
   <datalist id="dl-city"></datalist>
 
-  <script src="vendor/jspdf.umd.min.js?v=56"></script>
-  <script type="module" src="src/app.js?v=56"></script>
+  <script src="vendor/jspdf.umd.min.js?v=57"></script>
+  <script type="module" src="src/app.js?v=57"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

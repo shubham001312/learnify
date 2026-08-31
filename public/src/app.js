@@ -1,18 +1,18 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=56';
-import { applyLanguage } from './i18n.js?v=56';
-import { initNotifications, addNotification } from './notifications.js?v=56';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=57';
+import { applyLanguage } from './i18n.js?v=57';
+import { initNotifications, addNotification } from './notifications.js?v=57';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=56';
-import { initVeda } from './veda.js?v=56';
-import { initCareer } from './career.js?v=56';
-import { initCareers } from './careers.js?v=56';
-import { initProfile } from './profile.js?v=56';
-import { initPremium } from './premium.js?v=56';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=56';
-import { iconSvg, suggestionIcon } from './icons.js?v=56';
-import { playClick } from './sound.js?v=56';
-import { initStudyTools } from './tools.js?v=56';
+import { initAuth, openLogin } from './auth.js?v=57';
+import { initVeda } from './veda.js?v=57';
+import { initCareer } from './career.js?v=57';
+import { initCareers } from './careers.js?v=57';
+import { initProfile } from './profile.js?v=57';
+import { initPremium } from './premium.js?v=57';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=57';
+import { iconSvg, suggestionIcon } from './icons.js?v=57';
+import { playClick } from './sound.js?v=57';
+import { initStudyTools } from './tools.js?v=57';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -125,6 +125,8 @@ function openPage(name) {
   if (name === 'resume') { ensureResumeRows(); renderResume(); }
   if (name === 'planner') { if (window.loadPlan) loadPlan(); }
   if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
+  if (name === 'scholarship-match') { if (window.initScholarshipMatch) initScholarshipMatch(); }
+  if (name === 'roadmap-pro') { if (window.initRoadmapPro) initRoadmapPro(); }
   p.scrollTop = 0;
 }
 function closePage() {
@@ -145,7 +147,7 @@ _syncScrollLock();
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
 const _TABS = ['home', 'veda', 'college', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'scholarship-match', 'roadmap-pro'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }

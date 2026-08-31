@@ -80,6 +80,7 @@ try:
         scanned,
         careers,
         sgpa,
+        scholarships,
     )
 
     app.include_router(auth.router, prefix="/api/auth")
@@ -91,6 +92,7 @@ try:
     app.include_router(search.router, prefix="/api")
     app.include_router(scanned.router, prefix="/api")
     app.include_router(sgpa.router, prefix="/api/sgpa")
+    app.include_router(scholarships.router, prefix="/api")
 except Exception as e:
     import traceback as _tb
 
