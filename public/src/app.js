@@ -13,6 +13,7 @@ import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=51';
 import { iconSvg, suggestionIcon } from './icons.js?v=51';
 import { playClick } from './sound.js?v=51';
 import { initStudyTools } from './tools.js?v=51';
+import { initSIH } from './sih.js?v=51';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -125,6 +126,7 @@ function openPage(name) {
   if (name === 'resume') { ensureResumeRows(); renderResume(); }
   if (name === 'planner') { if (window.loadPlan) loadPlan(); }
   if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
+  if (name === 'skills' || name === 'opportunities' || name === 'internships' || name === 'portfolio' || name === 'analytics' || name === 'learning' || name === 'assessments') { if (window.initSIH) window.initSIH(); }
   p.scrollTop = 0;
 }
 function closePage() {
@@ -145,7 +147,7 @@ _syncScrollLock();
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
 const _TABS = ['home', 'veda', 'college', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'opportunities', 'internships', 'portfolio', 'analytics', 'learning', 'assessments'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
@@ -1237,6 +1239,7 @@ onReady(() => {
   initMisc();
   initNotifications();
   initStudyTools();
+  initSIH();
   applyLanguage(getLang());
   _restoreView();
   initGlobalSearch();

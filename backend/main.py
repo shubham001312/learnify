@@ -79,6 +79,19 @@ try:
         search,
         scanned,
         careers,
+        skills,
+        student_profile,
+        assessments,
+        career_intelligence,
+        opportunities,
+        internships,
+        mentor,
+        milestones,
+        evaluations,
+        portfolio,
+        notifications,
+        analytics,
+        learning,
     )
 
     app.include_router(auth.router, prefix="/api/auth")
@@ -89,6 +102,19 @@ try:
     app.include_router(premium.router, prefix="/api/premium")
     app.include_router(search.router, prefix="/api")
     app.include_router(scanned.router, prefix="/api")
+    app.include_router(skills.router, prefix="/api/v1")
+    app.include_router(student_profile.router, prefix="/api/v1")
+    app.include_router(assessments.router, prefix="/api/v1")
+    app.include_router(career_intelligence.router, prefix="/api/v1")
+    app.include_router(opportunities.router, prefix="/api/v1")
+    app.include_router(internships.router, prefix="/api/v1")
+    app.include_router(mentor.router, prefix="/api/v1")
+    app.include_router(milestones.router, prefix="/api/v1")
+    app.include_router(evaluations.router, prefix="/api/v1")
+    app.include_router(portfolio.router, prefix="/api/v1")
+    app.include_router(notifications.router, prefix="/api/v1")
+    app.include_router(analytics.router, prefix="/api/v1")
+    app.include_router(learning.router, prefix="/api/v1")
 except Exception as e:
     import traceback as _tb
 

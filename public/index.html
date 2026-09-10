@@ -103,6 +103,17 @@
         <button class="tool" data-go="summarizer"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg></span><span>Summarizer</span></button>
       </div>
 
+      <div class="section-label">Skills &amp; Careers <span class="pro-pill" style="background:rgba(20,184,166,.15);color:#14b8a6">SIH 2026</span></div>
+      <div class="tools study-tools">
+        <button class="tool" data-go="skills"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span>My Skills</span></button>
+        <button class="tool" data-go="assessments"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg></span><span>Assessments</span></button>
+        <button class="tool" data-go="opportunities"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span><span>Opportunities</span></button>
+        <button class="tool" data-go="internships"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Internships</span></button>
+        <button class="tool" data-go="portfolio"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><span>Portfolio</span></button>
+        <button class="tool" data-go="analytics"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Analytics</span></button>
+        <button class="tool" data-go="learning"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span>Learn</span></button>
+      </div>
+
       <div class="section-label">Pro Tools <span class="pro-pill">PRO</span></div>
       <div class="tools study-tools">
         <button class="tool pro-tool" data-premium="quiz"><span class="tool-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Unlimited Quiz</span></button>
@@ -1288,6 +1299,152 @@
       <p>To the maximum extent permitted by law, Learnify is not liable for any indirect or consequential damages arising from use of the service.</p>
       <h3>9. Changes &amp; Contact</h3>
       <p>We may update these terms; continued use means acceptance. Questions: <a href="mailto:shubham.mallick1440@gmail.com">shubham.mallick1440@gmail.com</a>.</p>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: SKILLS PAGE ══════════ -->
+  <section class="fullpage" id="page-skills" data-page="skills">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Skill Profile</div>
+    </div>
+    <div class="page-body">
+      <p class="sih-sub">Build your skill profile. Select skills you know, then save.</p>
+      <div class="field"><input id="skills-search" placeholder="Search skills…"></div>
+      <div class="field"><select id="skills-category"><option value="">All categories</option></select></div>
+      <div class="sih-section">
+        <h3>Catalog</h3>
+        <div id="skills-list" class="skill-grid"></div>
+      </div>
+      <div class="sih-section">
+        <h3>My Skills</h3>
+        <div id="my-skills" class="my-skills"></div>
+        <button class="btn primary" id="skills-save" style="margin-top:12px">Save My Skills</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: OPPORTUNITIES PAGE ══════════ -->
+  <section class="fullpage" id="page-opportunities" data-page="opportunities">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Opportunities</div>
+    </div>
+    <div class="page-body">
+      <div class="sih-filters">
+        <div class="field" style="flex:1"><input id="opp-search" placeholder="Search opportunities…"></div>
+        <div class="field" style="width:160px"><select id="opp-type">
+          <option value="">All types</option>
+          <option value="INTERNSHIP">Internship</option>
+          <option value="PLACEMENT">Placement</option>
+          <option value="HACKATHON">Hackathon</option>
+          <option value="COMPETITION">Competition</option>
+          <option value="OPEN_SOURCE">Open Source</option>
+        </select></div>
+      </div>
+      <div id="opp-list" class="opp-grid"></div>
+      <div id="opp-my-apps" class="sih-section"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: INTERNSHIPS PAGE ══════════ -->
+  <section class="fullpage" id="page-internships" data-page="internships">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Internships</div>
+    </div>
+    <div class="page-body">
+      <div class="sih-section">
+        <h3>Active Internships</h3>
+        <div id="intern-active"></div>
+      </div>
+      <div class="sih-section">
+        <h3>Mentor Feedback</h3>
+        <div id="intern-feedback"></div>
+      </div>
+      <div class="sih-section">
+        <h3>Credentials</h3>
+        <div id="intern-credentials"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: PORTFOLIO PAGE ══════════ -->
+  <section class="fullpage" id="page-portfolio" data-page="portfolio">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Portfolio</div>
+    </div>
+    <div class="page-body">
+      <button class="btn primary" id="portfolio-add-btn">+ Add Project</button>
+      <div id="portfolio-add-form" class="sih-section hidden" style="margin-top:16px">
+        <div class="field"><label>Title</label><input id="pf-title" placeholder="Project title"></div>
+        <div class="field"><label>Description</label><textarea id="pf-desc" rows="3" placeholder="What did you build?"></textarea></div>
+        <div class="field"><label>Category</label>
+          <select id="pf-category">
+            <option value="PROJECT">Project</option>
+            <option value="OPEN_SOURCE">Open Source</option>
+            <option value="RESEARCH">Research</option>
+            <option value="HACKATHON">Hackathon</option>
+            <option value="CERTIFICATION">Certification</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Skills (comma-separated)</label><input id="pf-skills-input" placeholder="React, Node.js, PostgreSQL"></div>
+        <div class="row gap">
+          <button class="btn primary" id="portfolio-save">Save</button>
+          <button class="btn" id="portfolio-cancel">Cancel</button>
+        </div>
+      </div>
+      <div id="portfolio-list" class="portfolio-grid" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: ANALYTICS PAGE ══════════ -->
+  <section class="fullpage" id="page-analytics" data-page="analytics">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Analytics</div>
+    </div>
+    <div class="page-body">
+      <div id="analytics-stats"></div>
+      <div id="analytics-demand" class="sih-section" style="margin-top:20px"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: LEARNING RESOURCES PAGE ══════════ -->
+  <section class="fullpage" id="page-learning" data-page="learning">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Learning Resources</div>
+    </div>
+    <div class="page-body">
+      <div id="learning-recommended" class="sih-section"></div>
+      <div class="sih-filters" style="margin-top:16px">
+        <div class="field" style="flex:1"><input id="learning-search" placeholder="Search by skill…"></div>
+        <div class="field" style="width:160px"><select id="learning-category">
+          <option value="">All types</option>
+          <option value="COURSE">Course</option>
+          <option value="TUTORIAL">Tutorial</option>
+          <option value="DOCUMENTATION">Documentation</option>
+          <option value="VIDEO">Video</option>
+          <option value="BOOK">Book</option>
+          <option value="PRACTICE">Practice</option>
+        </select></div>
+      </div>
+      <div id="learning-list" class="learning-grid"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ SIH: ASSESSMENTS PAGE ══════════ -->
+  <section class="fullpage" id="page-assessments" data-page="assessments">
+    <div class="fp-head">
+      <button class="fp-back" data-page-close>&lsaquo; Back</button>
+      <div class="fp-title">Skill Assessments</div>
+    </div>
+    <div class="page-body">
+      <p class="sih-sub">Test your skills and earn proficiency ratings.</p>
+      <div id="assess-list"></div>
     </div>
   </section>
 

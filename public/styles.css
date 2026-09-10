@@ -1578,3 +1578,198 @@ textarea { resize: vertical; }
 
     .dm-note { font-size: 13px; color: var(--muted); margin: 6px 0; }
 
+    /* ═══════════════════════════════════════════════
+       SIH SECTION — Skills, Opportunities, Internships
+       ═══════════════════════════════════════════════ */
+
+    .sih-sub { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .sih-section { margin-top: 20px; }
+    .sih-section h3 { font-family: var(--font-head); font-weight: 700; font-size: 16px; margin-bottom: 10px; color: var(--text); }
+    .sih-empty { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+    .sih-loading { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+    .sih-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+
+    /* ── Skill chips ── */
+    .skill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .skill-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 8px 12px; cursor: pointer; transition: all .15s var(--ease);
+      font-size: 13px; color: var(--text); user-select: none;
+    }
+    .skill-chip:hover { border-color: var(--teal); transform: translateY(-1px); }
+    .skill-chip.active { background: rgba(20,184,166,.12); border-color: var(--teal); color: var(--teal); font-weight: 600; }
+    .skill-cat { font-size: 11px; color: var(--muted); }
+    .my-skills { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; }
+    .my-skill-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--teal); color: #fff; border-radius: 8px;
+      padding: 6px 10px; font-size: 12px; font-weight: 600;
+    }
+    .ms-rm { background: none; border: none; color: rgba(255,255,255,.7); cursor: pointer; font-size: 16px; line-height: 1; }
+    .ms-rm:hover { color: #fff; }
+
+    /* ── Opportunity cards ── */
+    .opp-grid { display: flex; flex-direction: column; gap: 12px; }
+    .opp-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 16px; transition: all .15s var(--ease);
+    }
+    .opp-card:hover { border-color: var(--teal); box-shadow: var(--shadow-sm); }
+    .opp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .opp-title { font-weight: 700; font-size: 15px; color: var(--text); }
+    .opp-type-badge {
+      background: rgba(20,184,166,.12); color: var(--teal); border-radius: 6px;
+      padding: 3px 8px; font-size: 11px; font-weight: 600;
+    }
+    .opp-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .opp-skills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .opp-skill-tag {
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px;
+      padding: 3px 8px; font-size: 11px; color: var(--sub);
+    }
+    .opp-actions { display: flex; gap: 8px; }
+
+    /* ── Application cards ── */
+    .app-card {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 10px 14px; font-size: 13px;
+    }
+    .app-title { font-weight: 600; color: var(--text); flex: 1 1 200px; }
+    .app-org { color: var(--muted); font-size: 12px; }
+    .app-status {
+      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    }
+    .status-pending, .status-applied { background: rgba(234,179,8,.12); color: #ca8a04; }
+    .status-shortlisted, .status-interview { background: rgba(59,130,246,.12); color: #2563eb; }
+    .status-selected, .status-active, .status-completed { background: rgba(20,184,166,.12); color: var(--teal); }
+    .status-rejected, .status-cancelled { background: rgba(239,68,68,.12); color: #dc2626; }
+    .app-date { color: var(--muted); font-size: 11px; }
+
+    /* ── Internship cards ── */
+    .intern-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 16px; margin-bottom: 12px;
+    }
+    .intern-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .intern-title { font-weight: 700; font-size: 15px; color: var(--text); }
+    .intern-status { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .intern-meta { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .intern-progress { display: flex; align-items: center; gap: 10px; }
+    .progress-bar { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--teal); border-radius: 4px; transition: width .3s; }
+    .progress-label { font-size: 13px; font-weight: 600; color: var(--teal); min-width: 40px; }
+
+    /* ── Feedback cards ── */
+    .feedback-card {
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 12px 14px; margin-bottom: 10px; font-size: 13px;
+    }
+    .fb-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .fb-rating { font-weight: 700; color: var(--gold-deep); }
+    .fb-mentor { color: var(--muted); }
+    .fb-strengths { color: var(--text); margin-bottom: 4px; }
+    .fb-improve { color: var(--sub); margin-bottom: 4px; }
+    .fb-comments { color: var(--muted); font-style: italic; }
+
+    /* ── Credential cards ── */
+    .cred-card {
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 12px 14px; margin-bottom: 10px;
+    }
+    .cred-title { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+    .cred-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); align-items: center; }
+    .cred-status { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .status-issued { background: rgba(20,184,166,.12); color: var(--teal); }
+    .status-pending_verification { background: rgba(234,179,8,.12); color: #ca8a04; }
+
+    /* ── Portfolio cards ── */
+    .portfolio-grid { display: flex; flex-direction: column; gap: 12px; }
+    .portfolio-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 16px;
+    }
+    .pf-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .pf-title { font-weight: 700; font-size: 15px; color: var(--text); }
+    .pf-cat {
+      background: rgba(20,184,166,.12); color: var(--teal); border-radius: 6px;
+      padding: 3px 8px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    }
+    .pf-desc { font-size: 13px; color: var(--sub); margin-bottom: 8px; line-height: 1.5; }
+    .pf-skills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .pf-skill {
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px;
+      padding: 3px 8px; font-size: 11px; color: var(--sub);
+    }
+    .pf-actions { display: flex; gap: 8px; }
+
+    /* ── Analytics ── */
+    .analytics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 16px; text-align: center;
+    }
+    .stat-num { font-size: 28px; font-weight: 800; color: var(--teal); font-family: var(--font-head); }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Skill demand ── */
+    .demand-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px 0;
+      border-bottom: 1px solid var(--border-2); font-size: 13px;
+    }
+    .demand-rank { font-weight: 700; color: var(--muted); min-width: 30px; }
+    .demand-name { flex: 0 0 140px; font-weight: 600; color: var(--text); }
+    .demand-bar { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .demand-fill { height: 100%; background: var(--teal); border-radius: 4px; }
+    .demand-count { min-width: 40px; text-align: right; color: var(--muted); font-size: 12px; }
+
+    /* ── Learning resources ── */
+    .learning-grid { display: flex; flex-direction: column; gap: 10px; }
+    .learning-card {
+      display: block; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-md); padding: 14px; text-decoration: none; transition: all .15s var(--ease);
+    }
+    .learning-card:hover { border-color: var(--teal); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .learning-card.rec { border-left: 3px solid var(--gold-deep); }
+    .lc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .lc-title { font-weight: 700; font-size: 14px; color: var(--text); }
+    .lc-provider { font-size: 12px; color: var(--muted); }
+    .lc-rec-for { font-size: 11px; color: var(--gold-deep); font-weight: 600; }
+    .lc-desc { font-size: 13px; color: var(--sub); margin-bottom: 6px; line-height: 1.4; }
+    .lc-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .lc-diff { padding: 2px 6px; border-radius: 4px; background: var(--bg); font-size: 11px; }
+    .lc-skill { color: var(--teal); font-weight: 600; }
+
+    /* ── Assessments / Quiz ── */
+    .assess-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 16px; margin-bottom: 12px;
+    }
+    .ac-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .ac-title { font-weight: 700; font-size: 15px; color: var(--text); }
+    .ac-skill { font-size: 12px; color: var(--teal); font-weight: 600; }
+    .ac-desc { font-size: 13px; color: var(--sub); margin-bottom: 8px; }
+    .ac-meta { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+
+    .quiz-progress { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .quiz-question { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 16px; line-height: 1.5; }
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .quiz-opt {
+      background: var(--bg); border: 2px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 12px 16px; text-align: left; font-size: 14px; color: var(--text);
+      cursor: pointer; transition: all .15s var(--ease);
+    }
+    .quiz-opt:hover { border-color: var(--teal); }
+    .quiz-opt.selected { border-color: var(--teal); background: rgba(20,184,166,.08); color: var(--teal); font-weight: 600; }
+    .quiz-nav { display: flex; justify-content: space-between; }
+
+    .quiz-result { text-align: center; padding: 30px 0; }
+    .qr-score { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .qr-percent { font-size: 40px; font-weight: 800; color: var(--teal); font-family: var(--font-head); margin-bottom: 12px; }
+    .qr-pass { font-size: 16px; color: var(--teal); font-weight: 600; margin-bottom: 16px; }
+    .qr-fail { font-size: 16px; color: var(--muted); margin-bottom: 16px; }
+
+    /* ── Hidden utility ── */
+    .hidden { display: none !important; }
+
