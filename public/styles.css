@@ -300,6 +300,35 @@
     .page-head h1 { font-family: var(--font-head); font-weight: 800; font-size: 24px; letter-spacing: -0.02em; margin-top: 2px; }
     .page-head p { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
 
+    /* ───────── SYSTEM CARDS (tab landing pages) ───────── */
+    .system-cards { display: flex; flex-direction: column; gap: 10px; padding: 0 4px; }
+    .system-card {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; cursor: pointer; transition: all .15s ease;
+      text-align: left; width: 100%;
+    }
+    .system-card:hover, .system-card:active { border-color: var(--teal); background: #f0fdfa; transform: translateY(-1px); }
+    .sc-icon { font-size: 28px; flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f0fdfa, #e0f2fe); border-radius: 12px; }
+    .sc-body { flex: 1; min-width: 0; }
+    .sc-title { font-weight: 700; font-size: 15px; color: var(--text); }
+    .sc-desc { font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+    .sc-arrow { font-size: 20px; color: var(--muted); flex-shrink: 0; }
+
+    /* ───────── SYSTEM SUB-NAV (pills inside fullpages) ───────── */
+    .sys-subnav { display: flex; gap: 6px; padding: 12px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .sys-subnav::-webkit-scrollbar { display: none; }
+    .sys-pill {
+      flex-shrink: 0; padding: 7px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+      transition: all .15s ease; white-space: nowrap;
+    }
+    .sys-pill:hover { border-color: var(--teal); color: var(--text); }
+    .sys-pill.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .sys-section { display: none; }
+    .sys-section.active { display: block; }
+
     /* ───────── HOME ───────── */
     .hero {
       position: relative; overflow: hidden;
@@ -1857,4 +1886,50 @@ textarea { resize: vertical; }
 .rm-actions .btn { flex: 1; text-align: center; }
 
 @media (max-width: 560px) { .rm-row { flex-direction: column; gap: 10px; } .rm-actions { flex-direction: column; } }
+
+/* ───────── RESPONSIVE: NEW IA COMPONENTS ───────── */
+@media (max-width: 480px) {
+  .system-cards { gap: 8px; }
+  .system-card { padding: 14px 14px; gap: 12px; border-radius: 12px; }
+  .sc-icon { font-size: 24px; width: 40px; height: 40px; }
+  .sc-title { font-size: 14px; }
+  .sc-desc { font-size: 12px; }
+  .sys-subnav { gap: 5px; padding: 10px 0 2px; }
+  .sys-pill { padding: 6px 12px; font-size: 12.5px; }
+  .tabbar { gap: 0; }
+  .tbtn { flex: 1; min-width: 0; padding: 6px 2px 4px; }
+  .tbtn span { font-size: 10px; }
+  .tbtn svg { width: 20px; height: 20px; }
+}
+@media (min-width: 760px) {
+  .system-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sys-subnav { max-width: 600px; }
+}
+
+/* ───────── SYSTEM CROSS-LINKS ───────── */
+.sys-links { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sys-links-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+.sys-links-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.sys-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  cursor: pointer; transition: all .15s ease; text-decoration: none;
+}
+.sys-link:hover { border-color: var(--teal); background: #f0fdfa; }
+.sys-link-icon { font-size: 16px; }
+
+/* ───────── ACCESSIBILITY & TRANSITIONS ───────── */
+.sys-pill:focus-visible, .system-card:focus-visible, .sys-link:focus-visible {
+  outline: 2px solid var(--teal); outline-offset: 2px;
+}
+.sys-section { animation: fadeSection .2s ease; }
+@keyframes fadeSection { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.system-card { position: relative; overflow: hidden; }
+.system-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(20,184,166,0.04));
+  pointer-events: none; opacity: 0; transition: opacity .2s;
+}
+.system-card:hover::after { opacity: 1; }
 

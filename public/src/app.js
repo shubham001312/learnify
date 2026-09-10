@@ -127,6 +127,7 @@ function openPage(name) {
   if (name === 'planner') { if (window.loadPlan) loadPlan(); }
   if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
   if (name === 'skills' || name === 'opportunities' || name === 'internships' || name === 'portfolio' || name === 'analytics' || name === 'learning' || name === 'assessments') { if (window.initSIH) window.initSIH(); }
+  if (name === 'career') { if (window.loadCareers) window.loadCareers(); }
   if (name === 'scholarship-match') { if (window.initScholarshipMatch) initScholarshipMatch(); }
   if (name === 'roadmap-pro') { if (window.initRoadmapPro) initRoadmapPro(); }
   p.scrollTop = 0;
@@ -148,8 +149,8 @@ _syncScrollLock();
    Tabs and full-page tools are tracked in the URL hash + localStorage so a
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
-const _TABS = ['home', 'veda', 'college', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'opportunities', 'internships', 'portfolio', 'analytics', 'learning', 'assessments', 'scholarship-match', 'roadmap-pro'];
+const _TABS = ['home', 'explore', 'progress', 'opportunities', 'veda'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'internships', 'portfolio', 'analytics', 'learning', 'assessments', 'scholarship-match', 'roadmap-pro', 'profile', 'college', 'career'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
@@ -234,9 +235,25 @@ function initTools() {
     b.addEventListener('click', () => setView(b.dataset.tab, true));
   });
 
+  document.querySelectorAll('.sys-subnav').forEach((nav) => {
+    nav.querySelectorAll('.sys-pill').forEach((pill) => {
+      pill.addEventListener('click', () => {
+        const parent = pill.closest('.fullpage') || pill.closest('.tab-pane');
+        if (!parent) return;
+        nav.querySelectorAll('.sys-pill').forEach((p) => { p.classList.remove('active'); p.setAttribute('aria-selected', 'false'); });
+        pill.classList.add('active');
+        pill.setAttribute('aria-selected', 'true');
+        const section = pill.dataset.section;
+        parent.querySelectorAll('.sys-section').forEach((s) => {
+          s.classList.toggle('active', s.dataset.section === section && s.dataset.parent === nav.dataset.subnav);
+        });
+      });
+    });
+  });
+
   const avatar = el('top-avatar');
   if (avatar) avatar.addEventListener('click', () => {
-    if (getToken()) setView('profile', true);
+    if (getToken()) openPage('profile');
     else openLogin();
   });
 
@@ -949,7 +966,7 @@ function initMisc() {
 
   const avatar = el('top-avatar');
   if (avatar) avatar.addEventListener('click', () => {
-    if (getToken()) setView('profile');
+    if (getToken()) openPage('profile');
     else openLogin();
   });
 
