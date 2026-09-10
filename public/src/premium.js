@@ -1,5 +1,5 @@
-import { api, el, toast, getToken, isAuthed, getUser, setUser } from './utils.js?v=51';
-import { openLogin } from './auth.js?v=51';
+import { api, el, toast, getToken, isAuthed, getUser, setUser } from './utils.js?v=59';
+import { openLogin } from './auth.js?v=59';
 
 function loadRazorpay(key) {
   return new Promise((resolve, reject) => {
@@ -57,7 +57,7 @@ function startCheckout() {
 
   api('/premium/checkout', { method: 'POST', body: JSON.stringify({ user_id: 'me', plan: 'pro_monthly' }) })
     .then((data) => {
-      if (!data || !data.order_id || !data.key) {
+      if (!data || data.demo || !data.order_id || !data.key) {
         activatePremiumDemo();
         return;
       }

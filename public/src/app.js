@@ -1,19 +1,19 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=51';
-import { applyLanguage } from './i18n.js?v=51';
-import { initNotifications, addNotification } from './notifications.js?v=51';
+import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=59';
+import { applyLanguage } from './i18n.js?v=59';
+import { initNotifications, addNotification } from './notifications.js?v=59';
 
 window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=51';
-import { initVeda } from './veda.js?v=51';
-import { initCareer } from './career.js?v=51';
-import { initCareers } from './careers.js?v=51';
-import { initProfile } from './profile.js?v=51';
-import { initPremium } from './premium.js?v=51';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=51';
-import { iconSvg, suggestionIcon } from './icons.js?v=51';
-import { playClick } from './sound.js?v=51';
-import { initStudyTools } from './tools.js?v=51';
-import { initSIH } from './sih.js?v=51';
+import { initAuth, openLogin } from './auth.js?v=59';
+import { initVeda } from './veda.js?v=59';
+import { initCareer } from './career.js?v=59';
+import { initCareers } from './careers.js?v=59';
+import { initProfile } from './profile.js?v=59';
+import { initPremium } from './premium.js?v=59';
+import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=59';
+import { iconSvg, suggestionIcon } from './icons.js?v=59';
+import { playClick } from './sound.js?v=59';
+import { initStudyTools } from './tools.js?v=59';
+import { initSIH } from './sih.js?v=59';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
@@ -127,6 +127,8 @@ function openPage(name) {
   if (name === 'planner') { if (window.loadPlan) loadPlan(); }
   if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
   if (name === 'skills' || name === 'opportunities' || name === 'internships' || name === 'portfolio' || name === 'analytics' || name === 'learning' || name === 'assessments') { if (window.initSIH) window.initSIH(); }
+  if (name === 'scholarship-match') { if (window.initScholarshipMatch) initScholarshipMatch(); }
+  if (name === 'roadmap-pro') { if (window.initRoadmapPro) initRoadmapPro(); }
   p.scrollTop = 0;
 }
 function closePage() {
@@ -147,7 +149,7 @@ _syncScrollLock();
    reload restores the last view, and the browser Back/Forward buttons move
    within the app instead of leaving it. */
 const _TABS = ['home', 'veda', 'college', 'career', 'profile'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'opportunities', 'internships', 'portfolio', 'analytics', 'learning', 'assessments'];
+const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'opportunities', 'internships', 'portfolio', 'analytics', 'learning', 'assessments', 'scholarship-match', 'roadmap-pro'];
 
 function _savedTab() {
   try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
@@ -173,10 +175,13 @@ function setView(name, push = true) {
 }
 function _restoreView() {
   const hash = (location.hash || '').replace(/^#/, '');
-  const view = (hash && (_TABS.includes(hash) || _PAGES.includes(hash)))
-    ? hash
-    : (_savedTab() && _TABS.includes(_savedTab()) ? _savedTab() : 'home');
-  setView(view, false);
+  if (hash && (_TABS.includes(hash) || _PAGES.includes(hash))) {
+    setView(hash, false);
+  } else if (hash) {
+    setView('home', false);
+  } else {
+    setView('home', false);
+  }
 }
 window.addEventListener('popstate', () => {
   const v = (location.hash || '').replace(/^#/, '');
@@ -252,7 +257,7 @@ function initTools() {
 function initWriting() {
   const go = el('writing-go');
   if (!go) return;
-  go.addEventListener('click', () => {
+  go.addEventListener('click', async () => {
     const text = el('writing-input').value.trim();
     const mode = el('writing-mode').value;
     if (!text) { toast('Enter some text first.', 'info'); return; }
@@ -260,15 +265,32 @@ function initWriting() {
     const out = el('writing-out');
     out.style.display = 'block';
     out.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-    api('/veda/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        user_id: (getUser() && getUser().email) || 'demo',
-        messages: [{ role: 'user', content: mode + ':\n' + text }]
-      })
-    }).then((d) => {
-      out.textContent = (d && d.reply) || 'No response.';
-    }).catch((e) => { out.textContent = '⚠️ ' + e.message; });
+    go.disabled = true; go.textContent = 'Working…';
+    try {
+      const resp = await fetch('/api/veda/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: (getUser() && getUser().email) || 'demo',
+          messages: [{ role: 'user', content: mode + ':\n' + text }]
+        })
+      });
+      if (!resp.ok) throw new Error('Request failed (' + resp.status + ')');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let result = '';
+      out.innerHTML = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value, { stream: true });
+        out.innerHTML = renderMarkdown(result);
+      }
+    } catch (e) {
+      out.innerHTML = '<span style="color:#c0392b">⚠️ ' + esc(e.message) + '</span>';
+    } finally {
+      go.disabled = false; go.textContent = 'Enhance';
+    }
   });
 }
 

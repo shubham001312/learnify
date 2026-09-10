@@ -92,6 +92,8 @@ try:
         notifications,
         analytics,
         learning,
+        sgpa,
+        scholarships,
     )
 
     app.include_router(auth.router, prefix="/api/auth")
@@ -115,6 +117,8 @@ try:
     app.include_router(notifications.router, prefix="/api/v1")
     app.include_router(analytics.router, prefix="/api/v1")
     app.include_router(learning.router, prefix="/api/v1")
+    app.include_router(sgpa.router, prefix="/api/sgpa")
+    app.include_router(scholarships.router, prefix="/api")
 except Exception as e:
     import traceback as _tb
 
