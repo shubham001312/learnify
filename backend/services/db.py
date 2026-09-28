@@ -198,6 +198,25 @@ def insert(table: str, row: dict) -> dict:
         raise _classify(e, table, "create")
 
 
+def insert_many(table: str, rows: list) -> int:
+    """Bulk insert; returns how many rows were written.
+
+    PostgREST takes a JSON array, so this is one round trip instead of one per
+    row — a portal-wide notice to a few thousand accounts stays a single
+    request. Deliberately not retried: a write that half-landed and then
+    replayed would duplicate rows, and there is no client-supplied key to
+    de-duplicate on.
+    """
+    if not rows:
+        return 0
+    c = require_client()
+    try:
+        _run(lambda: c.table(table).insert(rows).execute(), table, "create")
+        return len(rows)
+    except Exception as e:  # noqa: BLE001
+        raise _classify(e, table, "create")
+
+
 def upsert(table: str, row: dict, on_conflict: str) -> dict:
     c = require_client()
     try:

@@ -81,6 +81,10 @@ REQUIRED = [
     "GET  /api/v1/admin/invites",
     "POST /api/v1/admin/invites",
     "DELETE /api/v1/admin/invites/{token}",
+    # Compose-and-send screen: the audience sizes feed the recipient counter,
+    # the POST is the only thing that writes a bell notification.
+    "GET  /api/v1/admin/notifications/audiences",
+    "POST /api/v1/admin/notifications",
     "GET  /api/v1/reports",
     "GET  /api/v1/reports/stats/weak-topics",
     "POST /api/v1/library/upload",

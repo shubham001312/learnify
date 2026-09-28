@@ -535,6 +535,125 @@ def revoke_invite(token: str, user=Depends(require_role(SUPREME))):
     return db.ok({"revoked": True})
 
 
+# ─── Notifications ─────────────────────────────────────────────────────────
+# The console's "send a notification" screen.
+#
+# A notification is one row per recipient (`notifications.user_id`) rather
+# than a single row with a NULL user: `/api/v1/notifications/my` filters on
+# `user_id`, so a global row would be invisible to everybody and could never
+# be marked read. Materialising the rows also buys per-person read state and
+# `on delete cascade` — an account that goes away takes its notices with it.
+#
+# Two ways to choose who hears from you:
+#   * an audience — a role/status filter resolved server-side, so the browser
+#     never has to hold the whole user table to address "every trainee";
+#   * `user_ids` — a hand-picked list, which wins over the audience. Exactly
+#     who you picked is who gets it, whatever their status.
+
+AUDIENCES = (
+    ("ALL", "Everyone", "Every approved account, whatever the role."),
+    ("ALPHA", "Trainees", "Approved trainees."),
+    ("MASTER", "Trainers", "Approved trainers."),
+    ("SUPREME", "Administrators", "Approved administrators."),
+    ("PENDING", "Awaiting approval", "Accounts still waiting for a decision."),
+)
+
+# Matches TYPE_META in public/src/notifications.js — anything else would land
+# on the recipient's bell with the generic "System" icon.
+NOTIFY_TYPES = ("SYSTEM", "RELEASE", "ACHIEVEMENT", "FEEDBACK", "WARNING")
+
+MAX_RECIPIENTS = 5000
+
+
+class NotifyIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    message: str = Field(default="", max_length=1000)
+    link: str = Field(default="", max_length=300)
+    # One source of truth for both the validation and the select options in
+    # the composer: the pattern is derived from the same tuples the handler
+    # reads, so a new audience cannot be added to one and forgotten in other.
+    type: str = Field(default="SYSTEM",
+                      pattern="^(" + "|".join(NOTIFY_TYPES) + ")$")
+    audience: str = Field(default="ALL",
+                          pattern="^(" + "|".join(a[0] for a in AUDIENCES) + ")$")
+    # Typed, so a malformed entry is a 422 naming the field rather than a
+    # stringified object quietly matching no one.
+    user_ids: list[str] = Field(default_factory=list)
+
+
+def _recipients(audience: str, user_ids: list) -> list[dict]:
+    cols = "id, name, email, role, status"
+    if user_ids:
+        ids = list(dict.fromkeys(u for u in user_ids if u))
+        rows, _ = db.select("users", cols, in_={"id": ids},
+                            limit=MAX_RECIPIENTS)
+        return rows
+    eq = {"status": "PENDING"} if audience == "PENDING" else {"status": "ACTIVE"}
+    if audience in ("ALPHA", "MASTER", "SUPREME"):
+        eq["role"] = audience
+    rows, _ = db.select("users", cols, eq=eq, limit=MAX_RECIPIENTS)
+    return rows
+
+
+@router.get("/notifications/audiences")
+def notification_audiences(user=Depends(require_role(SUPREME))):
+    """Reach of each audience, so the composer can say "this hits N people"
+    before anything is written."""
+    out = []
+    for key, label, hint in AUDIENCES:
+        if key == "ALL":
+            n = db.count("users", status="ACTIVE")
+        elif key == "PENDING":
+            n = db.count("users", status="PENDING")
+        else:
+            n = db.count("users", role=key, status="ACTIVE")
+        out.append({"key": key, "label": label, "hint": hint, "count": n})
+    return db.ok(out)
+
+
+@router.post("/notifications")
+def send_notification(payload: NotifyIn, user=Depends(require_role(SUPREME))):
+    """Fan a message out to an audience — or to the people you picked."""
+    title = (payload.title or "").strip()
+    message = (payload.message or "").strip()
+    if not title:
+        raise db.Rejected("A notification needs a title.")
+    if not message:
+        raise db.Rejected("A notification needs a message.")
+
+    link = (payload.link or "").strip()
+    if link and not (link.startswith(("/", "#/", "http://", "https://"))):
+        raise db.Rejected(
+            "The link must be a portal path such as /courses or an "
+            "http(s) address.")
+
+    ids = payload.user_ids or []
+    if len(ids) > MAX_RECIPIENTS:
+        raise db.Rejected(f"Pick at most {MAX_RECIPIENTS} people.")
+
+    recipients = _recipients(payload.audience, ids)
+    if not recipients:
+        raise db.Rejected("Nobody matched that audience — nothing was sent.")
+
+    target = "HAND_PICKED" if ids else payload.audience
+    rows = [{
+        "user_id": r["id"],
+        "type": payload.type,
+        "title": title,
+        "message": message,
+        "link": link or None,
+        "read": False,
+        "metadata": {"sent_by": user["uid"], "audience": target},
+    } for r in recipients]
+
+    sent = db.insert_many("notifications", rows)
+    db.audit(user["uid"], "admin.notify.send", "notification", "",
+             {"title": title, "type": payload.type, "audience": target,
+              "sent": sent, "link": link})
+    return db.ok({"sent": sent, "audience": target, "title": title,
+                  "type": payload.type})
+
+
 # ─── Audit ─────────────────────────────────────────────────────────────────
 @router.get("/audit")
 def audit_log(

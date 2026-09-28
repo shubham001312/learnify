@@ -5,11 +5,11 @@
 // have to re-read auth state or build navigation themselves.
 
 import { api, el, esc, getUser, setUser, getToken, clearToken, clearUser, toast }
-  from './utils.js?v=62';
-import { iconSvg } from './icons.js?v=62';
-import { logout } from './auth.js?v=62';
+  from './utils.js?v=63';
+import { iconSvg } from './icons.js?v=63';
+import { logout } from './auth.js?v=63';
 
-export const V = 'v=62';
+export const V = 'v=63';
 
 export const ROLE_LABEL = {
   ALPHA: 'Trainee (ALPHA)',

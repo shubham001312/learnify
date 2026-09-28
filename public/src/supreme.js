@@ -1,26 +1,27 @@
 // LEARNIFY — the administrator (SUPREME) console.
 // Routes: `/home` (render), `/admin/users`, `/admin/content`,
-//         `/admin/exams`, `/admin/audit`
+//         `/admin/exams`, `/admin/notifications`, `/admin/audit`
 //
 // The exam screen is where the six Supreme controls live:
 //   1 delete an exam · 2 watch live attempts · 3 end now
 //   4 extend / reopen the deadline · 5 void a trainee's attempt
 //   6 suspend an account
 
-import { api, esc, toast, el } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
+import { api, esc, toast, el } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
 import {
   openAppModal, closeAppModal, confirmAction, go,
-} from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
-import { embed as embedFeed } from './feed.js?v=62';
-import { barChart, donutChart, sparkline, emptyChart } from './charts.js?v=62';
+} from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
+import { embed as embedFeed } from './feed.js?v=63';
+import { barChart, donutChart, sparkline, emptyChart } from './charts.js?v=63';
 
 const SECTIONS = [
   ['#/admin/approvals', 'Approvals'],
   ['#/admin/content', 'Content queue'],
   ['#/admin/exams', 'Exams'],
   ['#/admin/users', 'Users'],
+  ['#/admin/notifications', 'Notifications'],
   ['#/admin/audit', 'Audit log'],
 ];
 
@@ -363,6 +364,7 @@ export async function render(root, ctx) {
   if (page === 'approvals') return approvals(root, ctx);
   if (page === 'content') return content(root, ctx);
   if (page === 'exams') return exams(root, ctx);
+  if (page === 'notifications') return notifications(root, ctx);
   if (page === 'audit') return audit(root, ctx);
   if (page) return notFound(root, page);
 
@@ -1227,6 +1229,428 @@ function showReopen(id, host) {
 function wireModalClose() {
   const body = el('app-modal-body');
   ui.click(body, '[data-close-btn]', closeAppModal);
+}
+
+// ═══ Notifications ═════════════════════════════════════════════════════════
+// Compose once, fan out. Two rules shape this screen:
+//
+//   * The bell and the feed are different channels. A feed post lands on
+//     everyone's home page; a notification is addressed, so it only ever
+//     reaches the people it was sent to. The panel says which is which.
+//   * Recipients are resolved on the server. The browser never holds the
+//     whole user table to say "every trainee" — it asks for audience sizes,
+//     then posts an audience key (or, for a handful of people, their ids).
+
+// Sentinel audience: the option that swaps the single select for a picker.
+const PICK = '__pick';
+
+// Mirrors TYPE_META in notifications.js — keep the two in step so the preview
+// shows exactly the icon and label the recipient will get.
+const NOTIFY_META = {
+  SYSTEM: { icon: 'bell', tone: 'info', label: 'System' },
+  ACHIEVEMENT: { icon: 'trophy', tone: 'ok', label: 'Achievement' },
+  RELEASE: { icon: 'send', tone: 'warn', label: 'Release' },
+  FEEDBACK: { icon: 'message', tone: 'info', label: 'Feedback' },
+  WARNING: { icon: 'ban', tone: 'bad', label: 'Warning' },
+};
+
+// Used until `/admin/notifications/audiences` answers, and afterwards to turn
+// an audience key back into a human label. Keys must match AUDIENCES in
+// backend/routes/admin.py.
+const AUDIENCE_META = [
+  ['ALL', 'Everyone', 'Every approved account, whatever the role.'],
+  ['ALPHA', 'Trainees', 'Approved trainees.'],
+  ['MASTER', 'Trainers', 'Approved trainers.'],
+  ['SUPREME', 'Administrators', 'Approved administrators.'],
+  ['PENDING', 'Awaiting approval', 'Accounts still waiting for a decision.'],
+];
+
+const notifyState = {
+  audience: 'ALL',
+  type: 'SYSTEM',
+  counts: {},        // audience key -> people it reaches
+  picked: new Map(), // user id -> account, while the audience is "choose people"
+};
+
+function audienceLabel(key) {
+  if (key === 'HAND_PICKED') return 'Chosen people';
+  const hit = AUDIENCE_META.find(([k]) => k === key);
+  return hit ? hit[1] : 'Everyone';
+}
+
+function audienceOptions() {
+  return AUDIENCE_META.map(([key, label]) => `<option value="${key}"${
+    notifyState.audience === key ? ' selected' : ''}>${esc(label)}</option>`).join('')
+    + `<option value="${PICK}"${notifyState.audience === PICK ? ' selected' : ''}>`
+    + 'Choose people…</option>';
+}
+
+function typeOptions() {
+  return Object.entries(NOTIFY_META).map(([key, m]) => `<option value="${key}"${
+    notifyState.type === key ? ' selected' : ''}>${esc(m.label)}</option>`).join('');
+}
+
+function composeForm() {
+  return `
+    <form class="stack tight" data-notify-form novalidate>
+      <div class="field">
+        <label for="nt-audience">Who gets this</label>
+        <select id="nt-audience" name="audience">${audienceOptions()}</select>
+        <div class="sm muted" data-reach style="margin-top:6px">Counting reach…</div>
+      </div>
+
+      <div data-picker${notifyState.audience === PICK ? '' : ' hidden'}>
+        <div class="field">
+          <label for="nt-search">Find people</label>
+          <input id="nt-search" type="search" data-search autocomplete="off"
+                 placeholder="Search a name or email…">
+        </div>
+        <div class="stack tight" data-results>${ui.loading('people')}</div>
+        <div class="stack tight mt" data-selected></div>
+      </div>
+
+      <div class="field">
+        <label for="nt-title">Title</label>
+        <input id="nt-title" name="title" maxlength="120" required
+               placeholder="Cybersecurity batch starts Monday">
+      </div>
+
+      <div class="field">
+        <label for="nt-message">Message</label>
+        <textarea id="nt-message" name="message" rows="4" maxlength="1000" required
+                  placeholder="What do they need to know? One or two sentences."></textarea>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label for="nt-link">Open link (optional)</label>
+          <input id="nt-link" name="link" maxlength="300" placeholder="/courses">
+        </div>
+        <div class="field">
+          <label for="nt-type">Kind</label>
+          <select id="nt-type" name="type">${typeOptions()}</select>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <label>How it will look</label>
+        <div data-preview style="pointer-events:none"></div>
+      </div>
+
+      <div class="auth-err" data-err role="alert"></div>
+
+      <div class="row gap" style="justify-content:space-between;align-items:center">
+        <span class="sm muted" data-reach-foot></span>
+        <button class="btn primary sm" type="submit">Send notification</button>
+      </div>
+    </form>`;
+}
+
+export async function notifications(root, ctx) {
+  root.innerHTML = ui.head({
+    title: 'Send a notification',
+    sub: 'Addressed to the people you choose — it lands in their bell, not on '
+       + 'everyone’s home page.',
+    actions: '<a class="btn ghost sm" href="#/notifications">Open your inbox</a>',
+  })
+    + adminNav('#/admin/notifications')
+    + `<div class="two-col wide-left mb">
+        <div class="card">
+          <div class="card-head"><h3>Compose</h3></div>
+          ${composeForm()}
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h3>Recently sent</h3>
+              <a class="link" href="#/admin/audit">Audit log &rarr;</a></div>
+            <div data-recent>${ui.loading('recent sends')}</div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Notice, or announcement?</h3></div>
+            <p class="sm muted" style="margin:0 0 8px">
+              A <b>notification</b> goes to one bell at a time. Use it when
+              somebody has to act on what you are saying.
+            </p>
+            <p class="sm muted" style="margin:0">
+              An <b>announcement</b> is a feed post: public, permanent, and on
+              every home page.
+            </p>
+            <div class="row gap mt">
+              <a class="btn ghost sm" href="#/feed">Write an announcement</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+  const form = root.querySelector('[data-notify-form]');
+  const errBox = root.querySelector('[data-err]');
+  const results = root.querySelector('[data-results]');
+  const selected = root.querySelector('[data-selected]');
+  const picker = root.querySelector('[data-picker]');
+
+  let searchTimer = 0;
+  let disposed = false;
+
+  const values = () => ui.formValues(form);
+
+  const reachOf = () => {
+    if (notifyState.audience === PICK) return notifyState.picked.size;
+    const n = notifyState.counts[notifyState.audience];
+    return typeof n === 'number' ? n : null;
+  };
+
+  function paintReach() {
+    const n = reachOf();
+    const box = root.querySelector('[data-reach]');
+    const foot = root.querySelector('[data-reach-foot]');
+    const send = form.querySelector('button[type=submit]');
+    if (box) {
+      if (notifyState.audience === PICK) {
+        box.textContent = n
+          ? `${n} ${n === 1 ? 'person' : 'people'} chosen.`
+          : 'Pick at least one person below.';
+      } else if (n === null) {
+        box.textContent = 'Counting reach…';
+      } else {
+        const hit = AUDIENCE_META.find(([k]) => k === notifyState.audience);
+        box.textContent = `${n} ${n === 1 ? 'person' : 'people'} · ${hit ? hit[2] : ''}`;
+      }
+    }
+    if (foot) {
+      foot.textContent = n ? `Reaches ${n} ${n === 1 ? 'person' : 'people'}`
+        : 'Nobody to send to yet';
+    }
+    // A send with nobody behind it is the one mistake worth blocking early.
+    if (send) send.disabled = n === 0;
+  }
+
+  function paintPreview() {
+    const host = root.querySelector('[data-preview]');
+    if (!host) return;
+    const v = values();
+    const title = (v.title || '').trim();
+    const message = (v.message || '').trim();
+    const raw = (v.link || '').trim();
+    const href = raw.replace(/^#/, '');
+    const meta = NOTIFY_META[v.type] || NOTIFY_META.SYSTEM;
+    host.innerHTML = `
+      <div class="notif-row is-unread">
+        <span class="notif-ico">${iconSvg(meta.icon)}</span>
+        <div class="notif-main">
+          <div class="row gap">
+            <b>${title ? esc(title) : '<span class="muted">Your title</span>'}</b>
+            <span class="tag info">New</span>
+          </div>
+          ${message ? `<p>${esc(message)}</p>`
+            : '<p class="muted">The message you type will appear here.</p>'}
+          <div class="sm muted">just now <span class="tag mute">${esc(meta.label)}</span></div>
+        </div>
+        <div class="notif-side">
+          ${href ? `<a class="btn ghost sm" href="#${esc(href)}">Open</a>` : ''}
+          <button class="btn ghost sm" type="button">Mark read</button>
+        </div>
+      </div>`;
+  }
+
+  function paintSelected() {
+    if (!selected) return;
+    const list = [...notifyState.picked.values()];
+    if (!list.length) {
+      selected.innerHTML = '<p class="sm muted">Nobody picked yet.</p>';
+      return;
+    }
+    selected.innerHTML = `<div class="sm muted">${list.length} selected</div>`
+      + list.map((u) => `
+        <div class="row gap" style="align-items:center;justify-content:space-between">
+          <span class="sm" style="min-width:0">
+            <b>${esc(u.name || u.email)}</b>
+            <span class="muted">${esc(u.email || '')}</span>
+          </span>
+          <button type="button" class="btn ghost sm" data-rm="${esc(u.id)}">Remove</button>
+        </div>`).join('');
+    ui.click(selected, '[data-rm]', (e, btn) => {
+      notifyState.picked.delete(btn.dataset.rm);
+      paintSelected();
+      paintReach();
+      search((root.querySelector('[data-search]') || {}).value || '');
+    });
+  }
+
+  async function search(q) {
+    if (!results) return;
+    results.innerHTML = ui.loading('people');
+    try {
+      const p = new URLSearchParams({ limit: '20' });
+      if (q) p.set('q', q);
+      const rows = ui.data(await api('/v1/admin/users?' + p.toString())) || [];
+      if (disposed) return;
+      if (!rows.length) {
+        results.innerHTML = '<p class="sm muted">No accounts match that search.</p>';
+        return;
+      }
+      results.innerHTML = rows.map((u) => {
+        const on = notifyState.picked.has(u.id);
+        return `
+          <div class="row gap" style="align-items:center;justify-content:space-between">
+            <span class="sm" style="min-width:0">
+              <b>${esc(u.name || u.email)}</b>
+              <span class="muted">${esc(u.email || '')} · ${esc(u.role || 'ALPHA')}</span>
+            </span>
+            <button type="button" class="btn ${on ? 'primary' : 'ghost'} sm"
+                    data-add="${esc(u.id)}">${on ? 'Added' : 'Add'}</button>
+          </div>`;
+      }).join('');
+      ui.click(results, '[data-add]', (e, btn) => {
+        const u = rows.find((r) => r.id === btn.dataset.add);
+        if (!u) return;
+        if (notifyState.picked.has(u.id)) notifyState.picked.delete(u.id);
+        else notifyState.picked.set(u.id, u);
+        paintSelected();
+        paintReach();
+        search(q);
+      });
+    } catch (err) {
+      if (!disposed) results.innerHTML = ui.errorBlock(err.message);
+    }
+  }
+
+  async function loadAudiences() {
+    try {
+      const rows = ui.data(await api('/v1/admin/notifications/audiences')) || [];
+      if (disposed) return;
+      rows.forEach((r) => { notifyState.counts[r.key] = r.count; });
+      const sel = form.elements.audience;
+      if (sel) {
+        Array.from(sel.options).forEach((o) => {
+          if (o.value === PICK) return;
+          const hit = AUDIENCE_META.find(([k]) => k === o.value);
+          const base = hit ? hit[1] : o.textContent;
+          const n = notifyState.counts[o.value];
+          o.textContent = typeof n === 'number' ? `${base} (${n})` : base;
+        });
+      }
+      paintReach();
+    } catch (err) {
+      // Counts are advisory — the send path refuses an empty audience itself.
+    }
+  }
+
+  async function loadRecent(host) {
+    host.innerHTML = ui.loading('recent sends');
+    try {
+      const res = await api('/v1/admin/audit?action=admin.notify.send&limit=8');
+      const rows = ui.data(res) || [];
+      if (disposed) return;
+      if (!rows.length) {
+        host.innerHTML = '<p class="sm muted">Nothing sent from this console yet. '
+          + 'Every send is written to the audit log.</p>';
+        return;
+      }
+      host.innerHTML = `<div class="stack tight">${rows.map((r) => {
+        const m = r.metadata || {};
+        const n = Number(m.sent || 0);
+        return `
+          <div class="row gap" style="align-items:flex-start;justify-content:space-between">
+            <span style="min-width:0">
+              <b class="sm">${esc(m.title || 'Notification')}</b>
+              <div class="sm muted">${esc(audienceLabel(m.audience))} · ${n} ${
+                n === 1 ? 'person' : 'people'} · ${esc(r.actor_name || 'system')}</div>
+            </span>
+            <span class="sm muted" style="white-space:nowrap">${
+              esc(ui.relTime(r.created_at))}</span>
+          </div>`;
+      }).join('')}</div>`;
+    } catch (err) {
+      if (!disposed) host.innerHTML = ui.errorBlock(err.message);
+    }
+  }
+
+  form.addEventListener('input', () => { paintPreview(); });
+  form.addEventListener('change', (e) => {
+    if (e.target.name === 'audience') {
+      notifyState.audience = e.target.value;
+      if (picker) picker.hidden = notifyState.audience !== PICK;
+      if (notifyState.audience === PICK) {
+        paintSelected();
+        search((root.querySelector('[data-search]') || {}).value || '');
+      }
+      paintReach();
+    }
+    if (e.target.name === 'type') notifyState.type = e.target.value;
+    paintPreview();
+  });
+
+  const searchBox = root.querySelector('[data-search]');
+  searchBox.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => search(searchBox.value.trim()), 250);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errBox.textContent = '';
+
+    const v = values();
+    const title = (v.title || '').trim();
+    const message = (v.message || '').trim();
+    if (!title) { errBox.textContent = 'Give it a title.'; return; }
+    if (!message) { errBox.textContent = 'Write the message.'; return; }
+
+    const ids = notifyState.audience === PICK ? [...notifyState.picked.keys()] : [];
+    const n = reachOf();
+    if (!n) {
+      errBox.textContent = notifyState.audience === PICK
+        ? 'Pick at least one person.' : 'That audience is empty right now.';
+      return;
+    }
+
+    const many = n === 1 ? 'person' : 'people';
+    const goAhead = await confirmAction(
+      `Send to ${n} ${many}?`,
+      `“${title}” will appear in the bell of ${n} ${many}. This cannot be `
+      + 'taken back once it is sent.', 'Send');
+    if (!goAhead) return;
+
+    const btn = form.querySelector('button[type=submit]');
+    try {
+      await ui.busy(btn, 'Sending…', async () => {
+        const sent = ui.data(await api('/v1/admin/notifications', {
+          method: 'POST',
+          body: JSON.stringify({
+            title, message,
+            link: (v.link || '').trim(),
+            type: notifyState.type,
+            audience: notifyState.audience === PICK ? 'ALL' : notifyState.audience,
+            user_ids: ids,
+          }),
+        })) || {};
+        const who = Number(sent.sent) || n;
+        toast(`Sent to ${who} ${who === 1 ? 'person' : 'people'}.`);
+      });
+      // Keep the audience and the people picked: a follow-up to the same
+      // group is the common case, and re-picking it is not.
+      form.elements.title.value = '';
+      form.elements.message.value = '';
+      form.elements.link.value = '';
+      paintPreview();
+      loadRecent(root.querySelector('[data-recent]'));
+    } catch (err) {
+      errBox.textContent = (err && err.message)
+        ? err.message : 'Could not send that notification.';
+    }
+  });
+
+  paintPreview();
+  paintReach();
+  if (notifyState.audience === PICK) { paintSelected(); search(''); }
+  loadAudiences();
+  loadRecent(root.querySelector('[data-recent]'));
+
+  return {
+    destroy: () => { disposed = true; clearTimeout(searchTimer); },
+  };
 }
 
 // ═══ Audit log ═════════════════════════════════════════════════════════════

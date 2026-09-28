@@ -47,6 +47,9 @@ RULES = {
     "/api/auth/change-password": ("RATE_LIMIT_CHANGE_PASSWORD", 5, 60, "change-password"),
     "/api/v1/ai/generate-questions": ("RATE_LIMIT_AI", 10, 60, "ai"),
     "/api/v1/ai/personalise-report": ("RATE_LIMIT_AI", 10, 60, "ai"),
+    # Admin only, but one press writes a row per recipient: a stuck button or
+    # a runaway loop would still put thousands of rows in front of everybody.
+    "/api/v1/admin/notifications": ("RATE_LIMIT_NOTIFY", 20, 60, "notify"),
 }
 
 _LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})

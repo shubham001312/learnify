@@ -5,10 +5,10 @@
 // The summary endpoint already reports the caller's own rating, so one fetch
 // drives the prefill, the average, the distribution and the comment list.
 
-import { api, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 // Only one view is mounted at a time, so the listener set can be module state:
 // it is released before every (re)render and on teardown.

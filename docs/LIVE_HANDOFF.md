@@ -88,14 +88,17 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
    python scripts/check_frontend.py    17 route modules, 25 handler exports,
                                        imports resolve, 59 icons, 122 frontend
-                                       API paths matched against 168 contract ops
+                                       API paths matched against 170 contract ops
    python scripts/verify_routes.py     mounted routes vs docs/API.md, and the
                                        deleted surface must still be absent
    python scripts/e2e_test.py          full three-role flow against a live
                                        server (default http://127.0.0.1:8021),
                                        including invite/pending/approval; it
                                        ends with a teardown that fails the run
-                                       if any e2e.* account survives
+                                       if any e2e.* account survives. It also
+                                       sweeps what a run broadcast — admin
+                                       notices and achievement feed posts —
+                                       which owner-based deletes cannot reach.
    python scripts/test_ratelimit.py    30 assertions: budget, 429 contract,
                                        spoofing, per-address isolation
    python scripts/dump_api.py          regenerate docs/API.md
@@ -112,8 +115,11 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 5. FRONTEND CONVENTIONS
 --------------------------------------------------------------------------------
-   * No build step. public/index.html links styles/modules/*.css at ?v=62;
-     JS imports each other at ?v=62. Bump both when deploying.
+   * No build step. public/index.html links styles/modules/*.css at ?v=63;
+     JS imports each other at ?v=63 (app.js exports V = 'v=63', and every
+     dynamic route import is `?${V}`). Bump all three — and the service-worker
+     cache name in public/sw.js — when deploying, or a returning browser keeps
+     the old module. The current pair is ?v=63 / learnify-v64.
    * One module per route in public/src/, matching the export contract
      documented at the top of scripts/check_frontend.py.
    * Design tokens in styles.css :root. Inline SVG built from strings cannot
@@ -150,15 +156,18 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 7. KNOWN GAPS
 --------------------------------------------------------------------------------
-   * Rate limiting covers auth plus the two Groq-spending endpoints:
-     login 15/min, register 10/min, change-password 5/min, AI 10/min
+   * Rate limiting covers auth, the two Groq-spending endpoints and the
+     admin notification blast: login 15/min, register 10/min,
+     change-password 5/min, AI 10/min, notify 20/min
      (env-overridable: RATE_LIMIT_LOGIN / RATE_LIMIT_REGISTER /
-     RATE_LIMIT_CHANGE_PASSWORD / RATE_LIMIT_AI; 0 disables one endpoint,
+     RATE_LIMIT_CHANGE_PASSWORD / RATE_LIMIT_AI / RATE_LIMIT_NOTIFY;
+     0 disables one endpoint,
      RATE_LIMIT_DISABLED=true disables all).
      Auth buckets key on client address — those requests carry no token yet.
-     AI buckets key on the bearer token, so users behind one office NAT do
-     not share a budget, and both AI routes share a single per-account
-     bucket so total Groq spend is capped rather than doubled per route.
+     AI and notify buckets key on the bearer token, so users behind one
+     office NAT do not share a budget, and both AI routes share a single
+     per-account bucket so total Groq spend is capped rather than doubled
+     per route.
      Limits are in-process: running more than one worker makes each worker's
      window independent. X-Forwarded-For is trusted only from a loopback peer.
    * No automated tests beyond scripts/e2e_test.py and

@@ -11,10 +11,10 @@
 // trainee without a Supreme release, and every piece of server text goes
 // through `esc()` on its way into HTML.
 
-import { api, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 // ─── Shared bits ────────────────────────────────────────────────────────────
 

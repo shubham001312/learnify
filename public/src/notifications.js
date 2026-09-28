@@ -6,10 +6,10 @@
 // individual (`PATCH …/read`) so reading one item does not silently clear
 // every other unread one the way `mark-all-read` would.
 
-import { api, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { syncBadge, confirmAction } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { syncBadge, confirmAction } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 // Server sends `type`; nothing outside this file needs to know the mapping.
 const TYPE_META = {
@@ -122,7 +122,11 @@ function paint(host) {
 
 function row(n) {
   const meta = TYPE_META[n.type] || TYPE_META.SYSTEM;
-  const link = n.link ? String(n.link).replace(/^#/, '') : '';
+  // Portal paths become hash routes; a full address is opened as-is. The
+  // composer accepts both, so honour both here rather than prefixing an
+  // `https://` with `#`.
+  const raw = n.link ? String(n.link) : '';
+  const href = /^https?:\/\//i.test(raw) ? raw : '#' + raw.replace(/^#/, '');
   return `
     <div class="notif-row${n.read ? '' : ' is-unread'}" data-id="${esc(n.id)}">
       <span class="notif-ico">${iconSvg(meta.icon)}</span>
@@ -136,7 +140,7 @@ function row(n) {
           <span class="tag mute">${esc(meta.label)}</span></div>
       </div>
       <div class="notif-side">
-        ${link ? `<a class="btn ghost sm" href="#${esc(link)}">Open</a>` : ''}
+        ${href ? `<a class="btn ghost sm" href="${esc(href)}">Open</a>` : ''}
         ${n.read ? '' : '<button class="btn ghost sm" data-read>Mark read</button>'}
       </div>
     </div>`;

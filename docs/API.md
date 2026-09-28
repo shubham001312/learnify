@@ -1,7 +1,7 @@
 # Learnify API
 
 Base: `http://127.0.0.1:8021` — success envelope `{success, data, error}`; auth routes return `{user, session}` directly.
-168 operations across 14 tags.
+170 operations across 14 tags.
 
 ## ?
 
@@ -68,6 +68,13 @@ Base: `http://127.0.0.1:8021` — success envelope `{success, data, error}`; aut
 ### `DELETE /api/v1/admin/invites/{token}`
 - Revoke Invite
 - path: `token`
+
+### `POST /api/v1/admin/notifications`
+- Send Notification
+- body: `title:string`, `message?:string`, `link?:string`, `type?:string`, `audience?:string`, `user_ids?:array[string]`
+
+### `GET /api/v1/admin/notifications/audiences`
+- Notification Audiences
 
 ### `GET /api/v1/admin/pending`
 - Pending Users

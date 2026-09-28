@@ -188,6 +188,104 @@ def _env(name):
         return ""
 
 
+def _delete(client, table, column, values, problems):
+    """Best-effort delete of `column in values`; never aborts the sweep."""
+    if not values:
+        return
+    try:
+        client.table(table).delete().in_(column, values).execute()
+    except Exception as exc:
+        problems.append(f"delete {table}.{column}: {exc}")
+
+
+def _sweep_broadcasts(client, marks, problems):
+    """Drop rows this run broadcast at people who are *not* going away.
+
+    Submitting a course notifies every Administrator, and earning a
+    certificate publishes to the feed. Both land on accounts the sweep
+    deliberately keeps, so selecting by owner misses them — leaving a real
+    Administrator reading notices about content that no longer exists. Match
+    on the content instead: the run's stamp plus the ids of the assessments,
+    questionnaires, courses and library items it created.
+
+    Only title/body/link/metadata are matched, never timestamps — the
+    microseconds in `created_at` could contain the six-digit stamp by
+    accident and take a stranger's row with it.
+    """
+    if not marks:
+        return
+    for table in ("notifications", "home_posts"):
+        try:
+            rows = client.table(table).select("*").limit(5000).execute().data
+        except Exception as exc:
+            problems.append(f"scan {table}: {exc}")
+            continue
+        victims = []
+        for r in rows:
+            if not r.get("id"):
+                continue
+            blob = " ".join(str(r.get(f) or "") for f in
+                            ("title", "body", "message", "link", "metadata"))
+            if any(m in blob for m in marks):
+                victims.append(r["id"])
+        if victims:
+            _delete(client, table, "id", victims, problems)
+            print(f"    teardown: swept {len(victims)} {table} row(s) "
+                  "this run broadcast")
+
+
+# A notification that points at content has to point at content that is still
+# there. These are the only three shapes the product emits.
+_DEAD_LINKS = {"courses/": "courses",
+               "assessments/": "assessments",
+               "questionnaires/": "questionnaires"}
+
+
+def _sweep_dead_notices(client, problems):
+    """Remove notices and feed posts whose target has already been deleted.
+
+    Runs unconditionally, so residue from a run interrupted before its own
+    sweep is still cleared. Only a link into one of the three content tables
+    is ever judged — `/home`, `#/feed` and full addresses are left alone,
+    because they do not name a row that can go missing.
+    """
+    for table in ("notifications", "home_posts"):
+        try:
+            rows = client.table(table).select("id, link") \
+                         .limit(5000).execute().data
+        except Exception as exc:
+            problems.append(f"scan {table}: {exc}")
+            continue
+
+        wanted: dict = {}
+        for r in rows:
+            link = str(r.get("link") or "").split("?")[0].lstrip("#")
+            parts = link.split("/")        # "/courses/<id>" -> ["", "courses", "<id>"]
+            if len(parts) < 3:
+                continue
+            target = _DEAD_LINKS.get(parts[1] + "/")
+            if target and parts[2]:
+                wanted.setdefault(target, {}) \
+                     .setdefault(parts[2], []).append(r["id"])
+
+        dead: list = []
+        for target, by_id in wanted.items():
+            try:
+                found = client.table(target).select("id").in_(
+                    "id", list(by_id)).limit(5000).execute().data
+                alive = {f["id"] for f in found}
+            except Exception as exc:
+                problems.append(f"recheck {target}: {exc}")
+                continue
+            dead += [rid for key, rids in by_id.items() if key not in alive
+                     for rid in rids]
+
+        if dead:
+            _delete(client, table, "id", dead, problems)
+            print(f"    teardown: swept {len(dead)} {table} row(s) pointing at "
+                  "content that no longer exists")
+
+
 def teardown_run():
     """Undo everything the run wrote, so re-runs stop piling up.
 
@@ -247,6 +345,11 @@ def teardown_run():
     # earlier runs abandoned before teardown existed.
     uids = sorted({u["id"] for u in everyone
                    if str(u.get("email") or "").lower().startswith("e2e.")})
+
+    # Unconditional: residue from an interrupted run is cleared even when
+    # there is no account left to sweep.
+    _sweep_dead_notices(client, problems)
+
     if not uids:
         print("    teardown: no e2e accounts left over")
         return
@@ -257,6 +360,12 @@ def teardown_run():
     # never merely *ended* by an e2e admin, which only gets nulled below.
     attempt_ids = (ids_of("assessment_attempts", "assessment_id", asm_ids)
                    | ids_of("assessment_attempts", "trainee_id", uids))
+    # Taken before the content is dropped below: these ids are how the
+    # broadcasts it triggered are recognised in sweep_broadcasts().
+    course_ids = ids_of("courses", "trainer_id", uids)
+    lib_ids = ids_of("library_items", "trainer_id", uids)
+    marks = [str(m) for m in ([STAMP] + sorted(asm_ids) + sorted(qn_ids)
+                              + sorted(course_ids) + sorted(lib_ids)) if m]
 
     # Results first: they hang off attempts, and attempts point at users.
     drop("assessment_responses", "attempt_id", attempt_ids)
@@ -296,6 +405,7 @@ def teardown_run():
     drop("assessments", "trainer_id", uids)
     drop("courses", "trainer_id", uids)
     drop("home_posts", "published_by", uids)
+    _sweep_broadcasts(client, marks, problems)
 
     # References that survive on rows we keep. Nulling is the whole point:
     # a real trainer's course released by a test admin must stay, just
@@ -1022,6 +1132,86 @@ step("ALPHA creating library item -> 403",
 
 llist = as_list(G("/api/v1/library", role="ALPHA"))
 print(f"    library visible to ALPHA: {len(llist)}")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 17. ADMIN NOTIFICATIONS — the console's compose-and-send screen.
+#
+# Two things have to hold: the audience sizes the composer counts its reach
+# from must be real numbers, and a send must reach exactly the bells it was
+# addressed to. A fan-out that leaks to the whole database is the bug this
+# section exists to catch, so the negative case is checked as hard as the
+# positive one.
+print("\n══ 17. ADMIN NOTIFICATIONS ══════════════════════════════════════")
+
+aud = G("/api/v1/admin/notifications/audiences", role="SUPREME")
+aud_list = aud if isinstance(aud, list) else []
+print("    " + (", ".join(
+    f"{a.get('key')}={a.get('count')}" for a in aud_list if isinstance(a, dict))
+    or "no audiences returned"))
+
+keys = {a.get("key") for a in aud_list if isinstance(a, dict)}
+missing = {"ALL", "ALPHA", "MASTER", "SUPREME", "PENDING"} - keys
+if missing:
+    FAILURES.append(f"audience sizes missing {sorted(missing)}")
+if not all(isinstance(a.get("count"), int) for a in aud_list if isinstance(a, dict)):
+    FAILURES.append("an audience reported a non-integer reach")
+
+step("MASTER asking for audience sizes -> 403",
+     raw("GET", "/api/v1/admin/notifications/audiences", role="MASTER"), 403)
+
+TITLE = f"e2e notice {STAMP}"
+sent = P("/api/v1/admin/notifications",
+         {"title": TITLE, "message": "Addressed to exactly one bell.",
+          "link": "/courses", "type": "RELEASE",
+          "audience": "ALL", "user_ids": [UIDS["ALPHA"]]},
+         role="SUPREME", expect=200, key="sent")
+print(f"    hand-picked send -> {sent.get('sent')} row(s)")
+if sent.get("sent") != 1:
+    FAILURES.append(f"hand-picked send wrote {sent.get('sent')} rows, wanted 1")
+
+mine = as_list((G("/api/v1/notifications/my", role="ALPHA") or {}).get("items"))
+hits = [n for n in mine if n.get("title") == TITLE]
+print(f"    in the trainee's bell: {len(hits)}")
+if len(hits) != 1:
+    FAILURES.append(f"trainee's bell holds {len(hits)} copies, wanted 1")
+elif hits[0].get("link") not in ("/courses", "#/courses"):
+    FAILURES.append(f"notification link came back as {hits[0].get('link')!r}")
+
+theirs = as_list((G("/api/v1/notifications/my", role="MASTER") or {}).get("items"))
+if [n for n in theirs if n.get("title") == TITLE]:
+    FAILURES.append("a hand-picked notification leaked to another account")
+    print("    [FAIL] it also reached the trainer")
+else:
+    print("    [PASS] nobody else received it")
+
+# Refusals: nothing matched, nothing malformed, nobody else may send.
+step("send to a user who does not exist -> 400",
+     raw("POST", "/api/v1/admin/notifications",
+         {"title": "Nobody", "message": "Nothing to see.",
+          "audience": "ALL",
+          "user_ids": ["00000000-0000-4000-8000-000000000000"]},
+         role="SUPREME"), 400)
+
+step("notification with no title -> 422",
+     raw("POST", "/api/v1/admin/notifications",
+         {"message": "no title at all"}, role="SUPREME"), 422)
+
+step("notification with an unknown kind -> 422",
+     raw("POST", "/api/v1/admin/notifications",
+         {"title": "x", "message": "y", "type": "SPAM"}, role="SUPREME"), 422)
+
+step("notification with an off-site link -> 400",
+     raw("POST", "/api/v1/admin/notifications",
+         {"title": "x", "message": "y", "link": "javascript:alert(1)"},
+         role="SUPREME"), 400)
+
+step("MASTER sending a notification -> 403",
+     raw("POST", "/api/v1/admin/notifications",
+         {"title": "nope", "message": "nope"}, role="MASTER"), 403)
+
+step("unauthenticated send -> 401",
+     raw("POST", "/api/v1/admin/notifications",
+         {"title": "nope", "message": "nope"}), 401)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Teardown before the verdict: this suite shares a database with production,

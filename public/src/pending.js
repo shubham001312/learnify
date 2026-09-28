@@ -7,10 +7,10 @@
 // backend/middleware/rbac.py::_refuse_if_not_active). The screen's job is to
 // say that plainly instead of looking like a dashboard that has broken.
 
-import { api, esc, toast, setUser } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { currentUser, bindSignOut, go } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast, setUser } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { currentUser, bindSignOut, go } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 const ROLE_NAME = { ALPHA: 'Trainee', MASTER: 'Trainer', SUPREME: 'Administrator' };
 

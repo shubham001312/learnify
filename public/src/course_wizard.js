@@ -15,11 +15,11 @@
 // repaint, the delegated listeners are collected in `offs`, and the outline
 // preview modal opened by this view is closed on the way out.
 
-import { api, apiForm, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
-import { ART_KEYS, artSvg, artKeyFor, coverHtml } from './art.js?v=62';
+import { api, apiForm, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
+import { ART_KEYS, artSvg, artKeyFor, coverHtml } from './art.js?v=63';
 
 const STEPS = [
   { n: 1, key: 's1', title: 'Basics', hint: 'Title, subject, level' },

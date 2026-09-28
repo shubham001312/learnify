@@ -7,7 +7,7 @@
 // The same drawing is reused everywhere a cover is asked for, which keeps the
 // catalogue reading as one set of illustrations rather than clip art.
 //
-//   import { coverHtml } from './art.js?v=62';
+//   import { coverHtml } from './art.js?v=63';
 //   root.insertAdjacentHTML('afterbegin',
 //     coverHtml(c.cover_image_url, { subject: c.subject_name, cls: 'cc-cover' }));
 //
@@ -15,7 +15,7 @@
 // references, no image elements, no CSS imports — so it scales from a 120px
 // picker tile to a full-width hero without extra work.
 
-import { esc } from './utils.js?v=62';
+import { esc } from './utils.js?v=63';
 
 // ─── Palette ───────────────────────────────────────────────────────────────
 // TK mirrors the design tokens in styles.css `:root`. Inline SVG handed out as

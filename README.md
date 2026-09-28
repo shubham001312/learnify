@@ -77,6 +77,10 @@ the navigation.
 - Admin console — dashboards, suspension, audit log, **approval queue**
   (pending sign-ups → approve/reject) and **administrator invites**
   (mint, copy link, revoke)
+- **Send a notification** — compose once and fan out to everyone, one role
+  (trainees / trainers / administrators / the approval queue) or a
+  hand-picked list, with the recipient count and a live preview before it
+  goes. Every send is written to the audit log.
 
 ## Run locally
 
@@ -116,7 +120,7 @@ public/
   styles/modules/      per-feature CSS (art, wizard, charts, courses, …)
   assets/              logo, PWA icons, og-cover
 docs/
-  API.md               generated contract — 168 operations
+  API.md               generated contract — 170 operations
   LIVE_HANDOFF.md      run / verify / deploy notes
 scripts/               checks, schema, seeding, image generation, e2e
 ```

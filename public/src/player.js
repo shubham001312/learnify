@@ -12,10 +12,10 @@
 // Both return `{ destroy }`: the player holds a progress throttle and native
 // media listeners, the runner holds a countdown and an autosave interval.
 
-import { api, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { go, confirmAction, currentUser } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { go, confirmAction, currentUser } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 const KIND_ICON = { VIDEO: 'video', READING: 'file', LINK: 'link', TEST: 'quiz' };
 const KIND_LABEL = { VIDEO: 'Video', READING: 'Reading', LINK: 'Link', TEST: 'Test' };

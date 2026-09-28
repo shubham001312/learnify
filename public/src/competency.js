@@ -9,10 +9,10 @@
 // `ui.data()`, render with `ui.*`, bind through `ui.click(root, …)`, and return
 // `{ destroy }` so the delegated listeners are released on route teardown.
 
-import { api, esc, toast } from './utils.js?v=62';
-import * as ui from './ui.js?v=62';
-import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=62';
-import { iconSvg } from './icons.js?v=62';
+import { api, esc, toast } from './utils.js?v=63';
+import * as ui from './ui.js?v=63';
+import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=63';
+import { iconSvg } from './icons.js?v=63';
 
 const HUB_SUB = {
   ALPHA: 'Pick a subject to see the trainers ranked for it — with the reasoning printed under every result.',

@@ -1,9 +1,9 @@
 // Sign-in and registration screens — one pair per role.
 // Route: /{alpha|master|supreme}/{login|signup}
 
-import { esc, toast } from './utils.js?v=62';
-import { login, register, homeFor, isPending } from './auth.js?v=62';
-import { go, ROLE_LABEL } from './app.js?v=62';
+import { esc, toast } from './utils.js?v=63';
+import { login, register, homeFor, isPending } from './auth.js?v=63';
+import { go, ROLE_LABEL } from './app.js?v=63';
 
 // The Administrator sign-up is invitation-only, so the token travels in the
 // URL (`#/supreme/signup?invite=…`) of the link an Administrator shared.
