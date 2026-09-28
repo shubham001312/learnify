@@ -7,14 +7,14 @@
 //   4 extend / reopen the deadline · 5 void a trainee's attempt
 //   6 suspend an account
 
-import { api, esc, toast, el } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
+import { api, esc, toast, el } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
 import {
   openAppModal, closeAppModal, confirmAction, go,
-} from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
-import { embed as embedFeed } from './feed.js?v=63';
-import { barChart, donutChart, sparkline, emptyChart } from './charts.js?v=63';
+} from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
+import { embed as embedFeed } from './feed.js?v=64';
+import { barChart, donutChart, sparkline, emptyChart } from './charts.js?v=64';
 
 const SECTIONS = [
   ['#/admin/approvals', 'Approvals'],
@@ -45,8 +45,9 @@ function notFound(root, page) {
 
 // ═══ Approvals ═════════════════════════════════════════════════════════════
 // Two gates live on this screen:
-//   * Trainee and Trainer sign-ups land in PENDING and can reach nothing but
-//     the waiting screen until one of these buttons is pressed.
+//   * Trainer sign-ups land in PENDING and can reach nothing but the waiting
+//     screen until one of these buttons is pressed. Trainees are ACTIVE on
+//     registration, so they never appear here.
 //   * Creating an Administrator is never a public act — the only way to make
 //     one is to mint a token here and share
 //     `#/supreme/signup?invite=<token>`.
@@ -97,8 +98,9 @@ async function loadPending(host) {
     if (!rows.length) {
       host.innerHTML = ui.blank({
         title: 'Nothing waiting',
-        body: 'Every account that has registered has had a decision. '
-            + 'New sign-ups appear here the moment they are created.',
+        body: 'Every trainer application has had a decision. New trainer '
+            + 'sign-ups appear here the moment they are created — trainees '
+            + 'and invited administrators never queue.',
       });
       return;
     }

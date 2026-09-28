@@ -6,11 +6,11 @@
 // single section below; the feed is shared with the other dashboards via
 // feed.embed().
 
-import { api, esc } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { currentUser } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
-import { embed as embedFeed } from './feed.js?v=63';
+import { api, esc } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { currentUser } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
+import { embed as embedFeed } from './feed.js?v=64';
 
 export async function render(root, ctx) {
   const user = currentUser();

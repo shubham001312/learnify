@@ -24,7 +24,7 @@ reporting. Single codebase, three roles, no build step.
 |---|---|---|
 | **ALPHA** | Trainee | Enrol, watch lessons, sit assessments, read reports — sees every published course |
 | **MASTER** | Trainer | Build courses through the 5-step wizard, manage library, draft AI questionnaires |
-| **SUPREME** | Administrator | Publish/unpublish courses, feed posts, people, dashboards, audit — plus the Approvals console: approve or reject sign-ups and mint administrator invites |
+| **SUPREME** | Administrator | Publish/unpublish courses, feed posts, people, dashboards, audit — plus the Approvals console: approve or reject trainer sign-ups and mint administrator invites |
 
 **Administrator sign-up is invite-only.** There is no hard-coded bootstrap
 account and no public path to one: an existing SUPREME mints an invite from the
@@ -40,12 +40,12 @@ administrators once the portal is running.
 Signup itself is deliberately minimal — `email`, `password`, `name`, `role`.
 Qualifications, bio and avatar are completed later on the profile page.
 
-**Trainees and trainers are gated too.** They can register, but the account
-lands as `PENDING` and every gated route refuses it with
-`ACCOUNT_PENDING_APPROVAL` until a SUPREME approves it from the Approvals
-console. Rejecting suspends rather than deletes, so the record stays auditable.
-A pending user sees a dedicated waiting screen that re-checks itself and hides
-the navigation.
+**Trainers are gated; trainees are not.** A trainee account is usable the
+moment it registers — nobody has to say yes. A trainer lands as `PENDING` and
+every gated route refuses it with `ACCOUNT_PENDING_APPROVAL` until a SUPREME
+approves it from the Approvals console. Rejecting suspends rather than deletes,
+so the record stays auditable. A pending trainer sees a dedicated waiting
+screen that re-checks itself and hides the navigation.
 
 ## What's implemented
 
@@ -75,7 +75,7 @@ the navigation.
 - Home feed — 4 post types, published and pinned by SUPREME
 - Notifications, library, feedback, participation tracking
 - Admin console — dashboards, suspension, audit log, **approval queue**
-  (pending sign-ups → approve/reject) and **administrator invites**
+  (pending trainer sign-ups → approve/reject) and **administrator invites**
   (mint, copy link, revoke)
 - **Send a notification** — compose once and fan out to everyone, one role
   (trainees / trainers / administrators / the approval queue) or a

@@ -10,11 +10,11 @@
 // `ui.data()`, render with `ui.*`, bind through `ui.click(root, …)`, and return
 // `{ destroy }` so delegated listeners are released on route teardown.
 
-import { api, esc, toast } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
-import { donutChart, hbarChart, emptyChart } from './charts.js?v=63';
+import { api, esc, toast } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { go, confirmAction, currentUser, openAppModal, closeAppModal } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
+import { donutChart, hbarChart, emptyChart } from './charts.js?v=64';
 
 // Neutral lines used only when the API returned no text for a key — a plain
 // statement that the section is empty, never invented commentary.

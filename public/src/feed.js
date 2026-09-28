@@ -5,10 +5,10 @@
 // Achievement · New Content. `embed()` lets a role dashboard drop the same feed
 // into its own page without re-implementing any of it.
 
-import { api, esc, toast, el } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { currentUser, openAppModal, closeAppModal, confirmAction } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
+import { api, esc, toast, el } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { currentUser, openAppModal, closeAppModal, confirmAction } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
 
 export const POST_TYPES = ['NOTIFICATION', 'ANNOUNCEMENT', 'ACHIEVEMENT', 'NEW_CONTENT'];
 

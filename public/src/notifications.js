@@ -6,10 +6,10 @@
 // individual (`PATCH …/read`) so reading one item does not silently clear
 // every other unread one the way `mark-all-read` would.
 
-import { api, esc, toast } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { syncBadge, confirmAction } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
+import { api, esc, toast } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { syncBadge, confirmAction } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
 
 // Server sends `type`; nothing outside this file needs to know the mapping.
 const TYPE_META = {

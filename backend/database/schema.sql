@@ -44,8 +44,10 @@ create table if not exists users (
     name                 text not null default '',
     role                 text not null default 'ALPHA'
                          check (role in ('SUPREME','MASTER','ALPHA')),
-    -- PENDING is the approval state: a freshly registered Trainee or Trainer
-    -- cannot read anything until an Administrator approves the account.
+    -- PENDING is the approval state: a freshly registered Trainer cannot
+    -- author anything until an Administrator approves the account. Trainees
+    -- and Administrators (invite-only) are ACTIVE on the spot, so they never
+    -- pass through this state.
     -- Fail-closed default — a row written without an explicit status lands in
     -- the queue instead of silently becoming usable.
     status               text not null default 'PENDING'

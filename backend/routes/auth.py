@@ -158,7 +158,8 @@ def _ensure_users_row(client, uid, email, name="", role="ALPHA", language="Engli
 
     `status` is passed explicitly rather than left to the column default so the
     approval state is decided by one visible rule: Administrators are usable the
-    moment their invite is accepted, everyone else waits for approval.
+    moment their invite is accepted, Trainees are usable the moment they
+    register, and only Trainers wait for an approval decision.
     """
     try:
         row = {"id": uid, "email": email, "name": name or email.split("@")[0],
@@ -289,8 +290,8 @@ def resolve_uid(authorization: Optional[str]) -> Optional[str]:
 #     first invite, so one sign-up is allowed. The moment it succeeds the
 #     condition is false and every later one needs an invite.
 #
-# Neither door applies to MASTER or ALPHA — they self-register and wait in the
-# approval queue instead.
+# Neither door applies to MASTER or ALPHA — they self-register without one. A
+# Trainee is active immediately; a Trainer still waits in the approval queue.
 
 INVITE_TABLE = "admin_invites"
 
@@ -470,11 +471,14 @@ def register(req: RegisterReq):
             import logging
             logging.getLogger("learnify.auth").warning(
                 "sign-up for %s could not be auto-confirmed; login will retry", email)
-        # An Administrator gets here only after its invite (or the bootstrap)
-        # was validated above, so it is usable immediately; Trainees and
-        # Trainers wait in the approval queue until an Administrator acts.
+        # A Trainee needs no one's permission: the account is usable the
+        # moment it exists. An Administrator gets here only after its invite
+        # (or the bootstrap) was validated above, for the same reason. A
+        # Trainer is the one sign-up that still waits in the approval queue
+        # until an Administrator acts — authoring content is a privilege.
         uid = _our_uid(client, email, req.name, role,
-                       status="ACTIVE" if role == "SUPREME" else "PENDING")
+                       status="ACTIVE" if role in ("SUPREME", "ALPHA")
+                       else "PENDING")
         _ensure_profile_row(client, uid)
         return {"session": {"access_token": _issue_app_token(uid, email)},
                 "user": _full_user(client, uid, email, req.name)}

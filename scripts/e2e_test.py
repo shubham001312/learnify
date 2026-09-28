@@ -487,9 +487,10 @@ for who in (ALPHA, MASTER, SUPREME):
     else:
         FAILURES.append(f"register {who['role']} produced no token")
 
-    # Trainees and trainers queue for approval; an accepted Administrator
+    # A Trainee needs nobody's permission, and an accepted Administrator
     # invite is approved on the spot because the invite is the credential.
-    want = "ACTIVE" if who["role"] == "SUPREME" else "PENDING"
+    # Only a Trainer queues for approval.
+    want = "PENDING" if who["role"] == "MASTER" else "ACTIVE"
     if status != want:
         FAILURES.append(f"register {who['role']}: status {status} != {want}")
         print(f"    [FAIL] {who['role']} registered as {status}, wanted {want}")
@@ -529,9 +530,13 @@ for who in (ALPHA, MASTER, SUPREME):
     if tok:
         TOKENS[who["role"]] = tok
 
-# ── a queued account can reach nothing until an Administrator agrees ──────
-r = raw("GET", "/api/v1/assessments", role="ALPHA")
-step("PENDING trainee on a gated route -> 403", r, 403)
+# ── the trainee walks straight in ─────────────────────────────────────────
+step("unapproved trainee on a gated route -> 200",
+     raw("GET", "/api/v1/assessments", role="ALPHA"), 200)
+
+# ── a queued Trainer can reach nothing until an Administrator agrees ──────
+r = raw("GET", "/api/v1/assessments", role="MASTER")
+step("PENDING trainer on a gated route -> 403", r, 403)
 try:
     detail = (r.json() or {}).get("detail")
 except Exception:
@@ -544,34 +549,38 @@ else:
 
 q = as_list(G("/api/v1/admin/pending", role="SUPREME"))
 queued = {u.get("id") for u in q if isinstance(u, dict)}
-absent = [w["role"] for w in (ALPHA, MASTER)
-          if UIDS.get(w["role"]) not in queued]
-if absent:
-    FAILURES.append("approval queue is missing " + ", ".join(absent))
+if UIDS.get("MASTER") not in queued:
+    FAILURES.append("approval queue is missing the trainer")
 else:
-    print("    [PASS] both sign-ups are waiting in /admin/pending")
+    print("    [PASS] the trainer is waiting in /admin/pending")
+if UIDS.get("ALPHA") in queued:
+    FAILURES.append("a trainee is sitting in the approval queue")
+else:
+    print("    [PASS] the trainee is not queued — no approval needed")
 
-for who in (ALPHA, MASTER):
-    a = P("/api/v1/admin/approve", {"user_id": UIDS[who["role"]]},
-          role="SUPREME", expect=200, key="status")
-    if a.get("status") != "ACTIVE":
-        FAILURES.append(f"approve {who['role']} returned {a.get('status')}")
-    else:
-        print(f"    [PASS] approved {who['role']}")
+a = P("/api/v1/admin/approve", {"user_id": UIDS["MASTER"]},
+      role="SUPREME", expect=200, key="status")
+if a.get("status") != "ACTIVE":
+    FAILURES.append(f"approve MASTER returned {a.get('status')}")
+else:
+    print("    [PASS] approved MASTER")
 
-step("approved trainee on a gated route -> 200",
-     raw("GET", "/api/v1/assessments", role="ALPHA"), 200)
+step("approved trainer on a gated route -> 200",
+     raw("GET", "/api/v1/assessments", role="MASTER"), 200)
 
 q = as_list(G("/api/v1/admin/pending", role="SUPREME"))
 still = {u.get("id") for u in q if isinstance(u, dict)}
-if {UIDS.get("ALPHA"), UIDS.get("MASTER")} & still:
-    FAILURES.append("approved accounts are still in /admin/pending")
+if UIDS.get("MASTER") in still:
+    FAILURES.append("approved trainer is still in /admin/pending")
 else:
     print("    [PASS] the queue drains as accounts are approved")
 
 # ── rejection: refused, told why, and reversible on record ───────────────
+# Only a queued application can be rejected, and only trainers queue — a
+# trainee is already ACTIVE the moment it registers, so the reject path is
+# exercised with a second trainer.
 REJECTED = {"email": f"e2e.rejected{STAMP}@gmail.com", "password": "TestPass123!",
-            "name": "Rejected Applicant", "role": "ALPHA"}
+            "name": "Rejected Applicant", "role": "MASTER"}
 rb = P("/api/auth/register", REJECTED, expect=200, key="session")
 REJECTED_UID = (rb.get("user") or {}).get("id") or ""
 

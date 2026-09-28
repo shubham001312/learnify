@@ -4,13 +4,13 @@
 // reads as one product rather than twelve. Nothing here talks to the API;
 // modules fetch their own data and hand plain objects to these renderers.
 //
-//   import * as ui from './ui.js?v=63';
+//   import * as ui from './ui.js?v=64';
 //   root.innerHTML = ui.page({ title, sub, actions, body });
 //
 // Route handlers receive (root, ctx) from app.js and may return { destroy }.
 
-import { esc, qs } from './utils.js?v=63';
-import { iconSvg } from './icons.js?v=63';
+import { esc, qs } from './utils.js?v=64';
+import { iconSvg } from './icons.js?v=64';
 
 // ─── Page scaffolding ───────────────────────────────────────────────────────
 

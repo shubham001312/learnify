@@ -4,8 +4,8 @@
 // Everything here works signed out, so it may not call the API — the course
 // catalogue and dashboards are behind auth.
 
-import { esc } from './utils.js?v=63';
-import { iconSvg } from './icons.js?v=63';
+import { esc } from './utils.js?v=64';
+import { iconSvg } from './icons.js?v=64';
 
 const ROLE_CARDS = [
   {

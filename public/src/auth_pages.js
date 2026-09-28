@@ -1,9 +1,9 @@
 // Sign-in and registration screens — one pair per role.
 // Route: /{alpha|master|supreme}/{login|signup}
 
-import { esc, toast } from './utils.js?v=63';
-import { login, register, homeFor, isPending } from './auth.js?v=63';
-import { go, ROLE_LABEL } from './app.js?v=63';
+import { esc, toast } from './utils.js?v=64';
+import { login, register, homeFor, isPending } from './auth.js?v=64';
+import { go, ROLE_LABEL } from './app.js?v=64';
 
 // The Administrator sign-up is invitation-only, so the token travels in the
 // URL (`#/supreme/signup?invite=…`) of the link an Administrator shared.
@@ -23,7 +23,8 @@ const ROLES = {
     key: 'ALPHA', tag: 'Trainee', title: 'Start learning',
     blurb: 'Work through published courses, sit assessments, earn certificates '
          + 'and see exactly where you stand against the industry benchmark.',
-    perks: ['All published courses', 'Timed practice and formal assessments',
+    perks: ['All published courses', 'Starts immediately — no approval',
+            'Timed practice and formal assessments',
             'Veda-branded performance reports', 'Certificates on passing'],
   },
   master: {
@@ -74,6 +75,15 @@ export function auth(root, ctx) {
               : 'Administrator sign-up is invitation-only: ask an administrator to '
                 + 'send you a link to this page. On a brand-new portal the very '
                 + 'first administrator can register directly.'}
+          </p>` : ''}
+
+        ${mode === 'signup' && r.key !== 'SUPREME' ? `
+          <p class="auth-alt dim" style="margin-top:10px">
+            ${r.key === 'ALPHA'
+              ? 'No approval needed — your account opens the moment you create it.'
+              : 'Trainer accounts are reviewed: an administrator approves your '
+                + 'registration before the authoring tools open. You can sign in '
+                + 'and watch the status meanwhile.'}
           </p>` : ''}
 
         <form class="auth-form" id="auth-form" novalidate>
@@ -170,9 +180,13 @@ export function auth(root, ctx) {
       if (isPending(account)) {
         // The account exists but nothing is reachable yet, so send it to the
         // screen that says so instead of a dashboard that answers every call
-        // with 403. The server decides approval, never this branch.
+        // with 403. The server decides approval, never this branch. Only a
+        // Trainer gets here now — a Trainee is active from the moment it
+        // registers.
+        const tag = (ROLES[String(account.role || '').toLowerCase()] || r).tag;
         toast(mode === 'signup'
-          ? 'Account created. An administrator has to approve it before you can use the portal.'
+          ? `Account created. Your ${tag.toLowerCase()} account needs an `
+            + "administrator's approval before the portal opens."
           : 'Signed in — your account is still waiting for approval.');
         go('/pending');
         return;

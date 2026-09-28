@@ -101,14 +101,17 @@ def register(
     taken = lambda uid: any(u.get("id") == uid for u in db.values())
     uid = generate_uid(taken)
     salt = secrets.token_hex(8)
+    # Normalised once so `role` and `status` can never disagree: an
+    # unrecognised role becomes a Trainee, and a Trainee is usable at once.
+    role = role if role in ("SUPREME", "MASTER", "ALPHA") else "ALPHA"
     db[email] = {
         "id": uid,
         "email": email,
         "name": name or email.split("@")[0],
-        "role": role if role in ("SUPREME", "MASTER", "ALPHA") else "ALPHA",
-        # Mirrors the Supabase path: only an Administrator is usable the
-        # moment it exists; everyone else waits for approval.
-        "status": "ACTIVE" if role == "SUPREME" else "PENDING",
+        "role": role,
+        # Mirrors the Supabase path: a Trainee and an Administrator are usable
+        # the moment they exist; only a Trainer waits for approval.
+        "status": "ACTIVE" if role in ("SUPREME", "ALPHA") else "PENDING",
         "language": language,
         "department": "",
         "designation": "",

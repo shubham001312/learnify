@@ -5,11 +5,11 @@
 // render with `ui.*`, bind through `ui.click(root, ...)` so re-renders never
 // leak listeners, and return `{ destroy }` if anything was scheduled.
 
-import { api, esc, toast } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { go, confirmAction, currentUser } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
-import { coverHtml } from './art.js?v=63';
+import { api, esc, toast } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { go, confirmAction, currentUser } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
+import { coverHtml } from './art.js?v=64';
 
 // Filters survive a re-render within the route but reset when you leave.
 const filters = { q: '', subject: '', status: '', mine: false };

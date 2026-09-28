@@ -368,10 +368,11 @@ def delete_user(user_id: str, user=Depends(require_role(SUPREME))):
 
 
 # ─── Account approval queue ───────────────────────────────────────────────
-# Trainees and trainers self-register into `PENDING` and can sign in, but
-# every role-gated route refuses them with ACCOUNT_PENDING_APPROVAL until an
-# Administrator here says otherwise. Administrators never appear in this
-# queue — they are admitted by invite instead.
+# A Trainer self-registers into `PENDING` and can sign in, but every
+# role-gated route refuses them with ACCOUNT_PENDING_APPROVAL until an
+# Administrator here says otherwise. Trainees are ACTIVE on registration, and
+# Administrators never appear in this queue — they are admitted by invite
+# instead.
 
 class DecisionIn(BaseModel):
     user_id: str = Field(min_length=1, max_length=60)

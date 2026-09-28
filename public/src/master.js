@@ -4,12 +4,12 @@
 // A trainer's two jobs are visible at the top: make content, and watch it
 // move through release into the hands of trainees.
 
-import { api, esc } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { currentUser } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
-import { embed as embedFeed } from './feed.js?v=63';
-import { createCourse } from './courses.js?v=63';
+import { api, esc } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { currentUser } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
+import { embed as embedFeed } from './feed.js?v=64';
+import { createCourse } from './courses.js?v=64';
 
 export async function render(root, ctx) {
   const user = currentUser();

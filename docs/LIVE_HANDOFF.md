@@ -16,10 +16,11 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
      SUPREME administrator — publishing, feed, people, dashboards, audit
 
    The portal is GATED. Administrator sign-up is invite-only (an existing
-   SUPREME mints the token from the Approvals console); trainees and trainers
-   register freely but land as PENDING and are refused every gated route with
-   ACCOUNT_PENDING_APPROVAL until approved. Rejection suspends rather than
-   deletes. See section 2 for the environment switch.
+   SUPREME mints the token from the Approvals console). A trainee registers
+   freely and is ACTIVE the moment it exists. A trainer registers freely too
+   but lands as PENDING and is refused every gated route with
+   ACCOUNT_PENDING_APPROVAL until a SUPREME approves it. Rejection suspends
+   rather than deletes. See section 2 for the environment switch.
 
    This document previously described the original Learnify — college and
    career discovery, scholarships, Razorpay premium, the Veda chatbot and
@@ -55,8 +56,9 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
    A token is consumed before the account is created, so a replayed, expired,
    revoked or exhausted token fails without a side effect.
 
-   Trainees and trainers have no switch: they always register as PENDING and
-   need a SUPREME to approve them from the Approvals console.
+   Trainees have no switch: they register ACTIVE and are never gated. Only a
+   trainer registers as PENDING and needs a SUPREME to approve it from the
+   Approvals console.
 
 --------------------------------------------------------------------------------
 3. DATABASE
@@ -115,11 +117,11 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 5. FRONTEND CONVENTIONS
 --------------------------------------------------------------------------------
-   * No build step. public/index.html links styles/modules/*.css at ?v=63;
-     JS imports each other at ?v=63 (app.js exports V = 'v=63', and every
+   * No build step. public/index.html links styles/modules/*.css at ?v=64;
+     JS imports each other at ?v=64 (app.js exports V = 'v=64', and every
      dynamic route import is `?${V}`). Bump all three — and the service-worker
      cache name in public/sw.js — when deploying, or a returning browser keeps
-     the old module. The current pair is ?v=63 / learnify-v64.
+     the old module. The current pair is ?v=64 / learnify-v65.
    * One module per route in public/src/, matching the export contract
      documented at the top of scripts/check_frontend.py.
    * Design tokens in styles.css :root. Inline SVG built from strings cannot

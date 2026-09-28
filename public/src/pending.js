@@ -1,16 +1,17 @@
 // Learnify — the "waiting for approval" screen.
 // Route: `/pending`
 //
-// A Trainee or Trainer who signs up lands here. The account exists and the
+// A Trainer who signs up lands here. The account exists and the
 // credentials are good, but every role-gated route answers
 // 403 ACCOUNT_PENDING_APPROVAL until a SUPREME approves it (see
 // backend/middleware/rbac.py::_refuse_if_not_active). The screen's job is to
 // say that plainly instead of looking like a dashboard that has broken.
+// Trainees never see it — they are ACTIVE from the moment they register.
 
-import { api, esc, toast, setUser } from './utils.js?v=63';
-import * as ui from './ui.js?v=63';
-import { currentUser, bindSignOut, go } from './app.js?v=63';
-import { iconSvg } from './icons.js?v=63';
+import { api, esc, toast, setUser } from './utils.js?v=64';
+import * as ui from './ui.js?v=64';
+import { currentUser, bindSignOut, go } from './app.js?v=64';
+import { iconSvg } from './icons.js?v=64';
 
 const ROLE_NAME = { ALPHA: 'Trainee', MASTER: 'Trainer', SUPREME: 'Administrator' };
 

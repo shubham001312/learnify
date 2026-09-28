@@ -2,7 +2,7 @@
 // auth_pages.js; this module just talks to /api/auth and maintains the
 // cached token + user.
 
-import { api, setToken, setUser, clearToken, clearUser } from './utils.js?v=63';
+import { api, setToken, setUser, clearToken, clearUser } from './utils.js?v=64';
 
 export function login(email, password) {
   return api('/auth/login', {
