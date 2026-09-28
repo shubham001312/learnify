@@ -286,6 +286,62 @@ def _sweep_dead_notices(client, problems):
                   "content that no longer exists")
 
 
+def _sweep_auth_users(problems):
+    """Delete the `e2e.*` identities Supabase Auth still holds.
+
+    The app table and Auth are two stores with no foreign key between them,
+    and Auth keys its rows by UUID — the 7-char app id the suite knows simply
+    404s there, and the old delete ignored that, so every run quietly left
+    four working credentials behind that no app row accounted for. Select by
+    the namespaced email instead.
+
+    Runs unconditionally, for the same reason the dead-notice sweep does: Auth
+    rows outlive the app rows they were created with, so this has to work even
+    when the app side of the cleanup is already clean.
+    """
+    url, key = _env("SUPABASE_URL"), _env("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        problems.append("SUPABASE_SERVICE_KEY missing; auth users left behind")
+        return
+    url = url.rstrip("/")
+    head = {"apikey": key, "Authorization": f"Bearer {key}"}
+
+    users, page = [], 1
+    while page <= 20:
+        try:
+            r = requests.get(f"{url}/auth/v1/admin/users", headers=head,
+                             params={"page": page, "per_page": 100}, timeout=30)
+            r.raise_for_status()
+        except Exception as exc:
+            problems.append(f"list auth users: {exc}")
+            return
+        batch = (r.json() or {}).get("users") or []
+        users += batch
+        if len(batch) < 100:
+            break
+        page += 1
+
+    targets = [u for u in users
+               if str(u.get("email") or "").lower().startswith("e2e.")]
+    if not targets:
+        return
+
+    gone = 0
+    for u in targets:
+        try:
+            r = requests.delete(f"{url}/auth/v1/admin/users/{u['id']}",
+                                headers=head, timeout=30)
+        except Exception as exc:
+            problems.append(f"auth delete {u.get('email')}: {exc}")
+            continue
+        if r.status_code in (200, 204):
+            gone += 1
+        else:
+            problems.append(f"auth delete {u.get('email')}: HTTP {r.status_code}")
+    if gone:
+        print(f"    teardown: removed {gone} Supabase Auth identity/identities")
+
+
 def teardown_run():
     """Undo everything the run wrote, so re-runs stop piling up.
 
@@ -293,6 +349,10 @@ def teardown_run():
     accounts and all of their content behind for good. Only rows owned by an
     `e2e.*` account are touched — content is selected by owner, never by
     title, so a real trainer's course can never be caught in the sweep.
+
+    Supabase Auth is a second store with no foreign key into the app and no
+    use for the 7-char app id, so its identities are swept separately by the
+    namespaced email — see _sweep_auth_users().
 
     Five columns point back at a user *without* `on delete cascade`
     (`audit_logs.actor_id`, `courses.released_by`, `*_attempts.ended_by`,
@@ -349,6 +409,7 @@ def teardown_run():
     # Unconditional: residue from an interrupted run is cleared even when
     # there is no account left to sweep.
     _sweep_dead_notices(client, problems)
+    _sweep_auth_users(problems)
 
     if not uids:
         print("    teardown: no e2e accounts left over")
@@ -432,20 +493,9 @@ def teardown_run():
     except Exception as exc:
         problems.append(f"delete users: {exc}")
 
-    # GoTrue has no foreign key into the app, so its rows survive an app-side
-    # delete and would otherwise grow by four every run.
-    url, key = _env("SUPABASE_URL"), _env("SUPABASE_SERVICE_KEY")
-    if url and key:
-        for uid in uids:
-            try:
-                requests.delete(f"{url}/auth/v1/admin/users/{uid}",
-                                headers={"apikey": key,
-                                         "Authorization": f"Bearer {key}"},
-                                timeout=30)
-            except Exception as exc:
-                problems.append(f"auth delete {uid}: {exc}")
-    else:
-        problems.append("SUPABASE_SERVICE_KEY missing; auth users left behind")
+    # Supabase Auth is swept by _sweep_auth_users() above: it keys its rows by
+    # UUID, so the app id is useless there and the delete has to select by the
+    # namespaced email instead.
 
     try:
         survivors = client.table("users").select("id").in_("id", uids).execute().data

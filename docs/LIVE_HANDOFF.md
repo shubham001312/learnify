@@ -89,7 +89,7 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 4. VERIFICATION GATES — run these after any change
 --------------------------------------------------------------------------------
    python scripts/check_frontend.py    17 route modules, 25 handler exports,
-                                       imports resolve, 59 icons, 122 frontend
+                                       imports resolve, 59 icons, 124 frontend
                                        API paths matched against 170 contract ops
    python scripts/verify_routes.py     mounted routes vs docs/API.md, and the
                                        deleted surface must still be absent
@@ -97,10 +97,13 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
                                        server (default http://127.0.0.1:8021),
                                        including invite/pending/approval; it
                                        ends with a teardown that fails the run
-                                       if any e2e.* account survives. It also
-                                       sweeps what a run broadcast — admin
-                                       notices and achievement feed posts —
-                                       which owner-based deletes cannot reach.
+                                       if any e2e.* account survives — in the
+                                       app table *or* in Supabase Auth, which
+                                       it sweeps by email because Auth keys
+                                       its rows by UUID. It also sweeps what a
+                                       run broadcast — admin notices and
+                                       achievement feed posts — which
+                                       owner-based deletes cannot reach.
    python scripts/test_ratelimit.py    30 assertions: budget, 429 contract,
                                        spoofing, per-address isolation
    python scripts/dump_api.py          regenerate docs/API.md
