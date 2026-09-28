@@ -96,42 +96,6 @@ export function isAuthed() {
   return !!getToken();
 }
 
-export function isPremium() {
-  const u = getUser();
-  return !!(u && u.premium);
-}
-
-const LANG_KEY = 'learnify_lang';
-export function getLang() {
-  try { return localStorage.getItem(LANG_KEY) || 'English'; } catch (_) { return 'English'; }
-}
-export function setLang(l) {
-  try { localStorage.setItem(LANG_KEY, l); } catch (_) { /* ignore */ }
-}
-
-const VEDA_KEY = 'learnify_veda';
-function _vedaState() {
-  const today = new Date().toISOString().slice(0, 10);
-  let data;
-  try { data = JSON.parse(localStorage.getItem(VEDA_KEY) || '{}'); } catch (_) { data = {}; }
-  if (data.date !== today) data = { date: today, count: 0 };
-  return data;
-}
-export function vedaQuotaLeft() {
-  const limit = isPremium() ? Infinity : 10;
-  return Math.max(0, limit - _vedaState().count);
-}
-export function incVeda() {
-  const data = _vedaState();
-  data.count = (data.count || 0) + 1;
-  try { localStorage.setItem(VEDA_KEY, JSON.stringify(data)); } catch (_) { /* ignore */ }
-}
-export function docQuotaLeft() {
-  const used = Number(el('stat-docs') ? el('stat-docs').textContent : 0) || 0;
-  const limit = isPremium() ? Infinity : 3;
-  return Math.max(0, limit - used);
-}
-
 export function toast(msg, kind = 'info') {
   const t = el('toast');
   if (!t) return;

@@ -24,14 +24,28 @@ reporting. Single codebase, three roles, no build step.
 |---|---|---|
 | **ALPHA** | Trainee | Enrol, watch lessons, sit assessments, read reports — sees every published course |
 | **MASTER** | Trainer | Build courses through the 5-step wizard, manage library, draft AI questionnaires |
-| **SUPREME** | Administrator | Publish/unpublish courses, feed posts, people, dashboards, audit |
+| **SUPREME** | Administrator | Publish/unpublish courses, feed posts, people, dashboards, audit — plus the Approvals console: approve or reject sign-ups and mint administrator invites |
 
-**There is no hard-coded bootstrap account.** The first SUPREME registers
-normally like anyone else; self-service admin sign-up can be closed afterwards
-with `SUPREME_SIGNUP_OPEN=false`.
+**Administrator sign-up is invite-only.** There is no hard-coded bootstrap
+account and no public path to one: an existing SUPREME mints an invite from the
+**Approvals** console and shares the link, and registration without a valid
+token is refused with `403`. An invite can be bound to a specific address,
+and is single-use, revocable and expires after 7 days.
+
+`SUPREME_SIGNUP_OPEN=true` is a separate, explicit operator opt-in that opens
+self-service admin sign-up on a **fresh** project — it defaults to closed, and
+it is only honoured while zero SUPREMEs exist, so it cannot be used to add
+administrators once the portal is running.
 
 Signup itself is deliberately minimal — `email`, `password`, `name`, `role`.
 Qualifications, bio and avatar are completed later on the profile page.
+
+**Trainees and trainers are gated too.** They can register, but the account
+lands as `PENDING` and every gated route refuses it with
+`ACCOUNT_PENDING_APPROVAL` until a SUPREME approves it from the Approvals
+console. Rejecting suspends rather than deletes, so the record stays auditable.
+A pending user sees a dedicated waiting screen that re-checks itself and hides
+the navigation.
 
 ## What's implemented
 
@@ -60,7 +74,9 @@ Qualifications, bio and avatar are completed later on the profile page.
 **Platform**
 - Home feed — 4 post types, published and pinned by SUPREME
 - Notifications, library, feedback, participation tracking
-- Admin console — dashboards, suspension, audit log
+- Admin console — dashboards, suspension, audit log, **approval queue**
+  (pending sign-ups → approve/reject) and **administrator invites**
+  (mint, copy link, revoke)
 
 ## Run locally
 
@@ -100,7 +116,8 @@ public/
   styles/modules/      per-feature CSS (art, wizard, charts, courses, …)
   assets/              logo, PWA icons, og-cover
 docs/
-  API.md               generated contract — 162 operations
+  API.md               generated contract — 168 operations
+  LIVE_HANDOFF.md      run / verify / deploy notes
 scripts/               checks, schema, seeding, image generation, e2e
 ```
 
@@ -114,6 +131,11 @@ python scripts/e2e_test.py         # full three-role flow against a running serv
 python scripts/test_ratelimit.py   # auth rate limiting: budget, 429 contract, bypass
 python scripts/gen_images.py       # PWA icons + OG card from public/assets/logo.jpeg
 ```
+
+`e2e_test.py` now ends with a teardown: it removes the accounts it created
+(and any `e2e.*` account an older run left behind) together with everything
+those accounts own, and **fails the run** if any survive — the suite shares a
+database with production, so a leak there is a real one.
 
 The frontend checker is the useful early-warning signal: it resolves every
 `import`, every named import against its source module, and every API path in

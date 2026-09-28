@@ -602,10 +602,13 @@ create index if not exists idx_rep_subject on performance_reports(subject_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- USERS TABLE EXTENSIONS for existing auth flow compatibility
+--
+-- `language` survives because the register and profile routes still carry it
+-- (the product is English-only, so it never varies). The old `premium`
+-- column went with the Razorpay feature and nothing reads it any more.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 alter table users add column if not exists language text not null default 'English';
-alter table users add column if not exists premium   boolean not null default false;
 
 -- Account approval state.
 --

@@ -82,7 +82,6 @@ def public_user(u: dict) -> dict:
         "phone": u.get("phone", ""),
         "avatar_url": u.get("avatar_url", ""),
         "must_change_password": bool(u.get("must_change_password", False)),
-        "premium": bool(u.get("premium", False)),
     }
 
 
@@ -113,7 +112,6 @@ def register(
         "language": language,
         "department": "",
         "designation": "",
-        "premium": False,
         "must_change_password": False,
         "salt": salt,
         "pw": _hash(password, salt),
@@ -203,7 +201,7 @@ def update_user(email: str, meta: dict) -> Optional[dict]:
         return None
     # `role`/`status` are protected — only the profile endpoint writes them.
     for key in ("name", "language", "department", "designation",
-                "headline", "bio", "phone", "avatar_url", "premium"):
+                "headline", "bio", "phone", "avatar_url"):
         if key in meta and meta[key] is not None:
             u[key] = meta[key]
     _save(db)

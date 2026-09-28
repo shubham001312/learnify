@@ -15,6 +15,12 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
      MASTER  trainer     — 5-step course wizard, library, AI drafting
      SUPREME administrator — publishing, feed, people, dashboards, audit
 
+   The portal is GATED. Administrator sign-up is invite-only (an existing
+   SUPREME mints the token from the Approvals console); trainees and trainers
+   register freely but land as PENDING and are refused every gated route with
+   ACCOUNT_PENDING_APPROVAL until approved. Rejection suspends rather than
+   deletes. See section 2 for the environment switch.
+
    This document previously described the original Learnify — college and
    career discovery, scholarships, Razorpay premium, the Veda chatbot and
    resume builder. That product has been fully removed. Do not follow any
@@ -32,10 +38,25 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
      SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, SUPABASE_JWKS_URL
      GROQ_API_KEY, GROQ_MODEL            (default openai/gpt-oss-120b)
      SUPABASE_PAT, SUPABASE_PROJECT      (maintenance scripts only)
-     SUPREME_SIGNUP_OPEN                 (set false once your admins exist)
+     SUPREME_SIGNUP_OPEN                 (defaults CLOSED — see below)
 
-   There is NO hard-coded bootstrap account. The first SUPREME registers
-   through the normal signup form; role is a signup field.
+   Administrator sign-up is NEVER public. Registration requires a token from
+   the `admin_invites` table; without one the request is refused with 403
+   before anything is written.
+
+     SUPREME_SIGNUP_OPEN=true   operator opt-in that opens self-service, but
+                                it is only honoured while ZERO SUPREMEs exist
+                                (defaults to closed)
+     bootstrap                  zero SUPREMEs and no invite required — same
+                                gate, the first admin earns its way in
+
+   So the switch can only ever create the FIRST administrator on a fresh
+   project. Once admins exist it is ignored and an invite is the only way in.
+   A token is consumed before the account is created, so a replayed, expired,
+   revoked or exhausted token fails without a side effect.
+
+   Trainees and trainers have no switch: they always register as PENDING and
+   need a SUPREME to approve them from the Approvals console.
 
 --------------------------------------------------------------------------------
 3. DATABASE
@@ -65,14 +86,22 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 4. VERIFICATION GATES — run these after any change
 --------------------------------------------------------------------------------
-   python scripts/check_frontend.py    16 route modules, 24 handler exports,
-                                       imports resolve, 59 icons, 118 frontend
-                                       API paths matched against 162 contract ops
+   python scripts/check_frontend.py    17 route modules, 25 handler exports,
+                                       imports resolve, 59 icons, 122 frontend
+                                       API paths matched against 168 contract ops
    python scripts/verify_routes.py     mounted routes vs docs/API.md, and the
                                        deleted surface must still be absent
    python scripts/e2e_test.py          full three-role flow against a live
-                                       server (default http://127.0.0.1:8021)
+                                       server (default http://127.0.0.1:8021),
+                                       including invite/pending/approval; it
+                                       ends with a teardown that fails the run
+                                       if any e2e.* account survives
+   python scripts/test_ratelimit.py    30 assertions: budget, 429 contract,
+                                       spoofing, per-address isolation
    python scripts/dump_api.py          regenerate docs/API.md
+
+   Order matters: run e2e BEFORE test_ratelimit — the rate-limit test
+   exhausts the loopback login bucket and the e2e's logins would then 429.
 
    Last run: ALL of the above PASSED.
 
@@ -83,8 +112,8 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 5. FRONTEND CONVENTIONS
 --------------------------------------------------------------------------------
-   * No build step. public/index.html links styles/modules/*.css at ?v=61;
-     JS imports each other at ?v=60. Bump both when deploying.
+   * No build step. public/index.html links styles/modules/*.css at ?v=62;
+     JS imports each other at ?v=62. Bump both when deploying.
    * One module per route in public/src/, matching the export contract
      documented at the top of scripts/check_frontend.py.
    * Design tokens in styles.css :root. Inline SVG built from strings cannot
@@ -97,14 +126,19 @@ Local:     python -m uvicorn backend.main:app --port 8021  ->  http://127.0.0.1:
 --------------------------------------------------------------------------------
 6. DEPLOYMENT
 --------------------------------------------------------------------------------
-   NOT scripted in this repository — there is no Dockerfile, systemd unit,
-   nginx/Caddy config, vercel.json or CI workflow checked in.
+   Current deployment is VERCEL, built from this repository's `main` branch.
+   The Supabase and Groq credentials live as Vercel environment variables —
+   they are NOT in the repository, and must never be committed (`.env` and
+   `backups/` are both gitignored; `backups/` holds production table dumps).
 
-   api/index.py is a thin WSGI-ish entry that imports backend.main:app and
+   `api/index.py` is a thin WSGI-ish entry that imports backend.main:app and
    surfaces import failures instead of returning a silent 500. It is the
    serverless adapter and nothing more.
 
-   To deploy you currently need, out of band:
+   There is still no Dockerfile, systemd unit, nginx/Caddy config,
+   vercel.json or CI workflow checked in.
+
+   To stand it up on any other host you need, out of band:
      * a Python host running uvicorn against backend.main:app
      * the public/ directory served by the same origin (main.py mounts it at /)
      * .env populated as in section 2

@@ -178,6 +178,182 @@ def release_invites():
             print(f"    [warn] could not remove a test invite: {exc}")
 
 
+def _env(name):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(ROOT / ".env")
+        import os
+        return os.environ.get(name) or ""
+    except Exception:
+        return ""
+
+
+def teardown_run():
+    """Undo everything the run wrote, so re-runs stop piling up.
+
+    The suite points at a real database, so each run otherwise leaves four
+    accounts and all of their content behind for good. Only rows owned by an
+    `e2e.*` account are touched — content is selected by owner, never by
+    title, so a real trainer's course can never be caught in the sweep.
+
+    Five columns point back at a user *without* `on delete cascade`
+    (`audit_logs.actor_id`, `courses.released_by`, `*_attempts.ended_by`,
+    `home_posts.published_by`, `trainer_competencies.verified_by`, plus
+    `users.created_by`/`suspended_by`). Those are cleared rather than
+    deleted: nulling the reference preserves any row that belongs to
+    somebody else, while making the e2e account removable.
+    """
+    problems = []
+    client = _supabase()
+    if client is None:
+        print("    [warn] teardown skipped: no database client")
+        return
+
+    def drop(table, column, values):
+        if not values:
+            return
+        try:
+            client.table(table).delete().in_(column, values).execute()
+        except Exception as exc:
+            problems.append(f"delete {table}.{column}: {exc}")
+
+    def ids_of(table, column, values):
+        """Primary keys of rows matched by `column` in `values`."""
+        if not values:
+            return set()
+        try:
+            rows = client.table(table).select("id").in_(column, values).execute().data
+            return {r["id"] for r in rows if r.get("id")}
+        except Exception as exc:
+            problems.append(f"list {table} by {column}: {exc}")
+            return set()
+
+    def clear(table, column, values):
+        if not values:
+            return
+        try:
+            client.table(table).update({column: None}).in_(column, values).execute()
+        except Exception as exc:
+            problems.append(f"clear {table}.{column}: {exc}")
+
+    try:
+        everyone = client.table("users").select("id,email").limit(2000).execute().data
+    except Exception as exc:
+        print(f"    [warn] teardown could not read users: {exc}")
+        return
+
+    # Everything the suite has ever created, not just this run: the emails are
+    # namespaced (`e2e.alpha<stamp>@…`), so the sweep also clears the accounts
+    # earlier runs abandoned before teardown existed.
+    uids = sorted({u["id"] for u in everyone
+                   if str(u.get("email") or "").lower().startswith("e2e.")})
+    if not uids:
+        print("    teardown: no e2e accounts left over")
+        return
+
+    asm_ids = ids_of("assessments", "trainer_id", uids)
+    qn_ids = ids_of("questionnaires", "trainer_id", uids)
+    # Attempts are owned either by an e2e trainee or by an e2e assessment —
+    # never merely *ended* by an e2e admin, which only gets nulled below.
+    attempt_ids = (ids_of("assessment_attempts", "assessment_id", asm_ids)
+                   | ids_of("assessment_attempts", "trainee_id", uids))
+
+    # Results first: they hang off attempts, and attempts point at users.
+    drop("assessment_responses", "attempt_id", attempt_ids)
+    drop("assessment_attempts", "assessment_id", asm_ids)
+    drop("assessment_attempts", "trainee_id", uids)
+    drop("questionnaire_attempts", "questionnaire_id", qn_ids)
+    drop("questionnaire_attempts", "trainee_id", uids)
+    drop("certificates", "trainee_id", uids)
+    drop("performance_reports", "trainee_id", uids)
+
+    # Engagement and ownership. These mostly cascade from users anyway; doing
+    # them explicitly means a failure shows up here instead of as a blocked
+    # account delete later.
+    for table, column in (
+        ("slot_progress", "trainee_id"), ("enrollments", "trainee_id"),
+        ("course_feedback", "trainee_id"), ("content_feedback", "trainee_id"),
+        ("participation_logs", "user_id"), ("notifications", "user_id"),
+        ("profiles", "user_id"), ("draft_questions", "owner_id"),
+        ("library_items", "trainer_id"), ("audit_logs", "actor_id"),
+        ("trainer_competencies", "trainer_id"),
+    ):
+        drop(table, column, uids)
+
+    # Competencies the suite invents each run ("Network Design <stamp>").
+    try:
+        comps = client.table("competencies").select("id,name").limit(2000).execute().data
+        comp_ids = sorted({c["id"] for c in comps
+                           if str(c.get("name") or "").startswith("Network Design ")})
+    except Exception as exc:
+        problems.append(f"list competencies: {exc}")
+        comp_ids = []
+    drop("competencies", "id", comp_ids)
+
+    # Authored content. Subjects and topics are deliberately left alone: they
+    # are reused between runs and are not owned by any single account.
+    drop("questionnaires", "trainer_id", uids)
+    drop("assessments", "trainer_id", uids)
+    drop("courses", "trainer_id", uids)
+    drop("home_posts", "published_by", uids)
+
+    # References that survive on rows we keep. Nulling is the whole point:
+    # a real trainer's course released by a test admin must stay, just
+    # unattributed.
+    clear("courses", "released_by", uids)
+    clear("assessment_attempts", "ended_by", uids)
+    clear("questionnaire_attempts", "ended_by", uids)
+    clear("trainer_competencies", "verified_by", uids)
+    clear("home_posts", "published_by", uids)
+    clear("users", "created_by", uids)
+    clear("users", "suspended_by", uids)
+
+    # Anything still standing means the accounts cannot go.
+    for table in ("courses", "questionnaires", "assessments", "library_items"):
+        try:
+            left = client.table(table).select("id").in_("trainer_id", uids).execute().data
+            if left:
+                problems.append(f"{len(left)} {table} row(s) still owned after the sweep")
+        except Exception as exc:
+            problems.append(f"recheck {table}: {exc}")
+
+    try:
+        client.table("users").delete().in_("id", uids).execute()
+    except Exception as exc:
+        problems.append(f"delete users: {exc}")
+
+    # GoTrue has no foreign key into the app, so its rows survive an app-side
+    # delete and would otherwise grow by four every run.
+    url, key = _env("SUPABASE_URL"), _env("SUPABASE_SERVICE_KEY")
+    if url and key:
+        for uid in uids:
+            try:
+                requests.delete(f"{url}/auth/v1/admin/users/{uid}",
+                                headers={"apikey": key,
+                                         "Authorization": f"Bearer {key}"},
+                                timeout=30)
+            except Exception as exc:
+                problems.append(f"auth delete {uid}: {exc}")
+    else:
+        problems.append("SUPABASE_SERVICE_KEY missing; auth users left behind")
+
+    try:
+        survivors = client.table("users").select("id").in_("id", uids).execute().data
+    except Exception as exc:
+        problems.append(f"could not verify teardown: {exc}")
+        survivors = [{"id": "?"}]
+
+    if survivors:
+        FAILURES.append(f"teardown left {len(survivors)} e2e account(s) in the "
+                        "database (P0: they are production rows)")
+        print(f"    [FAIL] teardown left {len(survivors)} e2e account(s)")
+    else:
+        print(f"    teardown: removed {len(uids)} e2e account(s) and their content")
+
+    for p in problems:
+        print(f"    [warn] teardown: {p}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 print("\n══ 1. AUTH · SIGN-UP APPROVAL ════════════════════════════════")
 
@@ -848,6 +1024,9 @@ llist = as_list(G("/api/v1/library", role="ALPHA"))
 print(f"    library visible to ALPHA: {len(llist)}")
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Teardown before the verdict: this suite shares a database with production,
+# so leaving accounts behind is a real leak, not untidy output.
+teardown_run()
 release_invites()
 print("\n" + "═" * 60)
 if FAILURES:
