@@ -10,17 +10,20 @@ app = None
 try:
     from backend.main import app  # noqa: E402
 except Exception as e:  # surface import errors instead of silent 500
-    import json
+    import logging
+
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
 
+    logging.getLogger("learnify").exception("backend.main failed to import")
     app = FastAPI()
 
     @app.exception_handler(Exception)
     async def _h(request: Request, exc: Exception):
+        # Do not leak internals — log server-side, return a generic message.
         return JSONResponse(
             status_code=500,
-            content={"error": str(exc), "traceback": traceback.format_exc()},
+            content={"error": "Internal server error", "detail": "import failed"},
         )
 
     @app.get("/api/health")

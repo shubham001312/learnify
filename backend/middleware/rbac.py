@@ -1,8 +1,17 @@
-"""
-Role-based access control middleware.
+"""Role-based access control for Learnify.
 
-Provides dependency-injection helpers for FastAPI routes to enforce
-role-based authorization.
+Roles
+    SUPREME  — platform admin: approvals, releases, dashboards, publishing
+    MASTER   — trainer: courses, questionnaires, assessments, library
+    ALPHA    — trainee: enroll, learn, attempt, give feedback
+
+Design rules
+    * Fail-CLOSED. If the role cannot be determined the request is rejected.
+      (The previous implementation defaulted to a permissive role on error.)
+    * A SUSPENDED account is refused regardless of role.
+    * A PENDING account is refused with ACCOUNT_PENDING_APPROVAL until an
+      Administrator approves it — it never inherits SUSPENDED's meaning.
+    * Authorization is enforced server-side only — the frontend is never trusted.
 """
 
 from typing import Optional
@@ -12,131 +21,170 @@ from fastapi import Header, HTTPException
 from backend.database.client import db_available, get_client
 from backend.routes.auth import _current_app_user
 
+# ─── Role constants ───────────────────────────────────────────────────────
+SUPREME = "SUPREME"
+MASTER = "MASTER"
+ALPHA = "ALPHA"
 
-# ─── Role Constants ──────────────────────────────────────────────────────
-STUDENT = "STUDENT"
-INDUSTRY = "INDUSTRY"
-ACADEMICIAN = "ACADEMICIAN"
-INSTITUTION_ADMIN = "INSTITUTION_ADMIN"
-SUPER_ADMIN = "SUPER_ADMIN"
+ALL_ROLES = [SUPREME, MASTER, ALPHA]
+DEFAULT_ROLE = ALPHA  # only applied when the DB is genuinely unreachable
 
-ALL_ROLES = [STUDENT, INDUSTRY, ACADEMICIAN, INSTITUTION_ADMIN, SUPER_ADMIN]
+# Coarse permission tiers: higher tier includes the lower one's read access.
+_ROLE_RANK = {ALPHA: 0, MASTER: 1, SUPREME: 2}
+
+
+class AuthError(HTTPException):
+    """401 — identity could not be established."""
+
+
+class Forbidden(HTTPException):
+    """403 — identity known but not permitted / account suspended."""
 
 
 def get_user_role(user_id: str) -> Optional[str]:
-    """Get the primary role for a user from the database."""
-    if not db_available():
-        return STUDENT  # Default to student if no DB
+    """Primary role for a user, or None if it cannot be determined.
 
+    Never guesses: returns None on any failure so callers can fail closed.
+    """
+    if not db_available():
+        return None
     client = get_client()
+    if client is None:
+        return None
     try:
         res = (
-            client.table("user_roles")
-            .select("role")
-            .eq("user_id", user_id)
+            client.table("users")
+            .select("role,status")
+            .eq("id", user_id)
             .limit(1)
             .execute()
         )
-        if res.data:
-            return res.data[0]["role"]
-
-        # Fallback: check users table role column
-        res = client.table("users").select("role").eq("id", user_id).limit(1).execute()
-        if res.data and res.data[0].get("role"):
-            return res.data[0]["role"]
+        rows = res.data or []
+        if not rows:
+            return None
+        row = rows[0]
+        _refuse_if_not_active(row.get("status") or "ACTIVE")
+        role = row.get("role")
+        return role if role in ALL_ROLES else None
+    except Forbidden:
+        raise
     except Exception:
-        pass
-
-    return STUDENT  # Default
+        return None
 
 
-def get_user_roles(user_id: str) -> list[str]:
-    """Get all roles for a user (a user can have multiple)."""
+def _refuse_if_not_active(status: str) -> None:
+    """Raise the 403 that matches this account state, or return for ACTIVE.
+
+    PENDING and SUSPENDED are deliberately different codes: the UI has to tell
+    "waiting for an administrator" apart from "your account was taken away",
+    and a shared message would make the first look like the second.
+    """
+    if status == "ACTIVE":
+        return
+    if status == "PENDING":
+        raise Forbidden(status_code=403, detail="ACCOUNT_PENDING_APPROVAL")
+    raise Forbidden(status_code=403, detail="ACCOUNT_SUSPENDED")
+
+
+def get_user_status(user_id: str) -> Optional[str]:
     if not db_available():
-        return [STUDENT]
-
+        return None
     client = get_client()
+    if client is None:
+        return None
     try:
-        res = client.table("user_roles").select("role").eq("user_id", user_id).execute()
-        roles = [r["role"] for r in (res.data or [])]
-        return roles if roles else [STUDENT]
+        res = (
+            client.table("users").select("status").eq("id", user_id).limit(1).execute()
+        )
+        rows = res.data or []
+        return rows[0].get("status") if rows else None
     except Exception:
-        return [STUDENT]
+        return None
+
+
+def _identity(authorization: Optional[str]) -> dict:
+    """Resolve {uid,email,role,status} or raise (fail-closed)."""
+    cu = _current_app_user(authorization)
+    if not cu:
+        raise AuthError(status_code=401, detail="Invalid or expired token")
+
+    uid = cu["uid"]
+    role = get_user_role(uid)
+    if role is None:
+        # Distinguish "unknown user / no role" from "db down".
+        if get_user_status(uid) is None:
+            raise Forbidden(
+                status_code=403, detail="Account is not provisioned on this platform."
+            )
+        raise AuthError(status_code=401, detail="Invalid or expired token")
+    return {"uid": uid, "email": cu["email"], "role": role}
 
 
 def require_role(*allowed_roles: str):
-    """Decorator factory for route handlers that require specific roles.
+    """FastAPI dependency restricting a route to specific roles.
 
-    Usage:
-        @router.get("/admin/dashboard")
-        def admin_dashboard(user=Depends(require_role(SUPER_ADMIN, INSTITUTION_ADMIN))):
-            ...
+        @router.get("/x")
+        def x(user=Depends(require_role(MASTER, SUPREME))): ...
     """
 
-    def dependency(authorization: Optional[str] = Header(None)):
-        cu = _current_app_user(authorization)
-        if not cu:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-        role = get_user_role(cu["uid"])
-        if role not in allowed_roles:
-            raise HTTPException(
+    def dependency(authorization: Optional[str] = Header(None)) -> dict:
+        user = _identity(authorization)
+        if user["role"] not in allowed_roles:
+            raise Forbidden(
                 status_code=403,
                 detail=f"Access denied. Required role: {' or '.join(allowed_roles)}",
             )
-        return {"uid": cu["uid"], "email": cu["email"], "role": role}
+        return user
 
     return dependency
 
 
 def optional_role(*allowed_roles: str):
-    """Like require_role but returns None if no auth instead of raising."""
+    """Like require_role but returns None instead of raising when unauthenticated.
 
-    def dependency(authorization: Optional[str] = Header(None)):
-        cu = _current_app_user(authorization)
-        if not cu:
-            return None
+    Rejected roles still raise — a logged-in Alpha must never silently gain
+    access to a page meant for someone else.
+    """
 
-        role = get_user_role(cu["uid"])
-        if role not in allowed_roles:
+    def dependency(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+        if not authorization:
             return None
-        return {"uid": cu["uid"], "email": cu["email"], "role": role}
+        user = _identity(authorization)
+        if user["role"] not in allowed_roles:
+            raise Forbidden(
+                status_code=403,
+                detail=f"Access denied. Required role: {' or '.join(allowed_roles)}",
+            )
+        return user
 
     return dependency
 
 
-def _extract_user(authorization: Optional[str]):
-    """Extract current user from authorization header."""
-    cu = _current_app_user(authorization)
-    if not cu:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    role = get_user_role(cu["uid"])
-    return {"uid": cu["uid"], "email": cu["email"], "role": role}
+def _extract_user(authorization: Optional[str] = Header(None)) -> dict:
+    """Any authenticated user, role unchecked (for 'my own data' routes)."""
+    return _identity(authorization)
 
 
-# ─── Convenience Functions ────────────────────────────────────────────────
+# ─── Convenience wrappers ──────────────────────────────────────────────────
+def require_alpha(authorization: Optional[str] = Header(None)) -> dict:
+    return require_role(ALPHA)(authorization)
 
 
-def require_student(authorization: Optional[str] = Header(None)):
-    """Require STUDENT role."""
-    return require_role(STUDENT)(authorization)
+def require_master(authorization: Optional[str] = Header(None)) -> dict:
+    return require_role(MASTER)(authorization)
 
 
-def require_industry(authorization: Optional[str] = Header(None)):
-    """Require INDUSTRY role."""
-    return require_role(INDUSTRY)(authorization)
+def require_supreme(authorization: Optional[str] = Header(None)) -> dict:
+    return require_role(SUPREME)(authorization)
 
 
-def require_academician(authorization: Optional[str] = Header(None)):
-    """Require ACADEMICIAN role."""
-    return require_role(ACADEMICIAN)(authorization)
+def at_least(user: dict, role: str) -> bool:
+    """True when the user's role rank is >= `role`'s rank."""
+    return _ROLE_RANK.get(user.get("role"), -1) >= _ROLE_RANK.get(role, 99)
 
 
-def require_institution_admin(authorization: Optional[str] = Header(None)):
-    """Require INSTITUTION_ADMIN role."""
-    return require_role(INSTITUTION_ADMIN)(authorization)
-
-
-def require_super_admin(authorization: Optional[str] = Header(None)):
-    """Require SUPER_ADMIN role."""
-    return require_role(SUPER_ADMIN)(authorization)
+def ensure_owner_or_above(user: dict, owner_id: str, minimum: str = MASTER) -> None:
+    """Allow the resource owner, or anyone at/above `minimum`."""
+    if user.get("uid") == owner_id or at_least(user, minimum):
+        return
+    raise Forbidden(status_code=403, detail="Access denied.")

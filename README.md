@@ -1,38 +1,128 @@
 # Learnify
 
-AI-powered study companion for Indian students — college discovery, career guidance, scholarships, and a personalized AI chatbot (**Veda**).
+**Check & Mate** — a digital capacity building and learning management portal.
+
+Trainers build and publish courses, trainees work through them and sit formal
+assessments, and every attempt rolls up into competency and performance
+reporting. Single codebase, three roles, no build step.
 
 ## Stack
-- **Frontend:** Vanilla HTML/CSS/JS (ES modules), no build step
-- **Backend:** Python FastAPI
-- **AI:** OpenRouter (two keys — chat + document analysis) on a single free model `nvidia/nemotron-3.5-lightning:free`
-- **Auth / DB:** Supabase (PostgreSQL) — *configure to enable login & persistence*
-- **Payments:** Razorpay — *configure to enable the premium upgrade*
+
+| Layer | What |
+|---|---|
+| **Frontend** | Vanilla HTML/CSS/JS — ES modules, no bundler, no framework |
+| **Backend** | FastAPI (Python) |
+| **Database / Auth** | Supabase — PostgreSQL + GoTrue |
+| **Storage** | Supabase Storage (`avatars`, `trainer-library`, `course-attachments`, `course-covers`) |
+| **AI** | Groq — `openai/gpt-oss-120b` (override with `GROQ_MODEL`) |
+| **Charts** | Runtime inline SVG (`public/src/charts.js`) — no chart library |
+| **Artwork** | 16 hand-authored cartoonish SVG covers (`public/src/art.js`) |
+
+## Roles
+
+| Role | Who | Can |
+|---|---|---|
+| **ALPHA** | Trainee | Enrol, watch lessons, sit assessments, read reports — sees every published course |
+| **MASTER** | Trainer | Build courses through the 5-step wizard, manage library, draft AI questionnaires |
+| **SUPREME** | Administrator | Publish/unpublish courses, feed posts, people, dashboards, audit |
+
+**There is no hard-coded bootstrap account.** The first SUPREME registers
+normally like anyone else; self-service admin sign-up can be closed afterwards
+with `SUPREME_SIGNUP_OPEN=false`.
+
+Signup itself is deliberately minimal — `email`, `password`, `name`, `role`.
+Qualifications, bio and avatar are completed later on the profile page.
+
+## What's implemented
+
+**Courses**
+- 5-step resumable wizard: **Basics → Structure → Content → Tests → Review**
+  (progress persists across reloads and rail jumps)
+- Lessons are video (upload ≤ 100 MB, or a YouTube link), reading, link or test
+- A lesson is complete at **≥ 90% watched** — scrubbing forward past the bar
+  still counts; an explicit "mark as done" is only honoured once the bar was met
+- Only **SUPREME** can move a course to `PUBLISHED`
+- Cover art is chosen per course: subject-derived art, one of the 16 preset
+  cartoon covers, or an uploaded image (public bucket, image mime, ≤ 5 MB)
+
+**Assessment**
+- Questionnaires (practice) and assessments (examinations), with live exam
+  controls for SUPREME: extend, end, force-submit, reopen
+- **AI drafting is draft → edit → publish.** Groq output lands in a queue that
+  trainers review and edit; nothing reaches a trainee until someone explicitly
+  publishes it
+
+**Reporting**
+- Veda-branded performance reports — deterministic scoring plus an AI narrative
+- Competency ranking per subject
+- Runtime SVG charts: bars, horizontal bars, donuts, sparklines
+
+**Platform**
+- Home feed — 4 post types, published and pinned by SUPREME
+- Notifications, library, feedback, participation tracking
+- Admin console — dashboards, suspension, audit log
 
 ## Run locally
-```bash
-# 1. Backend
-python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env        # fill in Supabase / Razorpay (OpenRouter keys already set)
-uvicorn backend.main:app --port 8000
 
-# 2. Frontend — open public/index.html via the running backend
-#    visit http://127.0.0.1:8000/   (root serves the SPA)
+```bash
+# 1. Environment
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+cp .env.example .env            # fill in Supabase + Groq keys
+
+# 2. Schema + reference subjects (idempotent — safe to re-run)
+python scripts/apply_lms_schema.py
+python scripts/seed_subjects.py
+
+# 3. Server (root serves the SPA)
+python -m uvicorn backend.main:app --port 8021
+# open http://127.0.0.1:8021/
 ```
 
-## What works now
-- **Home** — Writing Enhancer, Calculator & Unit Converter, Resume Builder (modals); quick links to Colleges / Scholarships.
-- **Veda** — real AI chat (login required); uses your OpenRouter key.
-- **Career** — 9 seeded colleges (NIRF, packages, recruiters, min 12th %), 4 scholarships, education loans, student reviews; govt/private filters.
-- **Profile** — real `/auth/me`, document upload with synthetic-content detection, language preference, logout.
-- **Auth** — login / sign-up modal wired to Supabase.
-- **Premium** — Razorpay checkout modal; shows a clear message when keys are absent (no fake success).
+There is **no demo or seed data** — no sample users, courses or posts. The only
+seeded content is the subject list, which is reference data, not content.
 
-## API
-`/api/auth/*` (register, login, me) · `/api/veda/chat` · `/api/colleges`, `/api/colleges/{id}`, `/api/scholarships` · `/api/documents/upload`, `/api/documents` · `/api/premium/checkout`, `/api/premium/webhook` · `/health`
+## Project layout
+
+```
+backend/
+  main.py              app, mounts public/ at /, exception handlers
+  routes/              auth, courses, assessments, questionnaires, ai,
+                       reports, feed, admin, library, subjects, competency,
+                       feedback, participation, profiles, notifications
+  services/            db (PostgREST helper), ai (Groq), auth, detector
+  database/            client.py, schema.sql
+public/
+  index.html           SPA shell, 13 module CSS links
+  src/                 ES modules — one file per route/feature
+  styles.css           tokens + layout + MOBILE HARDENING block
+  styles/modules/      per-feature CSS (art, wizard, charts, courses, …)
+  assets/              logo, PWA icons, og-cover
+docs/
+  API.md               generated contract — 162 operations
+scripts/               checks, schema, seeding, image generation, e2e
+```
+
+## Checks
+
+```bash
+python scripts/check_frontend.py   # modules, handlers, imports, icons, API paths
+python scripts/verify_routes.py    # mounted routes vs docs/API.md, no legacy surface
+python scripts/dump_api.py         # regenerate docs/API.md from the live OpenAPI
+python scripts/e2e_test.py         # full three-role flow against a running server
+python scripts/test_ratelimit.py   # auth rate limiting: budget, 429 contract, bypass
+python scripts/gen_images.py       # PWA icons + OG card from public/assets/logo.jpeg
+```
+
+The frontend checker is the useful early-warning signal: it resolves every
+`import`, every named import against its source module, and every API path in
+the frontend against the documented contract.
 
 ## Notes
-- Without Supabase keys, auth returns `503` and colleges/scholarships fall back to the seeded dataset.
-- Without Razorpay keys, the premium checkout returns `503` (no mock orders).
-- Apply `backend/database/schema.sql` in Supabase, then `python -m backend.database.seed` to load colleges & scholarships.
+
+- Design tokens live in `styles.css` `:root`. Inline SVG built from strings
+  cannot resolve `var()` — mirror the hex values in the component's own table.
+- API responses use one envelope: `{"success", "data", "error"}`; failures add
+  `detail`.
+- See `docs/API.md` for the full endpoint contract.

@@ -1,0 +1,194 @@
+﻿/* tests — Learnify. Design tokens come from styles.css.
+   Question cards, the authoring form, AI draft cards and the live panel. */
+
+/* ─── Question cards ─────────────────────────────────────────────────────── */
+
+.q-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+}
+
+.q-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.q-n {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--muted);
+  font: 700 12px var(--font-head);
+}
+
+.q-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.q-head .grow, .live-row .grow, .draft .card-head .grow { flex: 1; }
+.q-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.q-text {
+  margin: 12px 0 10px;
+  font: 600 15px/1.55 var(--font-body);
+  color: var(--text);
+}
+
+.q-opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.q-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  font-size: 13.5px;
+  color: var(--sub);
+}
+
+.q-opt span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.q-opt .tag { margin-left: auto; flex: none; }
+
+.q-opt.ok {
+  border-color: rgba(14, 165, 164, 0.36);
+  background: rgba(14, 165, 164, 0.08);
+  color: var(--text);
+}
+
+.q-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  color: var(--teal);
+}
+
+.q-mark svg { width: 12px; height: 12px; }
+.q-opt.ok .q-mark { background: rgba(14, 165, 164, 0.16); border-color: rgba(14, 165, 164, 0.45); }
+
+.q-why {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ─── Compact list on the authoring screen ───────────────────────────────── */
+
+.ql-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ql-item:last-child { border-bottom: none; padding-bottom: 2px; }
+.ql-item .q-n { margin-top: 1px; }
+
+.ql-t { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.ql-t small { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.ql-item .btn { flex: none; }
+
+/* ─── Authoring form ─────────────────────────────────────────────────────── */
+
+.qfieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+  margin: 12px 0 0;
+}
+
+.qfieldset legend {
+  font: 700 11px var(--font-head);
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  color: var(--muted);
+  padding: 0 6px;
+}
+
+.opt-list { display: grid; gap: 8px; }
+
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+}
+
+.opt-row input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.opt-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.opt-row input[type="text"]:focus {
+  outline: none;
+  border-color: rgba(224, 165, 38, 0.5);
+}
+
+.opt-row:has(input[type="radio"]:checked) {
+  border-color: rgba(224, 165, 38, 0.45);
+  background: rgba(224, 165, 38, 0.08);
+}
+
+/* ─── AI draft cards ─────────────────────────────────────────────────────── */
+
+.draft .card-head h3 { font-size: 14.5px; }
+.draft-q { margin: 4px 0 10px; font: 600 15px/1.5 var(--font-body); color: var(--text); }
+.draft .card-foot .btn { flex: none; }
+
+/* ─── Live attempts (assessments) ────────────────────────────────────────── */
+
+.live-list { display: grid; gap: 8px; }
+
+.live-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 11px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+
+.live-row b { font: 700 13.5px var(--font-head); color: var(--text); }
+
+/* ─── Small screens ──────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .q-card { padding: 13px; }
+  .q-acts { width: 100%; }
+  .q-acts .btn { flex: 1; }
+  .live-row .sm.muted { width: 100%; }
+}

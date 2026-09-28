@@ -1,0 +1,105 @@
+/* art — generated course-cover artwork. Design tokens come from styles.css. */
+
+/* A cover is a fixed-ratio box (aspect-ratio is set inline by coverHtml) that
+   holds either the inline SVG or an <img>. `flex:none` stops it being squashed
+   when it becomes the first item of a column flex container. */
+.art-cover {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  width: 100%;
+  background: var(--surface-2);
+  border-radius: var(--r-lg);
+}
+
+.art-cover > svg { display: block; width: 100%; height: 100%; }
+
+/* Beats the global `img { max-width:100%; height:auto }` hardening rule. */
+.art-cover > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Course card: bleed to the card edges, rounded only on top ──────────────
+   .cc-card carries 20px padding and a 1px border, so the radius is inset by
+   exactly that much to follow the card's own --r-lg corner. */
+.cc-card.course .art-cover.cc-cover {
+  margin: -20px -20px 0;
+  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+}
+
+.cc-card.compact .art-cover.cc-cover { margin: -16px -16px 0; }
+
+/* ── Detail view hero ───────────────────────────────────────────────────────
+   Reuses the cc-hero class name so the block reads as a hero, but every
+   landing treatment (gradient, centred text, 46px padding, outer margin) is
+   neutralised: the artwork supplies its own surface. Two class names give
+   this rule the specificity to win over styles.css without !important. */
+.art-cover.cc-hero {
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  background: var(--surface-2);
+  border: 0;
+  border-radius: var(--r-lg);
+}
+
+/* ── Thumbnail picker (course wizard step 1) ────────────────────────────────
+   One tile per preset drawing plus a "subject default" tile that hands the
+   choice to artKeyFor(). `.art-opt` is a bare <button>: the UA chrome is
+   stripped so the tile reads as a card, and the selected state is a 2px ring
+   in the accent colour rather than a filled background, so the artwork itself
+   stays the thing you are judging. */
+.art-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.art-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color .14s var(--ease), box-shadow .14s var(--ease);
+}
+
+.art-opt:hover:not(:disabled):not(.on) { border-color: var(--border-2); }
+
+.art-opt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.art-opt.on,
+.art-opt:checked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.art-opt > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+}
+
+.art-opt-cap {
+  min-height: 31px;
+  font: 600 11.5px/1.35 var(--font-head);
+  text-align: center;
+  color: var(--sub);
+}
+
+.art-opt.on .art-opt-cap { color: var(--text); }
+
+/* The subject-default tile previews the art artKeyFor() would choose; a
+   dashed edge keeps it visually apart from the fixed presets. */
+.art-opt-def { background: var(--surface); border-style: dashed; }
+
+/* Read-only wizard: the grid stays visible, it just cannot be poked. */
+.art-opt:disabled { cursor: default; opacity: .78; }
+.art-opt.on:disabled { opacity: 1; }

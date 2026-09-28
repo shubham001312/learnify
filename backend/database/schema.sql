@@ -1,673 +1,622 @@
--- Learnify — Supabase schema (run ONCE in Supabase SQL Editor, then: python -m backend.seed_supabase)
-create extension if not exists vector;
+-- =============================================================================
+--  Learnify — Digital Capacity Building & Learning Management Portal
+--  Fresh LMS schema (replaces the Learnify schema entirely).
+--
+--  Roles:  SUPREME (admin) · MASTER (trainer) · ALPHA (trainee)
+--  Ids:    app-level 7-char text ids (see backend/services/uid.py), matching
+--          the existing `users.id` convention.
+--
+--  Applied via scripts/apply_lms_schema.py (Supabase PAT / SQL editor).
+-- =============================================================================
 
--- ───────────────────────── users ─────────────────────────
+create extension if not exists pgcrypto;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- STORAGE BUCKETS (Supabase Storage)
+-- Declared here so a fresh project gets every bucket the app writes to.
+--   public buckets  -> {SUPABASE_URL}/storage/v1/object/public/<bucket>/<path>
+--   private buckets -> read back through a signed URL (GET /library/files/sign)
+-- Size and MIME limits are enforced server-side in
+-- backend/routes/library.py::_check, not by the bucket definition.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Existing private buckets: `do nothing`, so re-applying never flips an
+-- existing bucket's visibility.
+insert into storage.buckets (id, name, public)
+values ('trainer-library',    'trainer-library',    false),
+       ('course-attachments', 'course-attachments', false)
+on conflict (id) do nothing;
+
+-- Public buckets: avatars and course cover thumbnails are rendered directly by
+-- the browser, so they must always end up public (idempotently).
+insert into storage.buckets (id, name, public)
+values ('avatars',       'avatars',       true),
+       ('course-covers', 'course-covers', true)
+on conflict (id) do update set public = excluded.public;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- IDENTITY
+-- ─────────────────────────────────────────────────────────────────────────────
+
 create table if not exists users (
-    id text primary key,
-    email text unique,
-    name text,
-    language text default 'English',
-    grade text,
-    premium bool default false,
-    created_at timestamptz default now()
+    id                   text primary key,
+    email                text not null unique,
+    name                 text not null default '',
+    role                 text not null default 'ALPHA'
+                         check (role in ('SUPREME','MASTER','ALPHA')),
+    -- PENDING is the approval state: a freshly registered Trainee or Trainer
+    -- cannot read anything until an Administrator approves the account.
+    -- Fail-closed default — a row written without an explicit status lands in
+    -- the queue instead of silently becoming usable.
+    status               text not null default 'PENDING'
+                         check (status in ('PENDING','ACTIVE','SUSPENDED')),
+    department           text not null default '',
+    designation          text not null default '',
+    headline             text not null default '',
+    bio                  text not null default '',
+    phone                text not null default '',
+    avatar_url           text,
+    must_change_password boolean not null default false,
+    suspended_by         text references users(id),
+    suspended_at         timestamptz,
+    created_by           text references users(id),
+    created_at           timestamptz not null default now(),
+    updated_at           timestamptz not null default now()
+);
+create index if not exists idx_users_role   on users(role);
+create index if not exists idx_users_status on users(status);
+
+-- Professional profile: qualifications, work experience, interests, skills,
+-- certificates (all maintained by the user from the profile page).
+create table if not exists profiles (
+    user_id       text primary key references users(id) on delete cascade,
+    education     jsonb not null default '[]',   -- [{degree,institution,year,grade}]
+    qualifications jsonb not null default '[]',  -- [{title,issuer,year}]
+    experience    jsonb not null default '[]',   -- [{role,org,from,to,summary}]
+    interests     jsonb not null default '[]',   -- ["Data","Security"]
+    skills        jsonb not null default '[]',   -- [{name,level(0-100)}]
+    certificates  jsonb not null default '[]',   -- [{name,issuer,year,url}]
+    updated_at    timestamptz not null default now()
 );
 
--- ───────────────────────── colleges ─────────────────────────
-create table if not exists colleges (
-    id bigint primary key,
-    name text not null,
-    state text,
-    city text,
-    district text,
-    pin_code text,
-    address text,
-    type text,
-    nirf_rank integer,
-    nirf_year integer default 2024,
-    avg_package real,
-    placement_pct integer,
-    rating real,
-    streams text[],
-    top_recruiters text[],
-    min_12th_marks integer,
-    website text,
-    affiliation text,
-    founded text,
-    description text,
-    pros text[],
-    cons text[],
-    featured boolean default false,
-    created_at timestamptz default now()
+create table if not exists audit_logs (
+    id            uuid primary key default gen_random_uuid(),
+    actor_id      text references users(id),
+    action        text not null,
+    resource_type text,
+    resource_id   text,
+    metadata      jsonb not null default '{}',
+    ip_address    text,
+    created_at    timestamptz not null default now()
 );
-create index if not exists idx_colleges_state on colleges (state);
-create index if not exists idx_colleges_type on colleges (type);
-create index if not exists idx_colleges_nirf on colleges (nirf_rank);
-create index if not exists idx_colleges_featured on colleges (featured);
+create index if not exists idx_audit_actor  on audit_logs(actor_id);
+create index if not exists idx_audit_action on audit_logs(action);
 
--- ───────────────────────── scholarships ─────────────────────────
-create table if not exists scholarships (
-    id bigint primary key,
-    name text not null,
-    amount text,
-    eligibility text,
-    deadline text,
-    category text,
-    state text,
-    documents text[],
-    colleges text[],
-    provider text,
-    link text,
-    description text
+-- Administrator invitations.
+--
+-- Creating an account with role SUPREME is never public: an existing
+-- Administrator mints one of these and shares the link. Registration with the
+-- token consumes a use; an invalid, expired, revoked or exhausted token is
+-- refused before anything is written.
+--
+-- `created_by` is nullable on purpose — the bootstrap admin is created by the
+-- very first sign-up, before any Administrator exists to own an invite, and a
+-- test harness provisions its own row. The token is the only credential here,
+-- so it is stored as-is (a row no one can read is a row no one can revoke).
+create table if not exists admin_invites (
+    token       text primary key,
+    email       text not null default '',   -- '' = any address
+    note        text not null default '',
+    created_by  text references users(id) on delete set null,
+    created_at  timestamptz not null default now(),
+    expires_at  timestamptz not null default now() + interval '7 days',
+    max_uses    int not null default 1 check (max_uses > 0),
+    used_count  int not null default 0 check (used_count >= 0),
+    revoked_at  timestamptz
 );
-create index if not exists idx_scholarships_state on scholarships (state);
-create index if not exists idx_scholarships_category on scholarships (category);
+create index if not exists idx_admin_invites_creator on admin_invites(created_by);
+create index if not exists idx_admin_invites_expiry   on admin_invites(expires_at);
 
--- ───────────────────────── reviews ─────────────────────────
-create table if not exists college_reviews (
-    id bigint generated always as identity primary key,
-    college_id bigint not null,
-    author text default 'Anonymous',
-    rating real default 0,
-    text text,
-    pros text,
-    cons text,
-    created_at timestamptz default now()
-);
-create index if not exists idx_reviews_college on college_reviews (college_id);
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SUBJECTS · TOPICS · COMPETENCY  (competency mapping + report benchmarks)
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- ───────────────────────── scanned data (per user) ─────────────────────────
--- Generic store for anything a user "scans" (notes, docs, OCR, quick captures).
--- Keyed by user_id + indexed for fast per-user retrieval.
-create table if not exists scanned_data (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    data_type text default 'note',
-    title text,
-    content text,
-    source text,
-    meta jsonb,
-    created_at timestamptz default now()
+create table if not exists subjects (
+    id          uuid primary key default gen_random_uuid(),
+    code        text not null unique,
+    name        text not null,
+    category    text not null default '',
+    description text not null default '',
+    is_active   boolean not null default true,
+    created_at  timestamptz not null default now()
 );
-create index if not exists idx_scanned_user on scanned_data (user_id);
-create index if not exists idx_scanned_user_created on scanned_data (user_id, created_at desc);
+create index if not exists idx_subjects_active on subjects(is_active);
+-- Subject names are a human key: the wizard, reports and seeds look subjects
+-- up by name, so the same name must never exist twice (case-insensitive).
+create unique index if not exists subjects_name_uk on subjects (lower(name));
 
--- ───────────────────────── documents / rag ─────────────────────────
-create table if not exists documents (
-    id uuid default gen_random_uuid() primary key,
-    user_id uuid,
-    filename text,
-    is_synthetic bool default false,
-    extracted jsonb,
-    created_at timestamptz default now()
+-- Curated topic list per subject — powers weak-point analysis and reports.
+create table if not exists subject_topics (
+    id          uuid primary key default gen_random_uuid(),
+    subject_id  uuid not null references subjects(id) on delete cascade,
+    name        text not null,
+    description text not null default '',
+    sort_order  int  not null default 0,
+    unique (subject_id, name)
 );
-create table if not exists doc_chunks (
-    id serial primary key,
-    user_id uuid,
-    namespace text,
-    content text,
-    embedding vector(384),
-    created_at timestamptz default now()
-);
-create index if not exists idx_documents_user_id on documents (user_id);
-create index if not exists idx_doc_chunks_user_id on doc_chunks (user_id);
-create index if not exists idx_doc_chunks_embedding
-    on doc_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+create index if not exists idx_topics_subject on subject_topics(subject_id);
 
--- ───────────────────────── conversations / memory ─────────────────────────
-create table if not exists conversations (
-    id serial primary key,
-    user_id uuid,
-    role text,
-    content text,
-    created_at timestamptz default now()
-);
-create table if not exists memory (
-    id serial primary key,
-    user_id uuid,
-    layer int,
-    kind text,
-    content text,
-    created_at timestamptz default now()
+-- Granular competencies used to rank trainers per subject.
+create table if not exists competencies (
+    id          uuid primary key default gen_random_uuid(),
+    name        text not null unique,
+    description text not null default '',
+    created_at  timestamptz not null default now()
 );
 
--- ───────────────────────── subscriptions / sgpa / plans ─────────────────────────
-create table if not exists subscriptions (
-    id serial primary key,
-    user_id uuid,
-    plan text,
-    status text,
-    razorpay_order_id text,
-    created_at timestamptz default now()
-);
-create table if not exists sgpa_entries (
-    id serial primary key,
-    user_id uuid,
-    semester text,
-    sgpa numeric,
-    created_at timestamptz default now()
-);
-create index if not exists idx_sgpa_user_id on sgpa_entries (user_id);
-create table if not exists user_profiles (
-    id uuid default gen_random_uuid() primary key,
-    user_id uuid unique,
-    board text,
-    target_exam text,
-    target_year int,
-    phone text,
-    updated_at timestamptz default now()
-);
-create table if not exists study_plans (
-    id uuid default gen_random_uuid() primary key,
-    user_id uuid,
-    title text,
-    exam_date date,
-    hours_per_day int,
-    subjects jsonb,
-    plan jsonb,
-    created_at timestamptz default now()
-);
-create index if not exists idx_study_plans_user_id on study_plans (user_id);
-
--- ──────────────────────────────────────────────────────────────────────────
--- LEARNIFY — SIH 2026 EXTENSION TABLES
--- ──────────────────────────────────────────────────────────────────────────
-
--- ───────────────────────── ROLES & ORGANIZATIONS ─────────────────────────
-create table if not exists organizations (
-    id uuid default gen_random_uuid() primary key,
-    name text not null,
-    type text not null default 'COMPANY',
-    description text,
-    website text,
-    logo_url text,
-    industry text,
-    size text,
-    location text,
-    verified boolean default false,
-    created_at timestamptz default now()
+create table if not exists subject_competencies (
+    subject_id     uuid not null references subjects(id) on delete cascade,
+    competency_id  uuid not null references competencies(id) on delete cascade,
+    required_weight numeric not null default 1.0 check (required_weight > 0),
+    primary key (subject_id, competency_id)
 );
 
-create table if not exists user_roles (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    role text not null default 'STUDENT',
-    organization_id uuid references organizations(id),
-    verified boolean default false,
-    created_at timestamptz default now(),
-    unique(user_id, role)
+create table if not exists trainer_competencies (
+    trainer_id   text not null references users(id) on delete cascade,
+    competency_id uuid not null references competencies(id) on delete cascade,
+    proficiency  numeric not null default 50 check (proficiency between 0 and 100),
+    evidence     text not null default '',
+    verified_by  text references users(id),
+    verified_at  timestamptz,
+    updated_at   timestamptz not null default now(),
+    primary key (trainer_id, competency_id)
 );
-create index if not exists idx_user_roles_user on user_roles(user_id);
-create index if not exists idx_user_roles_role on user_roles(role);
+create index if not exists idx_tc_trainer on trainer_competencies(trainer_id);
 
--- ───────────────────────── SKILL TAXONOMY ─────────────────────────
-create table if not exists skill_categories (
-    id uuid default gen_random_uuid() primary key,
-    name text not null unique,
-    description text,
-    created_at timestamptz default now()
+-- Curated industry-standard benchmarks per subject/topic, used verbatim in
+-- Veda reports and personalised by the AI layer.
+create table if not exists subject_benchmarks (
+    id                   uuid primary key default gen_random_uuid(),
+    subject_id           uuid not null references subjects(id) on delete cascade,
+    topic_id             uuid references subject_topics(id) on delete cascade,
+    industry_standard    text not null default '',
+    expected_proficiency int not null default 60 check (expected_proficiency between 0 and 100),
+    related_topics       text[] not null default '{}',
+    notes                text not null default '',
+    unique (subject_id, topic_id)
 );
+create index if not exists idx_bench_subject on subject_benchmarks(subject_id);
 
-create table if not exists skills (
-    id uuid default gen_random_uuid() primary key,
-    name text not null unique,
-    category_id uuid references skill_categories(id),
-    parent_skill_id uuid references skills(id),
-    description text,
-    difficulty text default 'intermediate',
-    demand_score real default 0,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
+-- ─────────────────────────────────────────────────────────────────────────────
+-- COURSES · CURRICULUM · SLOTS · PROGRESS
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists courses (
+    id              uuid primary key default gen_random_uuid(),
+    code            text not null unique,
+    title           text not null,
+    description     text not null default '',
+    subject_id      uuid references subjects(id),
+    trainer_id      text not null references users(id),
+    level           text not null default 'Beginner',
+    duration_hours  numeric not null default 0,
+    cover_image_url text,
+    status          text not null default 'DRAFT'
+                    check (status in ('DRAFT','IN_PROGRESS','PENDING_RELEASE',
+                                      'PUBLISHED','ARCHIVED')),
+    draft_step      int not null default 1 check (draft_step between 1 and 5),
+    released_by     text references users(id),
+    released_at     timestamptz,
+    created_at      timestamptz not null default now(),
+    updated_at      timestamptz not null default now()
 );
-create index if not exists idx_skills_name on skills(name);
-create index if not exists idx_skills_category on skills(category_id);
+create index if not exists idx_courses_trainer on courses(trainer_id);
+create index if not exists idx_courses_status  on courses(status);
+create index if not exists idx_courses_subject on courses(subject_id);
 
-create table if not exists skill_aliases (
-    id uuid default gen_random_uuid() primary key,
-    skill_id uuid not null references skills(id),
-    alias text not null unique,
-    created_at timestamptz default now()
+create table if not exists course_modules (
+    id          uuid primary key default gen_random_uuid(),
+    course_id   uuid not null references courses(id) on delete cascade,
+    title       text not null,
+    description text not null default '',
+    sort_order  int not null default 0
 );
-create index if not exists idx_skill_aliases_alias on skill_aliases(alias);
+create index if not exists idx_modules_course on course_modules(course_id);
 
--- ───────────────────────── STUDENT SKILL PROFILE ─────────────────────────
-create table if not exists user_skills (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    skill_id uuid not null references skills(id),
-    level real default 0,
-    source text default 'SELF_REPORTED',
-    verified boolean default false,
-    confidence real default 0,
-    last_assessed_at timestamptz,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now(),
-    unique(user_id, skill_id)
+-- A slot is one lesson: video + text + attachments + optional linked test.
+create table if not exists course_slots (
+    id               uuid primary key default gen_random_uuid(),
+    module_id        uuid not null references course_modules(id) on delete cascade,
+    title            text not null,
+    kind             text not null default 'VIDEO'
+                     check (kind in ('VIDEO','READING','LINK','TEST')),
+    sort_order       int not null default 0,
+    video_source     text check (video_source in ('UPLOAD','YOUTUBE')),
+    storage_path     text,          -- Supabase object path when UPLOAD
+    youtube_id       text,          -- parsed id when YOUTUBE
+    youtube_url      text,
+    poster_path      text,
+    duration_seconds int not null default 0,
+    body             text not null default '',
+    linked_test_type text check (linked_test_type in ('QUESTIONNAIRE','ASSESSMENT')),
+    linked_test_id   uuid,
+    is_preview       boolean not null default false,
+    created_at       timestamptz not null default now()
 );
-create index if not exists idx_user_skills_user on user_skills(user_id);
+create index if not exists idx_slots_module on course_slots(module_id);
+-- A slot has at most one video source; enforced by app + partial unique lookups.
 
--- ───────────────────────── ASSESSMENTS ─────────────────────────
+create table if not exists slot_attachments (
+    id              uuid primary key default gen_random_uuid(),
+    slot_id         uuid not null references course_slots(id) on delete cascade,
+    library_item_id uuid,
+    storage_path    text not null,
+    filename        text not null,
+    mime            text not null default '',
+    size_bytes      bigint not null default 0,
+    created_at      timestamptz not null default now()
+);
+create index if not exists idx_attach_slot on slot_attachments(slot_id);
+
+-- Per-trainee watch progress → resume + 90% completion rule.
+create table if not exists slot_progress (
+    id                   uuid primary key default gen_random_uuid(),
+    slot_id              uuid not null references course_slots(id) on delete cascade,
+    trainee_id           text not null references users(id) on delete cascade,
+    watch_seconds        int not null default 0,
+    progress_pct         numeric not null default 0 check (progress_pct between 0 and 100),
+    last_position_seconds int not null default 0,
+    completed            boolean not null default false,
+    completed_at         timestamptz,
+    updated_at           timestamptz not null default now(),
+    unique (slot_id, trainee_id)
+);
+create index if not exists idx_progress_trainee on slot_progress(trainee_id);
+
+create table if not exists enrollments (
+    id           uuid primary key default gen_random_uuid(),
+    course_id    uuid not null references courses(id) on delete cascade,
+    trainee_id   text not null references users(id) on delete cascade,
+    status       text not null default 'ENROLLED'
+                 check (status in ('ENROLLED','IN_PROGRESS','COMPLETED','DROPPED')),
+    progress_pct numeric not null default 0 check (progress_pct between 0 and 100),
+    enrolled_at  timestamptz not null default now(),
+    completed_at timestamptz,
+    unique (course_id, trainee_id)
+);
+create index if not exists idx_enroll_trainee on enrollments(trainee_id);
+create index if not exists idx_enroll_course  on enrollments(course_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TRAINER LIBRARY  (recorded lectures · presentations · study materials)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists library_items (
+    id           uuid primary key default gen_random_uuid(),
+    trainer_id   text not null references users(id) on delete cascade,
+    subject_id   uuid references subjects(id),
+    title        text not null,
+    description  text not null default '',
+    file_type    text not null
+                 check (file_type in ('RECORDED_LECTURE','PRESENTATION','STUDY_MATERIAL')),
+    storage_path text not null,
+    bucket       text not null default 'trainer-library',
+    mime         text not null default '',
+    size_bytes   bigint not null default 0,
+    duration_seconds int not null default 0,
+    youtube_id   text,
+    created_at   timestamptz not null default now()
+);
+create index if not exists idx_lib_trainer on library_items(trainer_id);
+create index if not exists idx_lib_type    on library_items(file_type);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- QUESTIONNAIRE  (practice with deadline)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists questionnaires (
+    id             uuid primary key default gen_random_uuid(),
+    title          text not null,
+    description    text not null default '',
+    subject_id     uuid references subjects(id),
+    topic_id       uuid references subject_topics(id),
+    course_id      uuid references courses(id) on delete set null,
+    trainer_id     text not null references users(id),
+    deadline_at    timestamptz,
+    duration_minutes int not null default 30,
+    max_attempts   int not null default 1,
+    status         text not null default 'DRAFT'
+                   check (status in ('DRAFT','PENDING_RELEASE','PUBLISHED',
+                                     'ENDED','ARCHIVED')),
+    created_at     timestamptz not null default now(),
+    updated_at     timestamptz not null default now()
+);
+create index if not exists idx_qnr_trainer on questionnaires(trainer_id);
+create index if not exists idx_qnr_status  on questionnaires(status);
+create index if not exists idx_qnr_deadline on questionnaires(deadline_at);
+
+create table if not exists questionnaire_questions (
+    id              uuid primary key default gen_random_uuid(),
+    questionnaire_id uuid not null references questionnaires(id) on delete cascade,
+    text            text not null,
+    explanation     text not null default '',
+    difficulty      text not null default 'medium'
+                    check (difficulty in ('easy','medium','hard')),
+    topic_id        uuid references subject_topics(id),
+    sort_order      int not null default 0,
+    points          numeric not null default 1
+);
+create index if not exists idx_qq_questionnaire on questionnaire_questions(questionnaire_id);
+create index if not exists idx_qq_topic on questionnaire_questions(topic_id);
+
+create table if not exists questionnaire_options (
+    id          uuid primary key default gen_random_uuid(),
+    question_id uuid not null references questionnaire_questions(id) on delete cascade,
+    text        text not null,
+    is_correct  boolean not null default false,
+    sort_order  int not null default 0
+);
+create index if not exists idx_qo_question on questionnaire_options(question_id);
+
+create table if not exists questionnaire_attempts (
+    id               uuid primary key default gen_random_uuid(),
+    questionnaire_id uuid not null references questionnaires(id) on delete cascade,
+    trainee_id       text not null references users(id) on delete cascade,
+    attempt_no       int not null default 1,
+    started_at       timestamptz not null default now(),
+    submitted_at     timestamptz,
+    score            numeric not null default 0,
+    max_score        numeric not null default 0,
+    percentage       numeric not null default 0,
+    status           text not null default 'IN_PROGRESS'
+                     check (status in ('IN_PROGRESS','SUBMITTED','VOIDED','EXPIRED')),
+    ended_by         text references users(id),
+    responses        jsonb not null default '[]',  -- [{question_id, option_id, is_correct}]
+    unique (questionnaire_id, trainee_id, attempt_no)
+);
+create index if not exists idx_qa_trainee on questionnaire_attempts(trainee_id);
+create index if not exists idx_qa_status  on questionnaire_attempts(status);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ASSESSMENT  (formal subject-wise MCQ exam → certificate)
+-- ─────────────────────────────────────────────────────────────────────────────
+
 create table if not exists assessments (
-    id uuid default gen_random_uuid() primary key,
-    title text not null,
-    description text,
-    category text not null default 'technical',
-    duration_minutes int default 30,
-    max_score int default 100,
-    passing_score int default 60,
-    cooldown_hours int default 24,
-    is_active boolean default true,
-    created_at timestamptz default now()
+    id             uuid primary key default gen_random_uuid(),
+    title          text not null,
+    description    text not null default '',
+    subject_id     uuid references subjects(id),
+    course_id      uuid references courses(id) on delete set null,
+    trainer_id     text not null references users(id),
+    duration_minutes int not null default 30,
+    max_score      int not null default 100,
+    passing_score  int not null default 60,
+    deadline_at    timestamptz,
+    status         text not null default 'DRAFT'
+                   check (status in ('DRAFT','PENDING_RELEASE','PUBLISHED',
+                                     'ENDED','ARCHIVED')),
+    created_at     timestamptz not null default now(),
+    updated_at     timestamptz not null default now()
 );
+create index if not exists idx_asm_trainer on assessments(trainer_id);
+create index if not exists idx_asm_status  on assessments(status);
+create index if not exists idx_asm_deadline on assessments(deadline_at);
 
 create table if not exists assessment_questions (
-    id uuid default gen_random_uuid() primary key,
-    assessment_id uuid not null references assessments(id),
-    question_text text not null,
-    question_type text default 'MCQ',
-    difficulty text default 'medium',
-    weight real default 1.0,
-    explanation text,
-    created_at timestamptz default now()
+    id            uuid primary key default gen_random_uuid(),
+    assessment_id uuid not null references assessments(id) on delete cascade,
+    text          text not null,
+    explanation   text not null default '',
+    difficulty    text not null default 'medium'
+                  check (difficulty in ('easy','medium','hard')),
+    topic_id      uuid references subject_topics(id),
+    sort_order    int not null default 0,
+    points        numeric not null default 1
 );
 create index if not exists idx_aq_assessment on assessment_questions(assessment_id);
+create index if not exists idx_aq_topic on assessment_questions(topic_id);
 
 create table if not exists assessment_options (
-    id uuid default gen_random_uuid() primary key,
-    question_id uuid not null references assessment_questions(id),
-    option_text text not null,
-    is_correct boolean default false,
-    sort_order int default 0
+    id          uuid primary key default gen_random_uuid(),
+    question_id uuid not null references assessment_questions(id) on delete cascade,
+    text        text not null,
+    is_correct  boolean not null default false,
+    sort_order  int not null default 0
 );
 create index if not exists idx_ao_question on assessment_options(question_id);
 
-create table if not exists question_skills (
-    id uuid default gen_random_uuid() primary key,
-    question_id uuid not null references assessment_questions(id),
-    skill_id uuid not null references skills(id),
-    weight real default 1.0
-);
-
 create table if not exists assessment_attempts (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    assessment_id uuid not null references assessments(id),
-    score real default 0,
-    max_score real default 0,
-    percentage real default 0,
-    started_at timestamptz default now(),
-    completed_at timestamptz,
-    status text default 'in_progress'
+    id            uuid primary key default gen_random_uuid(),
+    assessment_id uuid not null references assessments(id) on delete cascade,
+    trainee_id    text not null references users(id) on delete cascade,
+    attempt_no    int not null default 1,
+    started_at    timestamptz not null default now(),
+    submitted_at  timestamptz,
+    score         numeric not null default 0,
+    max_score     numeric not null default 0,
+    percentage    numeric not null default 0,
+    passed        boolean not null default false,
+    status        text not null default 'IN_PROGRESS'
+                  check (status in ('IN_PROGRESS','SUBMITTED','VOIDED','EXPIRED')),
+    ended_by      text references users(id),
+    unique (assessment_id, trainee_id, attempt_no)
 );
-create index if not exists idx_aa_user on assessment_attempts(user_id);
-create index if not exists idx_aa_assessment on assessment_attempts(assessment_id);
+create index if not exists idx_asa_trainee on assessment_attempts(trainee_id);
+create index if not exists idx_asa_status  on assessment_attempts(status);
 
 create table if not exists assessment_responses (
-    id uuid default gen_random_uuid() primary key,
-    attempt_id uuid not null references assessment_attempts(id),
-    question_id uuid not null references assessment_questions(id),
-    selected_option_id uuid references assessment_options(id),
-    answer_text text,
-    is_correct boolean default false,
-    score real default 0,
-    answered_at timestamptz default now()
+    id           uuid primary key default gen_random_uuid(),
+    attempt_id   uuid not null references assessment_attempts(id) on delete cascade,
+    question_id  uuid not null references assessment_questions(id) on delete cascade,
+    option_id    uuid references assessment_options(id),
+    is_correct   boolean not null default false,
+    answered_at  timestamptz not null default now(),
+    unique (attempt_id, question_id)
 );
 create index if not exists idx_ar_attempt on assessment_responses(attempt_id);
 
--- ───────────────────────── CAREER ROLES ─────────────────────────
-create table if not exists career_roles (
-    id uuid default gen_random_uuid() primary key,
-    title text not null,
-    description text,
-    category text,
-    avg_salary_min int,
-    avg_salary_max int,
-    experience_required text,
-    education_required text,
-    is_active boolean default true,
-    created_at timestamptz default now()
+-- Auto-issued when an Alpha passes an assessment.
+create table if not exists certificates (
+    id            uuid primary key default gen_random_uuid(),
+    code          text not null unique,
+    trainee_id    text not null references users(id) on delete cascade,
+    assessment_id uuid references assessments(id) on delete set null,
+    attempt_id    uuid references assessment_attempts(id) on delete set null,
+    title         text not null,
+    subject_id    uuid references subjects(id),
+    score         numeric not null default 0,
+    percentage    numeric not null default 0,
+    issued_by     text not null default 'AUTO'
+                  check (issued_by in ('AUTO','MASTER','SUPREME')),
+    issued_at     timestamptz not null default now(),
+    status        text not null default 'VALID'
+                  check (status in ('VALID','REVOKED'))
 );
+create index if not exists idx_cert_trainee on certificates(trainee_id);
+create index if not exists idx_cert_status  on certificates(status);
 
-create table if not exists role_skills (
-    id uuid default gen_random_uuid() primary key,
-    role_id uuid not null references career_roles(id),
-    skill_id uuid not null references skills(id),
-    required_level real default 60,
-    weight real default 1.0,
-    is_required boolean default true,
-    unique(role_id, skill_id)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI DRAFT QUESTIONS  (Groq output → edit → publish; never visible to Alpha)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists draft_questions (
+    id           uuid primary key default gen_random_uuid(),
+    owner_id     text not null references users(id) on delete cascade,
+    target_type  text not null check (target_type in ('QUESTIONNAIRE','ASSESSMENT')),
+    target_id    uuid,
+    text         text not null,
+    choices      jsonb not null default '[]',
+    correct_index int not null default 0,
+    explanation  text not null default '',
+    difficulty   text not null default 'medium'
+                 check (difficulty in ('easy','medium','hard')),
+    topic_id     uuid references subject_topics(id),
+    source       text not null default 'AI' check (source in ('AI','MANUAL')),
+    status       text not null default 'DRAFT'
+                 check (status in ('DRAFT','PUBLISHED','DISCARDED')),
+    sort_order   int not null default 0,
+    created_at   timestamptz not null default now()
 );
+create index if not exists idx_draft_owner on draft_questions(owner_id, target_type, status);
 
--- ───────────────────────── OPPORTUNITIES ─────────────────────────
-create table if not exists opportunities (
-    id uuid default gen_random_uuid() primary key,
-    organization_id uuid not null references organizations(id),
-    created_by text not null,
-    type text not null default 'INTERNSHIP',
-    title text not null,
-    description text,
-    education_requirements text,
-    experience_requirements text,
-    location text,
-    remote_allowed boolean default false,
-    stipend text,
-    salary_min int,
-    salary_max int,
-    duration text,
-    deadline timestamptz,
-    status text default 'ACTIVE',
-    max_applicants int,
-    screening_questions jsonb default '[]',
-    version int default 1,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FEEDBACK
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists course_feedback (
+    id         uuid primary key default gen_random_uuid(),
+    course_id  uuid not null references courses(id) on delete cascade,
+    trainee_id text not null references users(id) on delete cascade,
+    rating     int not null check (rating between 1 and 5),
+    comment    text not null default '',
+    created_at timestamptz not null default now(),
+    unique (course_id, trainee_id)
 );
-create index if not exists idx_opp_type on opportunities(type);
-create index if not exists idx_opp_status on opportunities(status);
-create index if not exists idx_opp_deadline on opportunities(deadline);
-create index if not exists idx_opp_org on opportunities(organization_id);
+create index if not exists idx_cf_course on course_feedback(course_id);
 
-create table if not exists opportunity_skills (
-    id uuid default gen_random_uuid() primary key,
-    opportunity_id uuid not null references opportunities(id),
-    skill_id uuid not null references skills(id),
-    required_level real default 60,
-    is_required boolean default true,
-    unique(opportunity_id, skill_id)
+create table if not exists content_feedback (
+    id           uuid primary key default gen_random_uuid(),
+    trainee_id   text not null references users(id) on delete cascade,
+    content_type text not null check (content_type in ('SLOT','LIBRARY')),
+    content_id   uuid not null,
+    rating       int not null check (rating between 1 and 5),
+    comment      text not null default '',
+    created_at   timestamptz not null default now(),
+    unique (trainee_id, content_type, content_id)
 );
+create index if not exists idx_cfb_content on content_feedback(content_type, content_id);
 
--- ───────────────────────── APPLICATIONS ─────────────────────────
-create table if not exists applications (
-    id uuid default gen_random_uuid() primary key,
-    student_id text not null,
-    opportunity_id uuid not null references opportunities(id),
-    status text default 'APPLIED',
-    cover_letter text,
-    screening_answers jsonb default '{}',
-    match_score real,
-    applied_at timestamptz default now(),
-    updated_at timestamptz default now(),
-    unique(student_id, opportunity_id)
+-- ─────────────────────────────────────────────────────────────────────────────
+-- HOME FEED · NOTIFICATIONS · PARTICIPATION
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists home_posts (
+    id           uuid primary key default gen_random_uuid(),
+    type         text not null
+                 check (type in ('NOTIFICATION','ANNOUNCEMENT','ACHIEVEMENT','NEW_CONTENT')),
+    title        text not null,
+    body         text not null default '',
+    link         text,
+    image_url    text,
+    target_roles text[] not null default '{SUPREME,MASTER,ALPHA}',
+    pinned       boolean not null default false,
+    published    boolean not null default true,
+    published_by text references users(id),
+    published_at timestamptz not null default now()
 );
-create index if not exists idx_app_student on applications(student_id);
-create index if not exists idx_app_opportunity on applications(opportunity_id);
-create index if not exists idx_app_status on applications(status);
+create index if not exists idx_posts_type on home_posts(type);
+create index if not exists idx_posts_published on home_posts(published, published_at desc);
 
-create table if not exists application_events (
-    id uuid default gen_random_uuid() primary key,
-    application_id uuid not null references applications(id),
-    from_status text,
-    to_status text not null,
-    changed_by text,
-    notes text,
-    created_at timestamptz default now()
-);
-
--- ───────────────────────── LEARNING RESOURCES ─────────────────────────
-create table if not exists learning_resources (
-    id uuid default gen_random_uuid() primary key,
-    title text not null,
-    description text,
-    url text,
-    type text,
-    provider text,
-    difficulty text,
-    duration_hours real,
-    is_free boolean default true,
-    created_at timestamptz default now()
-);
-
-create table if not exists resource_skills (
-    id uuid default gen_random_uuid() primary key,
-    resource_id uuid not null references learning_resources(id),
-    skill_id uuid not null references skills(id),
-    relevance real default 1.0
-);
-
-create table if not exists learning_progress (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    resource_id uuid not null references learning_resources(id),
-    status text default 'NOT_STARTED',
-    progress_pct real default 0,
-    started_at timestamptz,
-    completed_at timestamptz,
-    created_at timestamptz default now(),
-    unique(user_id, resource_id)
-);
-
--- ───────────────────────── PORTFOLIO ─────────────────────────
-create table if not exists portfolio_items (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    type text not null default 'PROJECT',
-    title text not null,
-    description text,
-    url text,
-    skills_used uuid[],
-    verified boolean default false,
-    verification_source text,
-    created_at timestamptz default now()
-);
-create index if not exists idx_pi_user on portfolio_items(user_id);
-
--- ───────────────────────── VERIFICATION ─────────────────────────
-create table if not exists verification_records (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    skill_id uuid not null references skills(id),
-    evidence_type text not null,
-    evidence_id uuid,
-    status text default 'SELF_REPORTED',
-    verified_by text,
-    verified_at timestamptz,
-    created_at timestamptz default now()
-);
-
--- ───────────────────────── NOTIFICATIONS ─────────────────────────
 create table if not exists notifications (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    type text not null,
-    title text not null,
-    message text,
-    link text,
-    read boolean default false,
-    metadata jsonb default '{}',
-    created_at timestamptz default now()
+    id         uuid primary key default gen_random_uuid(),
+    user_id    text references users(id) on delete cascade,
+    type       text not null default 'SYSTEM',
+    title      text not null,
+    message    text not null default '',
+    link       text,
+    read       boolean not null default false,
+    metadata   jsonb not null default '{}',
+    created_at timestamptz not null default now()
 );
-create index if not exists idx_notif_user on notifications(user_id);
-create index if not exists idx_notif_read on notifications(user_id, read);
+create index if not exists idx_notif_user on notifications(user_id, read);
 
--- ───────────────────────── AUDIT LOG ─────────────────────────
-create table if not exists audit_logs (
-    id uuid default gen_random_uuid() primary key,
-    actor_id text,
-    action text not null,
-    resource_type text,
-    resource_id text,
-    metadata jsonb default '{}',
-    ip_address text,
-    created_at timestamptz default now()
+create table if not exists participation_logs (
+    id         uuid primary key default gen_random_uuid(),
+    user_id    text not null references users(id) on delete cascade,
+    item_type  text not null,
+    item_id    uuid,
+    action     text not null,
+    duration_seconds int not null default 0,
+    metadata   jsonb not null default '{}',
+    created_at timestamptz not null default now()
 );
-create index if not exists idx_audit_actor on audit_logs(actor_id);
-create index if not exists idx_audit_action on audit_logs(action);
+create index if not exists idx_part_user on participation_logs(user_id);
+create index if not exists idx_part_item on participation_logs(item_type, item_id);
+create index if not exists idx_part_time on participation_logs(created_at);
 
--- ───────────────────────── EXTEND EXISTING USERS TABLE ─────────────────────────
-alter table users add column if not exists role text default 'STUDENT';
-alter table users add column if not exists organization_id uuid references organizations(id);
-alter table users add column if not exists avatar_url text;
-alter table users add column if not exists bio text default '';
-alter table users add column if not exists headline text default '';
-alter table users add column if not exists career_goal text default '';
-alter table users add column if not exists stream text default '';
-alter table users add column if not exists profile_version int default 1;
-alter table users add column if not exists skill_profile_version int default 1;
+-- ─────────────────────────────────────────────────────────────────────────────
+-- VEDA PERFORMANCE REPORTS  (deterministic base + AI insights)
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- NOTE: enable RLS + policies later once the app is verified working. The
--- FastAPI backend uses the SERVICE ROLE key, which bypasses RLS server-side.
-
--- ───────────────────────── INTERNSHIPS ─────────────────────────
-create table if not exists internships (
-    id uuid default gen_random_uuid() primary key,
-    application_id uuid not null references applications(id) unique,
-    student_id text not null,
-    organization_id uuid not null references organizations(id),
-    opportunity_id uuid not null references opportunities(id),
-    mentor_id text,
-    title text not null,
-    status text default 'ACTIVE',
-    start_date timestamptz default now(),
-    end_date timestamptz,
-    completion_pct real default 0,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
+create table if not exists performance_reports (
+    id             uuid primary key default gen_random_uuid(),
+    attempt_id     uuid not null,
+    attempt_kind   text not null check (attempt_kind in ('ASSESSMENT','QUESTIONNAIRE')),
+    trainee_id     text not null references users(id) on delete cascade,
+    subject_id     uuid references subjects(id),
+    score          numeric not null default 0,
+    percentage     numeric not null default 0,
+    passed         boolean not null default false,
+    weak_topics    jsonb not null default '[]',  -- [{topic,correct,total,pct}]
+    strong_topics  jsonb not null default '[]',
+    difficulty_breakdown jsonb not null default '{}',
+    benchmark      jsonb not null default '{}',
+    ai_insights    jsonb not null default '{}',  -- {weak_points, improve, industry, learn_next, suggestions}
+    ai_model       text,
+    ai_generated   boolean not null default false,
+    generated_at   timestamptz not null default now(),
+    unique (attempt_id, attempt_kind)
 );
-create index if not exists idx_intern_student on internships(student_id);
-create index if not exists idx_intern_org on internships(organization_id);
-create index if not exists idx_intern_mentor on internships(mentor_id);
-create index if not exists idx_intern_status on internships(status);
+create index if not exists idx_rep_trainee on performance_reports(trainee_id);
+create index if not exists idx_rep_subject on performance_reports(subject_id);
 
--- ───────────────────────── MILESTONES ─────────────────────────
-create table if not exists milestones (
-    id uuid default gen_random_uuid() primary key,
-    internship_id uuid not null references internships(id),
-    title text not null,
-    description text,
-    start_date timestamptz,
-    deadline timestamptz,
-    status text default 'NOT_STARTED',
-    completion_pct real default 0,
-    weight real default 1.0,
-    created_by text,
-    reviewed_by text,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-create index if not exists idx_milestone_intern on milestones(internship_id);
+-- ─────────────────────────────────────────────────────────────────────────────
+-- USERS TABLE EXTENSIONS for existing auth flow compatibility
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- ───────────────────────── TASKS ─────────────────────────
-create table if not exists internship_tasks (
-    id uuid default gen_random_uuid() primary key,
-    milestone_id uuid not null references milestones(id),
-    title text not null,
-    description text,
-    deadline timestamptz,
-    status text default 'NOT_STARTED',
-    priority text default 'MEDIUM',
-    assigned_to text,
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-create index if not exists idx_task_milestone on internship_tasks(milestone_id);
+alter table users add column if not exists language text not null default 'English';
+alter table users add column if not exists premium   boolean not null default false;
 
--- ───────────────────────── DELIVERABLES ─────────────────────────
-create table if not exists deliverables (
-    id uuid default gen_random_uuid() primary key,
-    task_id uuid references internship_tasks(id),
-    internship_id uuid not null references internships(id),
-    title text not null,
-    description text,
-    submission_url text,
-    submitted_at timestamptz,
-    review_status text default 'PENDING',
-    mentor_feedback text,
-    reviewed_at timestamptz,
-    created_at timestamptz default now()
-);
-create index if not exists idx_deliverable_intern on deliverables(internship_id);
+-- Account approval state.
+--
+-- `create table if not exists` never re-runs against a live database, so the
+-- widened CHECK and the fail-closed default have to be re-stated as ALTERs.
+-- Both are no-ops on a database created from the definition above: the
+-- constraint Postgres auto-names for an inline check on users.status is
+-- `users_status_check`, so this drops the identical constraint and puts the
+-- identical one straight back.
+alter table users drop constraint if exists users_status_check;
+alter table users add constraint users_status_check
+    check (status in ('PENDING','ACTIVE','SUSPENDED'));
+alter table users alter column status set default 'PENDING';
 
--- ───────────────────────── MENTOR ASSIGNMENTS ─────────────────────────
-create table if not exists mentor_assignments (
-    id uuid default gen_random_uuid() primary key,
-    mentor_id text not null,
-    internship_id uuid not null references internships(id),
-    mentor_type text default 'INDUSTRY',
-    assigned_at timestamptz default now(),
-    unique(mentor_id, internship_id)
-);
-
--- ───────────────────────── MENTOR FEEDBACK ─────────────────────────
-create table if not exists mentor_feedback (
-    id uuid default gen_random_uuid() primary key,
-    internship_id uuid not null references internships(id),
-    mentor_id text not null,
-    student_id text not null,
-    technical_skills real default 0,
-    problem_solving real default 0,
-    communication real default 0,
-    teamwork real default 0,
-    professionalism real default 0,
-    domain_knowledge real default 0,
-    initiative real default 0,
-    time_management real default 0,
-    overall_rating real default 0,
-    strengths text,
-    areas_for_improvement text,
-    recommended_actions text,
-    comments text,
-    created_at timestamptz default now()
-);
-create index if not exists idx_feedback_intern on mentor_feedback(internship_id);
-create index if not exists idx_feedback_student on mentor_feedback(student_id);
-
--- ───────────────────────── EVALUATIONS ─────────────────────────
-create table if not exists evaluations (
-    id uuid default gen_random_uuid() primary key,
-    internship_id uuid not null references internships(id),
-    evaluator_id text not null,
-    eval_type text not null default 'MID_TERM',
-    scores jsonb default '{}',
-    comments text,
-    recommendations text,
-    submitted_at timestamptz default now()
-);
-create index if not exists idx_eval_intern on evaluations(internship_id);
-
--- ───────────────────────── CREDENTIALS ─────────────────────────
-create table if not exists credentials (
-    id uuid default gen_random_uuid() primary key,
-    user_id text not null,
-    title text not null,
-    issuing_org text,
-    credential_url text,
-    credential_id text,
-    issued_at timestamptz,
-    expires_at timestamptz,
-    status text default 'SELF_REPORTED',
-    verified boolean default false,
-    verified_by text,
-    verified_at timestamptz,
-    created_at timestamptz default now()
-);
-create index if not exists idx_cred_user on credentials(user_id);
-
--- ───────────────────────── INSTITUTION SYNC ─────────────────────────
-create table if not exists institution_sync_jobs (
-    id uuid default gen_random_uuid() primary key,
-    institution_id uuid not null references organizations(id),
-    job_type text not null,
-    status text default 'PENDING',
-    started_at timestamptz,
-    completed_at timestamptz,
-    records_processed int default 0,
-    records_created int default 0,
-    records_updated int default 0,
-    records_failed int default 0,
-    error_summary text,
-    created_at timestamptz default now()
-);
-
--- ───────────────────────── COLLABORATION ─────────────────────────
-create table if not exists collaboration_projects (
-    id uuid default gen_random_uuid() primary key,
-    title text not null,
-    description text,
-    institution_id uuid references organizations(id),
-    industry_id uuid references organizations(id),
-    project_type text default 'MENTORSHIP',
-    status text default 'ACTIVE',
-    start_date timestamptz,
-    end_date timestamptz,
-    created_at timestamptz default now()
-);
-create index if not exists idx_collab_institution on collaboration_projects(institution_id);

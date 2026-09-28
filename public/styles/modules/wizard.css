@@ -1,0 +1,601 @@
+﻿/* wizard - Learnify. Design tokens come from styles.css.
+   The five-step course wizard: step rail, forms, module tree, content
+   editor, test linking and the review panel. */
+
+/* ── Wizard shell (step rail + step panel) ──────────────────────────────── */
+
+.wz-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.wz-rail, .wz-main { min-width: 0; }
+
+@media (min-width: 900px) {
+  .wz-shell { grid-template-columns: 286px minmax(0, 1fr); }
+  .wz-rail { position: sticky; top: 76px; }
+}
+
+.wz-rail-card { padding: 14px; }
+.wz-rail-card .progress-row { margin: 10px 0 12px; }
+
+.wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.wz-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all .15s var(--ease);
+}
+
+.wz-step:hover { background: var(--surface-2); }
+
+.wz-step-n {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--muted);
+  font: 700 12px var(--font-head);
+}
+
+.wz-step-n svg { width: 14px; height: 14px; }
+.wz-step-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wz-step-txt b { font: 700 13.5px var(--font-head); color: var(--text); }
+.wz-step-txt small { margin-top: 1px; font-size: 11.5px; color: var(--sub); }
+
+.wz-step.is-done .wz-step-n {
+  background: rgba(14, 165, 164, 0.14);
+  border-color: rgba(14, 165, 164, 0.4);
+  color: #0f766e;
+}
+
+.wz-step.is-current {
+  background: rgba(224, 165, 38, 0.1);
+  border-color: rgba(224, 165, 38, 0.4);
+}
+
+.wz-step.is-current .wz-step-n {
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  border-color: transparent;
+  color: #1a1303;
+}
+
+.wz-step-mark {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--pill);
+  background: rgba(224, 165, 38, 0.18);
+  color: var(--gold-deep);
+  font: 700 10px var(--font-head);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.wz-rail-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+.wz-rail-note svg { width: 14px; height: 14px; flex: none; margin-top: 2px; color: var(--green); }
+
+/* ── Panels, grids and form helpers ─────────────────────────────────────── */
+
+.wz-panel { display: flex; flex-direction: column; gap: 14px; }
+.wz-panel > .card-head { margin-bottom: 0; }
+
+.wz-panel-ic {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(224, 165, 38, 0.14);
+  color: var(--gold-deep);
+}
+
+.wz-panel-ic svg { width: 19px; height: 19px; }
+.wz-panel-title { flex: 1; min-width: 150px; }
+.wz-panel-title h3 { margin: 0; font: 700 15.5px/1.3 var(--font-head); color: var(--text); }
+.wz-panel-title p { margin: 3px 0 0; line-height: 1.5; }
+
+.wz-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 14px; }
+
+@media (min-width: 720px) {
+  .wz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wz-span2 { grid-column: 1 / -1; }
+}
+
+.wz-grid .field { margin: 6px 0; }
+
+.wz-err {
+  min-height: 16px;
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--red);
+}
+
+.wz-actions { margin-top: 4px; }
+.wz-actions .grow, .wz-foot-in .grow { flex: 1; }
+.wz-center { justify-content: center; }
+.wz-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Step 1 · thumbnail chooser ─────────────────────────────────────────────
+   The live preview sits beside the upload/link tools; the artwork grid from
+   art.css follows underneath. Both stack when the column gets narrow. */
+.wz-cover > p.sm { max-width: 64ch; line-height: 1.5; }
+
+.wz-cover-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 10px 0 12px;
+}
+
+@media (min-width: 720px) {
+  .wz-cover-top { grid-template-columns: 264px minmax(0, 1fr); align-items: start; }
+}
+
+.wz-cover-prev { width: 100%; min-width: 0; }
+
+.wz-cover-prev .art-cover {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.wz-cover-prev > p { margin: 0; }
+
+.wz-cover-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* `.field label` would otherwise restyle the upload button into a field
+   caption — this keeps it an ordinary ghost pill button. */
+.wz-cover-tools .wz-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 0;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+
+.wz-cover-tools [data-cover-status] { min-height: 17px; margin: 0; }
+.wz-cover-tools input { max-width: 420px; }
+.wz-cover .art-picker { margin-top: 2px; }
+
+/* ── Step 2 · Module tree ───────────────────────────────────────────────── */
+
+.wz-mods { display: flex; flex-direction: column; gap: 12px; }
+
+.wz-mod {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+}
+
+.wz-mod-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+
+.wz-mod-n {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--muted);
+  font: 700 12px var(--font-head);
+}
+
+.wz-mod-title { flex: 1 1 170px; min-width: 0; }
+
+input.wz-mod-title, input.wz-lesson-title {
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  transition: border-color .14s var(--ease), background .14s var(--ease);
+}
+
+input.wz-mod-title { font: 700 14px var(--font-head); }
+input.wz-lesson-title { font: 600 13.5px var(--font-body); }
+
+input.wz-mod-title:hover, input.wz-lesson-title:hover {
+  border-color: var(--border-2);
+  background: var(--surface);
+}
+
+input.wz-mod-title:focus, input.wz-lesson-title:focus {
+  outline: none;
+  border-color: rgba(224, 165, 38, 0.55);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(224, 165, 38, 0.12);
+}
+
+.wz-mod-acts, .wz-lesson-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.wz-mod-desc { margin: 8px 0 0; line-height: 1.5; }
+.wz-mod-empty { margin: 10px 0 0; }
+
+.wz-lessons { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.wz-lesson {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.wz-kind {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(14, 165, 164, 0.1);
+  color: var(--teal);
+}
+
+.wz-kind svg { width: 15px; height: 15px; }
+.wz-lesson-title { flex: 1 1 150px; min-width: 0; }
+.wz-lesson-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.wz-lesson-acts { margin-left: auto; }
+
+.wz-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-2);
+}
+
+.wz-add-slot { margin-top: 10px; }
+
+.wz-add input {
+  flex: 1 1 170px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.wz-add input:focus {
+  outline: none;
+  border-color: rgba(224, 165, 38, 0.55);
+  box-shadow: 0 0 0 3px rgba(224, 165, 38, 0.12);
+}
+
+.wz-add select {
+  flex: 0 0 auto;
+  padding: 9px 30px 9px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.wz-add .wz-err { flex: 1 0 100%; min-height: 0; margin: 0; }
+
+.wz-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px 16px;
+  text-align: center;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+}
+
+.wz-empty-ic {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--sub);
+}
+
+.wz-empty-ic svg { width: 21px; height: 21px; }
+.wz-empty b { font: 700 15px var(--font-head); color: var(--text); }
+.wz-empty p { margin: 0; max-width: 430px; line-height: 1.55; }
+.wz-empty .btn { margin-top: 6px; }
+
+/* ── Steps 3 and 4 · lesson picker + editor ─────────────────────────────── */
+
+.wz-content { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+
+@media (min-width: 940px) {
+  .wz-content { grid-template-columns: 296px minmax(0, 1fr); }
+}
+
+.wz-pick, .wz-editor { padding: 14px; }
+.wz-editor { display: flex; flex-direction: column; gap: 12px; }
+.wz-editor > .card-head { margin-bottom: 0; }
+
+.wz-pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 470px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wz-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all .14s var(--ease);
+}
+
+.wz-pick-item:hover { background: var(--surface-2); }
+
+.wz-pick-item.is-active {
+  background: rgba(224, 165, 38, 0.1);
+  border-color: rgba(224, 165, 38, 0.4);
+}
+
+.wz-pick-ic {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--sub);
+}
+
+.wz-pick-item.is-active .wz-pick-ic { background: var(--surface); color: var(--gold-deep); }
+.wz-pick-ic svg { width: 15px; height: 15px; }
+
+.wz-pick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.wz-pick-txt b, .wz-pick-txt small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wz-pick-txt b { font: 600 13.5px var(--font-body); color: var(--text); }
+.wz-pick-txt small { font-size: 11.5px; color: var(--sub); }
+.wz-pick-mark { flex: none; display: grid; place-items: center; color: var(--green); }
+.wz-pick-mark svg { width: 15px; height: 15px; }
+.wz-pick-note { margin: 10px 0 0; }
+
+/* ── Uploads and attachments ────────────────────────────────────────────── */
+
+.wz-file-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+}
+
+.wz-file-row > svg { width: 17px; height: 17px; flex: none; color: var(--teal); }
+
+.wz-file-row > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wz-file { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.wz-file svg { width: 15px; height: 15px; }
+
+.wz-att-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.wz-att-block .card-head { margin-bottom: 0; }
+.wz-att-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.wz-att {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+}
+
+.wz-att-ic {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--sub);
+}
+
+.wz-att-ic svg { width: 15px; height: 15px; }
+
+.wz-att-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wz-att-t small { display: block; font-size: 11.5px; font-weight: 500; color: var(--sub); }
+.wz-att-empty { padding: 2px; }
+
+/* Hidden sub-blocks (video source switch) must stay hidden. */
+.wz-panel [hidden], .wz-main [hidden] { display: none !important; }
+
+/* ── Step 5 · Review ────────────────────────────────────────────────────── */
+
+.wz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+
+.wz-check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.wz-check-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+}
+
+.wz-check-row.is-ok {
+  border-color: rgba(14, 165, 164, 0.3);
+  background: rgba(14, 165, 164, 0.06);
+}
+
+.wz-check-ic {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--sub);
+}
+
+.wz-check-ic svg { width: 15px; height: 15px; }
+
+.wz-check-row.is-ok .wz-check-ic {
+  background: rgba(14, 165, 164, 0.15);
+  border-color: rgba(14, 165, 164, 0.4);
+  color: #0f766e;
+}
+
+.wz-check-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wz-check-txt b { font: 700 13.5px var(--font-head); color: var(--text); }
+.wz-check-txt small { font-size: 12px; color: var(--sub); }
+
+/* ── Outline preview (modal) ────────────────────────────────────────────── */
+
+.wz-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 52vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.wz-preview-mod {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+}
+
+.wz-preview-head { display: flex; align-items: center; gap: 9px; }
+.wz-preview-head b { flex: 1; min-width: 0; font: 700 14px var(--font-head); color: var(--text); }
+.wz-preview-slots { list-style: none; margin: 9px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.wz-preview-slots li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.wz-preview-slots svg { width: 14px; height: 14px; flex: none; color: var(--sub); }
+.wz-preview-slots > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Wizard footer ──────────────────────────────────────────────────────── */
+
+.wz-foot { margin-top: 16px; }
+
+.wz-foot-in {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Small screens ──────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .wz-mod, .wz-pick, .wz-editor, .wz-panel { padding: 13px; }
+  .wz-lesson-acts { margin-left: 0; width: 100%; justify-content: flex-end; }
+  .wz-mod-acts { width: 100%; justify-content: flex-end; }
+  .wz-actions { flex-wrap: wrap; }
+  .wz-actions .btn { flex: 1 1 auto; }
+  .wz-foot-in .btn { flex: 1 1 auto; }
+  .wz-check-row { flex-wrap: wrap; }
+}

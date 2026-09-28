@@ -15,6 +15,26 @@ export function api(path, opts = {}) {
   });
 }
 
+/**
+ * Multipart POST — used for file uploads (course video, library items, avatars).
+ * The browser must set its own Content-Type so the boundary is included, so
+ * this deliberately does not apply the JSON default that `api()` sets.
+ */
+export function apiForm(path, formData) {
+  const token = getToken();
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return fetch(BASE + path, { method: 'POST', headers, body: formData }).then(async (res) => {
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* non-JSON response */ }
+    if (!res.ok) {
+      const msg = (data && (data.detail || data.message || data.error)) || ('Upload failed (' + res.status + ')');
+      throw new Error(msg);
+    }
+    return data;
+  });
+}
+
 export function qs(params) {
   const u = new URLSearchParams();
   for (const k in params) {

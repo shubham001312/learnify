@@ -1,72 +1,84 @@
-"""
-Notifications system.
+"""In-app notifications (bell panel).
+
+Schema (backend/database/schema.sql → notifications):
+    id, user_id, type, title, message, link, read, metadata, created_at
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, Depends, Header, HTTPException
-from backend.middleware.rbac import _extract_user
+
 from backend.database.client import db_available, get_client
+from backend.middleware.rbac import _extract_user
 
 router = APIRouter()
+
+SELECT_COLS = "id, type, title, message, link, read, metadata, created_at"
 
 
 def _auth(authorization: Optional[str] = Header(None)):
     return _extract_user(authorization)
 
 
-def _safe(client, table, columns="*", filters=None, order=None, limit=None):
-    if not client:
-        return []
-    try:
-        q = client.table(table).select(columns)
-        if filters:
-            for col, op, val in filters:
-                if op == "eq":
-                    q = q.eq(col, val)
-        if order:
-            q = q.order(order[0], desc=order[1] if len(order) > 1 else False)
-        if limit:
-            q = q.limit(limit)
-        return q.execute().data or []
-    except Exception:
-        return []
-
-
-def _safe_insert(client, table, data):
-    if not client:
+def notify(
+    client,
+    user_id: str,
+    title: str,
+    message: str = "",
+    ntype: str = "SYSTEM",
+    link: str = None,
+    metadata: dict = None,
+):
+    """Insert a notification. Best-effort: never raises into the caller."""
+    if not client or not user_id:
         return None
     try:
-        r = client.table(table).insert(data).execute()
-        return r.data[0] if r.data else None
+        row = {
+            "user_id": user_id,
+            "type": ntype,
+            "title": title,
+            "message": message,
+            "link": link,
+            "read": False,
+            "metadata": metadata or {},
+        }
+        res = client.table("notifications").insert(row).execute()
+        return res.data[0] if res.data else None
     except Exception:
         return None
+
+
+def notify_many(client, user_ids, **kw):
+    for uid in user_ids or []:
+        notify(client, uid, **kw)
 
 
 @router.get("/notifications/my")
-async def my_notifications(
+def my_notifications(
     unread_only: bool = False,
     limit: int = 50,
     user=Depends(_auth),
 ):
+    limit = max(1, min(limit, 200))
     if not db_available():
-        return []
+        return {"items": []}
     client = get_client()
-    q = (
-        client.table("notifications")
-        .select("id, type, title, message, entity_type, entity_id, is_read, created_at")
-        .eq("user_id", user["uid"])
-    )
-    if unread_only:
-        q = q.eq("is_read", False)
-    q = q.order("created_at", desc=True).limit(limit)
     try:
-        return q.execute().data or []
+        q = (
+            client.table("notifications")
+            .select(SELECT_COLS)
+            .eq("user_id", user["uid"])
+        )
+        if unread_only:
+            q = q.eq("read", False)
+        rows = q.order("created_at", desc=True).limit(limit).execute().data or []
+        return {"items": rows}
     except Exception:
-        return []
+        return {"items": []}
 
 
 @router.get("/notifications/unread-count")
-async def unread_count(user=Depends(_auth)):
+def unread_count(user=Depends(_auth)):
     if not db_available():
         return {"count": 0}
     client = get_client()
@@ -75,7 +87,7 @@ async def unread_count(user=Depends(_auth)):
             client.table("notifications")
             .select("id", count="exact")
             .eq("user_id", user["uid"])
-            .eq("is_read", False)
+            .eq("read", False)
             .execute()
         )
         return {"count": result.count or 0}
@@ -84,12 +96,13 @@ async def unread_count(user=Depends(_auth)):
 
 
 @router.patch("/notifications/{notification_id}/read")
-async def mark_read(notification_id: str, user=Depends(_auth)):
+def mark_read(notification_id: str, user=Depends(_auth)):
     if not db_available():
         raise HTTPException(status_code=503, detail="Database unavailable")
     client = get_client()
     try:
-        client.table("notifications").update({"is_read": True}).eq(
+        # Scoped to the caller — a user can never mark someone else's read.
+        client.table("notifications").update({"read": True}).eq(
             "id", notification_id
         ).eq("user_id", user["uid"]).execute()
     except Exception:
@@ -98,37 +111,14 @@ async def mark_read(notification_id: str, user=Depends(_auth)):
 
 
 @router.post("/notifications/mark-all-read")
-async def mark_all_read(user=Depends(_auth)):
+def mark_all_read(user=Depends(_auth)):
     if not db_available():
         raise HTTPException(status_code=503, detail="Database unavailable")
     client = get_client()
     try:
-        client.table("notifications").update({"is_read": True}).eq(
+        client.table("notifications").update({"read": True}).eq(
             "user_id", user["uid"]
-        ).eq("is_read", False).execute()
+        ).eq("read", False).execute()
     except Exception:
         pass
     return {"status": "ok"}
-
-
-async def send_notification(
-    client, user_id, ntype, title, message, entity_type=None, entity_id=None
-):
-    if not client:
-        return
-    try:
-        _safe_insert(
-            client,
-            "notifications",
-            {
-                "user_id": user_id,
-                "type": ntype,
-                "title": title,
-                "message": message,
-                "entity_type": entity_type,
-                "entity_id": entity_id,
-                "is_read": False,
-            },
-        )
-    except Exception:
-        pass

@@ -1,0 +1,85 @@
+﻿/* report — Learnify. Design tokens come from styles.css. */
+
+/* ── Veda branded document header ──────────────────────────────────────── */
+.veda-head {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.veda-brand {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  color: var(--text);
+}
+.veda-mark {
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg); border: 1px solid var(--border-2);
+}
+.veda-mark svg { width: 18px; height: 18px; color: var(--gold-deep); }
+.veda-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.veda-name b { font: 800 16px/1.2 var(--font-head); letter-spacing: -0.01em; }
+.veda-name small { font-size: 11.5px; color: var(--text); opacity: .72; }
+/* Keep the verdict chip readable on the gold band. */
+.veda-brand .tag {
+  background: var(--bg); border-color: var(--border-2); color: var(--text);
+}
+.veda-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Topic rows (strong / weak / difficulty) ───────────────────────────── */
+.tp-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.tp-row:first-child { padding-top: 0; }
+.tp-row:last-child { border-bottom: none; padding-bottom: 0; }
+.tp-row .row { width: 100%; }
+.tp-row b { font: 700 14px var(--font-head); color: var(--text); }
+
+/* ── Weak topics panel ─────────────────────────────────────────────────── */
+.wk-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.wk-row:last-child { border-bottom: none; padding-bottom: 0; }
+.wk-n {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font: 800 12px var(--font-head); color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--border-2);
+}
+.wk-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.wk-body b { font: 700 14px var(--font-head); color: var(--text); }
+.wk-body .sm { display: block; line-height: 1.5; }
+
+/* ── Veda AI blocks ────────────────────────────────────────────────────── */
+.ai-block {
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-left: 3px solid var(--gold); border-radius: var(--r-md);
+  padding: 13px 15px;
+}
+.ai-block > b {
+  display: block; font: 700 11.5px var(--font-head); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--gold-deep); margin-bottom: 7px;
+}
+.ai-block p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--text); }
+.ai-block ul { margin: 0; padding-left: 18px; }
+.ai-block li { font-size: 13.5px; line-height: 1.6; }
+
+/* ── Next-step list ────────────────────────────────────────────────────── */
+.cc-steps {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cc-steps li {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13.5px; line-height: 1.6; color: var(--text);
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 11px 13px;
+}
+.cc-steps li .tag { flex: none; margin-top: 2px; }
+
+@media (max-width: 620px) {
+  .veda-brand { padding: 13px 14px; gap: 10px; }
+  .veda-name small { display: none; }
+  .veda-body { padding: 15px; }
+}

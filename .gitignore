@@ -17,6 +17,16 @@ data/
 *.sqlite
 *.sqlite3
 
+# Local database (ephemeral dev cache; production uses Supabase)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Pre-change safety copies. These include full table dumps of the production
+# database (users, chats, colleges), so they never leave this machine.
+backups/
+
 # Build / tooling
 node_modules/
 .playwright-mcp/

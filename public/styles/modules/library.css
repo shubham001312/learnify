@@ -1,0 +1,56 @@
+﻿/* library — Learnify. Design tokens come from styles.css. */
+
+/* ── Grid cards ── */
+/* Only MASTER/SUPREME get an openable card; trainees just read it. */
+.lib-card.openable { cursor: pointer; }
+.lib-card.openable:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Play affordance on recorded lectures. */
+.lib-play {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  background: var(--gold-soft); border: 1px solid var(--border-2);
+  color: var(--text);
+}
+.lib-play svg { display: block; width: 13px; height: 13px; color: var(--text); }
+
+/* ── Modal ── */
+/* The library detail needs more room than the shell's 440px default. */
+#app-modal-card.lib-wide { max-width: min(560px, 100%); }
+
+.lib-preview { margin: 14px 0 4px; }
+.lib-video {
+  display: block; width: 100%; aspect-ratio: 16 / 9;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); overflow: hidden;
+}
+
+.lib-stats {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.lib-stats-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.lib-recent { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lib-recent li {
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 11px;
+}
+.lib-recent p {
+  margin: 3px 0 0; font-size: 13px; line-height: 1.55; color: var(--sub);
+}
+
+/* ── Create / edit form ── */
+.lib-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.lib-form .seg { margin-bottom: 6px; }
+.lib-form-foot .grow { flex: 1; }
+.lib-form .field input[type="file"] { padding: 9px 11px; }
+.lib-form .field[hidden] { display: none; }
+
+@media (max-width: 430px) {
+  .lib-two { grid-template-columns: 1fr; }
+}

@@ -1,1517 +1,415 @@
-import { onReady, openModal, getToken, getUser, setLang, getLang, renderMarkdown } from './utils.js?v=59';
-import { applyLanguage } from './i18n.js?v=59';
-import { initNotifications, addNotification } from './notifications.js?v=59';
-
-window.addNotification = addNotification;
-import { initAuth, openLogin } from './auth.js?v=59';
-import { initVeda } from './veda.js?v=59';
-import { initCareer } from './career.js?v=59';
-import { initCareers } from './careers.js?v=59';
-import { initProfile } from './profile.js?v=59';
-import { initPremium } from './premium.js?v=59';
-import { api, el, toast, esc, siteUrl, skRows, skChips } from './utils.js?v=59';
-import { iconSvg, suggestionIcon } from './icons.js?v=59';
-import { playClick } from './sound.js?v=59';
-import { initStudyTools } from './tools.js?v=59';
-import { initSIH } from './sih.js?v=59';
-
-function switchTab(tab) {
-  document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
-  const pane = document.getElementById('tab-' + tab);
-  if (pane) pane.classList.add('active');
-  document.querySelectorAll('.tbtn').forEach((b) => b.classList.remove('active'));
-  const btn = document.querySelector('.tbtn[data-tab="' + tab + '"]');
-  if (btn) btn.classList.add('active');
-  const footer = document.querySelector('.foot');
-  if (footer) footer.style.display = (tab === 'veda') ? 'none' : '';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (tab === 'home') { renderHero(); loadHomeSuggestions(); }
-  if (tab === 'career' && window.loadCareers) window.loadCareers();
-}
-
-function renderHero() {
-  const user = (typeof getUser === 'function' && getUser()) || {};
-  const prof = (typeof window !== 'undefined' && window.learnifyProfile) || {};
-  const merged = Object.assign({}, prof, user);
-  const name = (merged.name && merged.name !== 'Student') ? merged.name.split(' ')[0] : 'Student';
-  const h = new Date().getHours();
-  let greet, emoji, wish;
-  if (h < 12) { greet = 'Good morning'; emoji = '🌅'; wish = "Hope you slept well — let's make today count."; }
-  else if (h < 17) { greet = 'Good afternoon'; emoji = '☀️'; wish = "Hope your day is going great so far."; }
-  else if (h < 21) { greet = 'Good evening'; emoji = '🌆'; wish = "A little focused study now goes a long way."; }
-  else { greet = 'Good night'; emoji = '🌙'; wish = "Late grind? Remember to rest too."; }
-
-  const t = ((merged.target_exam || '') + ' ' + (merged.board || '') + ' ' + (merged.stream || '')).toLowerCase();
-  let personal = '';
-  if (t.includes('jee')) personal = "Your JEE journey is the focus — small daily wins add up.";
-  else if (t.includes('neet')) personal = "NEET needs consistency — you've got this.";
-  else if (t.includes('cet') || t.includes('cat') || t.includes('ca ')) personal = "Keep your exam prep steady — we're here to help.";
-  else if (merged.premium) personal = "Welcome back, Pro — your AI toolkit is ready.";
-  else if (merged.career_goal) personal = "Still aiming for " + merged.career_goal + "? Let's keep moving.";
-  else if (merged.grade) personal = "You're in " + merged.grade + " — share your goals with Veda for sharper help.";
-  else personal = "Tell Veda your goals for sharper, personal help.";
-
-  const g = el('hero-greet'); if (g) g.textContent = greet + ' ' + emoji;
-  const n = el('home-name'); if (n) n.textContent = name;
-  const p = el('home-personal'); if (p) p.textContent = wish + ' ' + personal;
-}
-window.renderHero = renderHero;
-
-function loadHomeSuggestions() {
-  const box = el('home-slots');
-  if (!box) return;
-  if (box.dataset.loaded === '1') return; // session guard
-  const user = (typeof getUser === 'function' && getUser()) || {};
-  const uid = user.id || 'demo';
-  const day = new Date().toISOString().slice(0, 10);
-  // App version is embedded in the module URL (?v=NN) and bumps on every deploy,
-  // so a new deployment automatically invalidates the cached suggestions.
-  const src = (document.querySelector('script[type="module"][src*="src/app.js"]') || {}).src || '';
-  const m = src.match(/v=(\d+)/);
-  const version = m ? m[1] : '0';
-  const cacheKey = 'learnify_home_' + uid + '_' + day + '_v' + version;
-
-  function render(slots) {
-    if (!slots || !slots.length) { box.innerHTML = '<div class="slot-skeleton">No suggestions right now.</div>'; return; }
-    box.dataset.loaded = '1';
-    box.innerHTML = slots.map((s) => {
-      const go = s.cta_go || 'veda';
-      const arg = (s.cta_arg || '').replace(/"/g, '');
-      return '<button class="slot" data-go="' + esc(go) + '"' + (arg ? ' data-arg="' + esc(arg) + '"' : '') + '">' +
-        '<div class="slot-ic">' + iconSvg(suggestionIcon(s.cta_go, s.title)) + '</div>' +
-        '<div class="slot-body"><div class="slot-title">' + esc(s.title || '') + '</div>' +
-        '<div class="slot-text">' + esc(s.text || '') + '</div>' +
-        '<div class="slot-cta">' + esc(s.cta_label || 'Explore') + ' →</div></div></button>';
-    }).join('');
-    box.querySelectorAll('.slot').forEach((b) => {
-      b.addEventListener('click', () => {
-        const go = b.dataset.go;
-        const arg = b.dataset.arg;
-        if (go === 'career' && arg) openCareer(arg);
-        else if (go === 'college') setView('college', true);
-        else if (go === 'career') setView('career', true);
-        else if (go === 'scholarships') setView('scholarships', true);
-        else if (go === 'planner') setView('planner', true);
-        else if (go === 'quiz') setView('quiz', true);
-        else if (window.askVeda) window.askVeda(arg || '');
-        else setView('veda', true);
-      });
-    });
-  }
-
-  // Serve from a per-user daily cache (auto-invalidates when a new version deploys)
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) { render(JSON.parse(cached)); return; }
-  } catch (_) {}
-
-  box.innerHTML = '<div class="slot-skeleton">Veda is preparing your personalized suggestions…</div>';
-  api('/veda/home-suggestions', { method: 'POST', body: JSON.stringify({ user_id: uid, language: getLang() || 'English' }) })
-    .then((d) => {
-      const slots = (d && d.slots) || [];
-      try { localStorage.setItem(cacheKey, JSON.stringify(slots)); } catch (_) {}
-      render(slots);
-    })
-    .catch(() => {
-      try { const stale = localStorage.getItem(cacheKey); if (stale) { render(JSON.parse(stale)); return; } } catch (_) {}
-      box.innerHTML = '<div class="slot-skeleton">Could not load suggestions. Try again later.</div>';
-    });
-}
-
-function openPage(name) {
-  const p = document.querySelector('.fullpage[data-page="' + name + '"]');
-  if (!p) return;
-  document.querySelectorAll('.fullpage').forEach((x) => x.classList.remove('open'));
-  p.classList.add('open');
-  if (name === 'resume') { ensureResumeRows(); renderResume(); }
-  if (name === 'planner') { if (window.loadPlan) loadPlan(); }
-  if (name === 'scholarships') { if (window.loadScholarships) loadScholarships(); }
-  if (name === 'skills' || name === 'opportunities' || name === 'internships' || name === 'portfolio' || name === 'analytics' || name === 'learning' || name === 'assessments') { if (window.initSIH) window.initSIH(); }
-  if (name === 'career') { if (window.loadCareers) window.loadCareers(); }
-  if (name === 'scholarship-match') { if (window.initScholarshipMatch) initScholarshipMatch(); }
-  if (name === 'roadmap-pro') { if (window.initRoadmapPro) initRoadmapPro(); }
-  p.scrollTop = 0;
-}
-function closePage() {
-  document.querySelectorAll('.fullpage').forEach((x) => x.classList.remove('open'));
-}
-
-/* ── Global scroll lock: lock background whenever any overlay is open ── */
-function _syncScrollLock() {
-  const overlay = document.querySelector('.fullpage.open, .modal.open');
-  document.documentElement.classList.toggle('no-scroll', !!overlay);
-}
-const _lockObs = new MutationObserver(_syncScrollLock);
-_lockObs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
-_syncScrollLock();
-
-/* ── Persistent, history-aware navigation ──
-   Tabs and full-page tools are tracked in the URL hash + localStorage so a
-   reload restores the last view, and the browser Back/Forward buttons move
-   within the app instead of leaving it. */
-const _TABS = ['home', 'explore', 'progress', 'opportunities', 'veda'];
-const _PAGES = ['resume', 'planner', 'scholarships', 'quiz', 'timer', 'notes', 'summarizer', 'about', 'blog', 'privacy', 'terms', 'career-detail', 'skills', 'internships', 'portfolio', 'analytics', 'learning', 'assessments', 'scholarship-match', 'roadmap-pro', 'profile', 'college', 'career'];
-
-function _savedTab() {
-  try { return localStorage.getItem('learnify_tab'); } catch (e) { return null; }
-}
-function applyView(name) {
-  if (_PAGES.includes(name)) openPage(name);
-  else if (_TABS.includes(name)) switchTab(name);
-  else if (name) switchTab(name);
-}
-function setView(name, push = true) {
-  if (!name) return;
-  if (_TABS.includes(name)) closePage();
-  const prev = (location.hash || '').replace(/^#/, '');
-  applyView(name);
-  const h = '#' + name;
-  try {
-    if (push) { if (prev !== name) history.pushState({ view: name }, '', h); }
-    else history.replaceState({ view: name }, '', h);
-  } catch (e) { /* ignore */ }
-  if (_TABS.includes(name)) {
-    try { localStorage.setItem('learnify_tab', name); } catch (e) { /* ignore */ }
-  }
-}
-function _restoreView() {
-  const hash = (location.hash || '').replace(/^#/, '');
-  if (hash && (_TABS.includes(hash) || _PAGES.includes(hash))) {
-    setView(hash, false);
-  } else if (hash) {
-    setView('home', false);
-  } else {
-    setView('home', false);
-  }
-}
-window.addEventListener('popstate', () => {
-  const v = (location.hash || '').replace(/^#/, '');
-  if (_PAGES.includes(v)) openPage(v);
-  else {
-    closePage();
-    const t = _TABS.includes(v) ? v : (_savedTab() && _TABS.includes(_savedTab()) ? _savedTab() : 'home');
-    switchTab(t);
-  }
-});
-function extractJson(s) {
-  if (!s) return null;
-  s = s.trim();
-  if (s.startsWith('```')) s = s.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
-  const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a === -1 || b === -1) return null;
-  try { return JSON.parse(s.slice(a, b + 1)); } catch (_) { return null; }
-}
-function printArea(node) {
-  if (!node) return;
-  document.body.classList.add('printing');
-  node.classList.add('print-target');
-  const cleanup = () => {
-    document.body.classList.remove('printing');
-    node.classList.remove('print-target');
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
-  window.print();
-}
-
-function initTools() {
-  document.querySelectorAll('[data-tool]').forEach((b) => {
-    b.addEventListener('click', () => {
-      const t = b.dataset.tool;
-      if (t === 'planner' || t === 'resume' || t === 'scholarships') { setView(t, true); return; }
-      openModal(t + '-modal');
-    });
-  });
-  document.querySelectorAll('[data-page-close]').forEach((b) => {
-    b.addEventListener('click', () => {
-      if ((location.hash || '').replace(/^#/, '') && _PAGES.includes((location.hash || '').replace(/^#/, ''))) history.back();
-      else closePage();
-    });
-  });
-  document.querySelectorAll('[data-go]').forEach((b) => {
-    b.addEventListener('click', () => setView(b.dataset.go, true));
-  });
-  document.querySelectorAll('.tbtn').forEach((b) => {
-    b.addEventListener('click', () => setView(b.dataset.tab, true));
-  });
-
-  document.querySelectorAll('.sys-subnav').forEach((nav) => {
-    nav.querySelectorAll('.sys-pill').forEach((pill) => {
-      pill.addEventListener('click', () => {
-        const parent = pill.closest('.fullpage') || pill.closest('.tab-pane');
-        if (!parent) return;
-        nav.querySelectorAll('.sys-pill').forEach((p) => { p.classList.remove('active'); p.setAttribute('aria-selected', 'false'); });
-        pill.classList.add('active');
-        pill.setAttribute('aria-selected', 'true');
-        const section = pill.dataset.section;
-        parent.querySelectorAll('.sys-section').forEach((s) => {
-          s.classList.toggle('active', s.dataset.section === section && s.dataset.parent === nav.dataset.subnav);
-        });
-      });
-    });
-  });
-
-  const avatar = el('top-avatar');
-  if (avatar) avatar.addEventListener('click', () => {
-    if (getToken()) openPage('profile');
-    else openLogin();
-  });
-
-  document.querySelectorAll('.lang').forEach((l) => {
-      l.addEventListener('click', () => {
-        const lang = l.dataset.lang || l.textContent.trim();
-        setLang(lang);
-        document.querySelectorAll('.lang').forEach((x) =>
-          x.classList.toggle('active', (x.dataset.lang || x.textContent.trim()) === lang));
-        const pl = el('profile-lang');
-        if (pl) pl.value = lang;
-        applyLanguage(lang);
-        toast('Language set to ' + lang, 'ok');
-      });
-  });
-}
-
-function initWriting() {
-  const go = el('writing-go');
-  if (!go) return;
-  go.addEventListener('click', async () => {
-    const text = el('writing-input').value.trim();
-    const mode = el('writing-mode').value;
-    if (!text) { toast('Enter some text first.', 'info'); return; }
-    if (!getToken()) { toast('Login to use the Writing Enhancer.', 'info'); openLogin(); return; }
-    const out = el('writing-out');
-    out.style.display = 'block';
-    out.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-    go.disabled = true; go.textContent = 'Working…';
-    try {
-      const resp = await fetch('/api/veda/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: (getUser() && getUser().email) || 'demo',
-          messages: [{ role: 'user', content: mode + ':\n' + text }]
-        })
-      });
-      if (!resp.ok) throw new Error('Request failed (' + resp.status + ')');
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let result = '';
-      out.innerHTML = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        result += decoder.decode(value, { stream: true });
-        out.innerHTML = renderMarkdown(result);
-      }
-    } catch (e) {
-      out.innerHTML = '<span style="color:#c0392b">⚠️ ' + esc(e.message) + '</span>';
-    } finally {
-      go.disabled = false; go.textContent = 'Enhance';
-    }
-  });
-}
-
-function initCalculator() {
-  const screen = el('calc-screen');
-  if (!screen) return;
-  let expr = '';
-  const render = () => { screen.textContent = expr || '0'; };
-  document.querySelectorAll('.calc-btn').forEach((b) => {
-    b.addEventListener('click', () => {
-      playClick();
-      const k = b.dataset.k;
-      if (k === 'C') expr = '';
-      else if (k === '⌫') expr = expr.slice(0, -1);
-      else if (k === '=') {
-        try { expr = String(Function('"use strict";return (' + expr.replace(/[×÷]/g, m => m === '×' ? '*' : '/') + ')')()); }
-        catch (_) { expr = 'Error'; }
-      } else expr += k;
-      render();
-    });
-  });
-
-  const convGo = el('conv-go');
-  if (convGo) convGo.addEventListener('click', () => {
-    const val = parseFloat(el('conv-val').value);
-    const from = el('conv-from').value, to = el('conv-to').value;
-    const factors = { km: 1000, m: 1, cm: 0.01, mi: 1609.34, kg: 1000, g: 1, lb: 453.592 };
-    if (isNaN(val)) { el('conv-out').textContent = 'Enter a value'; return; }
-    const meters = val * (factors[from] / factors[to]);
-    el('conv-out').textContent = val + ' ' + from + ' = ' + meters.toFixed(4) + ' ' + to;
-  });
-}
-
-function initResume() {
-  const preview = el('r-preview');
-  if (!preview) return;
-
-  function addEdu(data) {
-    data = data || {};
-    const row = document.createElement('div');
-    row.className = 'dyn-row';
-    row.innerHTML =
-      '<input class="edu-school" placeholder="School / University" value="' + esc(data.school || '') + '">' +
-      '<input class="edu-degree" placeholder="Degree / Course" value="' + esc(data.degree || '') + '">' +
-      '<input class="edu-year" placeholder="Year" value="' + esc(data.year || '') + '">' +
-      '<input class="edu-detail" placeholder="Detail (optional)" value="' + esc(data.detail || '') + '">' +
-      '<button class="rf-del" title="Remove">×</button>';
-    row.querySelector('.rf-del').addEventListener('click', () => { row.remove(); renderResume(); });
-    row.querySelectorAll('input').forEach((i) => i.addEventListener('input', renderResume));
-    el('r-edu-list').appendChild(row);
-  }
-  function addExp(data) {
-    data = data || {};
-    const row = document.createElement('div');
-    row.className = 'dyn-row';
-    row.innerHTML =
-      '<input class="exp-role" placeholder="Role / Project" value="' + esc(data.role || '') + '">' +
-      '<input class="exp-org" placeholder="Organisation" value="' + esc(data.org || '') + '">' +
-      '<input class="exp-period" placeholder="Period" value="' + esc(data.period || '') + '">' +
-      '<textarea class="exp-bullets" rows="2" placeholder="Bullet points (one per line)">' + esc((data.bullets || []).join('\n')) + '</textarea>' +
-      '<button class="rf-del" title="Remove">×</button>';
-    row.querySelector('.rf-del').addEventListener('click', () => { row.remove(); renderResume(); });
-    row.querySelectorAll('input,textarea').forEach((i) => i.addEventListener('input', renderResume));
-    el('r-exp-list').appendChild(row);
-  }
-  window.addEdu = addEdu;
-  window.addExp = addExp;
-
-  el('r-add-edu').addEventListener('click', () => addEdu());
-  el('r-add-exp').addEventListener('click', () => addExp());
-
-  function ensureResumeRows() {
-    if (!el('r-edu-list').children.length) addEdu();
-    if (!el('r-exp-list').children.length) addExp();
-  }
-  window.ensureResumeRows = ensureResumeRows;
-
-  function renderResume() {
-    const t = (el('r-template').value) || 'modern';
-    preview.className = 'resume tpl-' + t;
-    const name = el('r-name').value.trim() || 'Your Name';
-    const title = el('r-title').value.trim();
-    const email = el('r-email').value.trim();
-    const phone = el('r-phone').value.trim();
-    const loc = el('r-location').value.trim();
-    const links = el('r-links').value.trim();
-    const summary = el('r-summary').value.trim();
-    const skills = el('r-skills').value.trim();
-    const certs = el('r-certs').value.trim();
-
-    const edu = Array.from(el('r-edu-list').children).map((r) => ({
-      school: r.querySelector('.edu-school').value.trim(),
-      degree: r.querySelector('.edu-degree').value.trim(),
-      year: r.querySelector('.edu-year').value.trim(),
-      detail: r.querySelector('.edu-detail').value.trim()
-    })).filter((e) => e.school || e.degree);
-    const exp = Array.from(el('r-exp-list').children).map((r) => ({
-      role: r.querySelector('.exp-role').value.trim(),
-      org: r.querySelector('.exp-org').value.trim(),
-      period: r.querySelector('.exp-period').value.trim(),
-      bullets: r.querySelector('.exp-bullets').value.split('\n').map((s) => s.trim()).filter(Boolean)
-    })).filter((e) => e.role || e.org);
-
-    let h = '<div class="r-hd"><h1>' + esc(name) + '</h1>'
-      + (title ? '<div class="r-tt">' + esc(title) + '</div>' : '')
-      + '<div class="r-ct">';
-    [email, phone, loc, links].filter(Boolean).forEach((c) => { h += '<span>' + esc(c) + '</span>'; });
-    h += '</div></div>';
-
-    if (summary) h += '<div class="r-sec"><h2>Summary</h2><p>' + esc(summary) + '</p></div>';
-
-    if (edu.length) {
-      h += '<div class="r-sec"><h2>Education</h2>';
-      edu.forEach((e) => {
-        h += '<div class="r-item"><div class="r-l"><b>' + esc(e.school || e.degree) + '</b>'
-          + (e.degree && e.school ? ' <span>' + esc(e.degree) + '</span>' : '') + '</div>'
-          + (e.year ? '<div class="r-r">' + esc(e.year) + '</div>' : '')
-          + (e.detail ? '<p>' + esc(e.detail) + '</p>' : '') + '</div>';
-      });
-      h += '</div>';
-    }
-    if (exp.length) {
-      h += '<div class="r-sec"><h2>Experience</h2>';
-      exp.forEach((e) => {
-        h += '<div class="r-item"><div class="r-l"><b>' + esc(e.role || e.org) + '</b>'
-          + (e.org && e.role ? ' <span>' + esc(e.org) + '</span>' : '') + '</div>'
-          + (e.period ? '<div class="r-r">' + esc(e.period) + '</div>' : '');
-        if (e.bullets.length) h += '<ul>' + e.bullets.map((b) => '<li>' + esc(b) + '</li>').join('') + '</ul>';
-        h += '</div>';
-      });
-      h += '</div>';
-    }
-    if (skills) {
-      h += '<div class="r-sec"><h2>Skills</h2><p class="r-tags">'
-        + esc(skills).split(',').map((s) => '<span>' + esc(s.trim()) + '</span>').join('') + '</p></div>';
-    }
-    if (certs) h += '<div class="r-sec"><h2>Certifications</h2><p>' + esc(certs) + '</p></div>';
-    preview.innerHTML = h;
-  }
-  window.renderResume = renderResume;
-
-  document.querySelectorAll('.resume-form input, .resume-form textarea, #r-template').forEach((i) => {
-    i.addEventListener('input', renderResume);
-  });
-
-  el('r-pdf').addEventListener('click', () => printArea(preview));
-
-  el('r-ai').addEventListener('click', async () => {
-    if (!getToken()) { toast('Login to use AI Polish.', 'info'); openLogin(); return; }
-    const summary = el('r-summary').value.trim();
-    const exp = Array.from(el('r-exp-list').children).map((r) => ({
-      role: r.querySelector('.exp-role').value.trim(),
-      org: r.querySelector('.exp-org').value.trim(),
-      bullets: r.querySelector('.exp-bullets').value.split('\n').map((s) => s.trim()).filter(Boolean)
-    })).filter((e) => e.role || e.bullets.length);
-    if (!summary && !exp.length) { toast('Add a summary or experience first.', 'info'); return; }
-    const btn = el('r-ai');
-    btn.disabled = true; btn.textContent = 'Polishing…';
-    const prompt = 'You are an expert resume writer for Indian students. Improve the content to be concise, impactful and ATS-friendly. Use strong action verbs and quantify achievements where implied. Return ONLY valid JSON (no markdown fences) in this exact shape:\n{\n "summary": string,\n "experience": [ { "bullets": string[] } ]\n}\nProvide one experience object per input entry, in the same order. Do not alter names, roles or orgs.\n\nINPUT SUMMARY: ' + summary + '\n\nINPUT EXPERIENCE: ' + JSON.stringify(exp.map((e) => ({ role: e.role, org: e.org, bullets: e.bullets })));
-    try {
-      const d = await api('/veda/chat', {
-        method: 'POST',
-        body: JSON.stringify({ user_id: (getUser() && getUser().email) || 'demo', messages: [{ role: 'user', content: prompt }], mode: 'chat', language: 'English', return_json: true })
-      });
-      const json = extractJson((d && d.reply) || '');
-      if (json && json.summary !== undefined) {
-        el('r-summary').value = json.summary;
-        if (Array.isArray(json.experience)) {
-          const rows = el('r-exp-list').children;
-          json.experience.forEach((ex, i) => {
-            if (rows[i] && Array.isArray(ex.bullets)) rows[i].querySelector('.exp-bullets').value = ex.bullets.join('\n');
-          });
-        }
-        renderResume();
-        toast('Resume polished with AI', 'ok');
-      } else {
-        toast('AI returned an unexpected format.', 'info');
-      }
-    } catch (e) {
-      toast('AI polish failed: ' + e.message, 'info');
-    } finally {
-      btn.disabled = false; btn.textContent = 'AI Polish';
-    }
-  });
-}
-
-async function vedaText(payload) {
-  const resp = await fetch('/api/veda/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!resp.ok) throw new Error('Veda request failed (' + resp.status + ')');
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let text = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    text += decoder.decode(value, { stream: true });
-  }
-  return text;
-}
-
-function extractJsonObj(s) {
-  if (!s) return null;
-  s = String(s).trim();
-  if (s.startsWith('```')) s = s.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '');
-  const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a === -1 || b === -1) return null;
-  try { return JSON.parse(s.slice(a, b + 1)); } catch (_) { return null; }
-}
-
-async function aiPlanInsights(subs, days, hours, exam, preview) {
-  const box = document.createElement('div');
-  box.className = 'pl-ai';
-  box.innerHTML = '<div class="pl-ai-head">🤖 Veda\'s plan insights</div><div class="pl-ai-body"><div class="typing"><span></span><span></span><span></span></div></div>';
-  preview.appendChild(box);
-  const list = subs.map(s => `${s.name} (level ${s.level}/100 → target ${s.target}, priority P${s.prio})`).join('\n');
-  const prompt = `You are a friendly Indian study coach. A student has ${days} days until their ${exam || 'upcoming exam'} and studies ${hours} hours/day. Subjects:\n${list}\nGive SHORT, practical, personalised advice. Respond with ONLY valid JSON: {"focus":["tip1","tip2","tip3"],"strategy":"one short paragraph","motivation":"one encouraging line"}. No markdown, no extra text.`;
-  try {
-    const text = await vedaText({ user_id: ((getUser() || {}).email) || 'demo', messages: [{ role: 'user', content: prompt }] });
-    const d = extractJsonObj(text);
-    if (!d) { box.remove(); return; }
-    const focus = (d.focus || []).map(t => '<li>' + esc(t) + '</li>').join('');
-    box.querySelector('.pl-ai-body').innerHTML =
-      (focus ? '<div class="pl-ai-sub">Where to focus</div><ul class="pl-ai-list">' + focus + '</ul>' : '') +
-      (d.strategy ? '<div class="pl-ai-sub">Strategy</div><p class="pl-ai-text">' + esc(d.strategy) + '</p>' : '') +
-      (d.motivation ? '<div class="pl-ai-mot">“' + esc(d.motivation) + '”</div>' : '');
-  } catch (e) { box.remove(); }
-}
-
-function initPlanner() {
-  const preview = el('pl-preview');
-  if (!preview) return;
-  const KEY = 'learnify_plan';
-
-  function addSubject(data) {
-    data = data || {};
-    const row = document.createElement('div');
-    row.className = 'subj-row';
-    const prio = data.prio || 3;
-    row.innerHTML =
-      '<input class="pl-sub-name" placeholder="Subject" value="' + esc(data.name || '') + '">' +
-      '<select class="pl-sub-prio" title="Priority">' +
-      [1, 2, 3, 4, 5].map((p) => '<option value="' + p + '"' + (p == prio ? ' selected' : '') + '>P' + p + '</option>').join('') +
-      '</select>' +
-      '<div class="pl-lv"><label>Lvl</label><input type="number" class="pl-sub-level" min="0" max="100" value="' + (data.level != null ? data.level : 50) + '"></div>' +
-      '<div class="pl-lv"><label>Tgt</label><input type="number" class="pl-sub-target" min="0" max="100" value="' + (data.target != null ? data.target : 90) + '"></div>' +
-      '<button class="rf-del" title="Remove">×</button>';
-    row.querySelector('.rf-del').addEventListener('click', () => row.remove());
-    el('pl-subjects').appendChild(row);
-  }
-  window.addSubject = addSubject;
-
-  el('pl-add-subject').addEventListener('click', () => addSubject());
-
-  function readSubjects() {
-    return Array.from(el('pl-subjects').children).map((r) => ({
-      name: r.querySelector('.pl-sub-name').value.trim(),
-      prio: parseInt(r.querySelector('.pl-sub-prio').value, 10) || 3,
-      level: Math.max(0, Math.min(100, parseInt(r.querySelector('.pl-sub-level').value, 10) || 0)),
-      target: Math.max(0, Math.min(100, parseInt(r.querySelector('.pl-sub-target').value, 10) || 0))
-    })).filter((s) => s.name);
-  }
-
-  function updateCountdown() {
-    const exam = el('pl-exam').value;
-    const cd = el('pl-countdown');
-    if (!exam) { cd.textContent = '—'; cd.className = 'pl-countdown'; return; }
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const end = new Date(exam + 'T00:00:00');
-    const days = Math.round((end - today) / 86400000);
-    if (days < 0) { cd.textContent = 'Exam date passed'; cd.className = 'pl-countdown overdue'; }
-    else if (days === 0) { cd.textContent = 'Exam is today!'; cd.className = 'pl-countdown urgent'; }
-    else { cd.textContent = days + ' days left'; cd.className = 'pl-countdown ' + (days <= 14 ? 'urgent' : ''); }
-  }
-  el('pl-exam').addEventListener('change', updateCountdown);
-
-  function ensureSubjectRows() {
-    if (!el('pl-subjects').children.length) {
-      addSubject({ name: 'Mathematics', prio: 5, level: 55, target: 90 });
-      addSubject({ name: 'Physics', prio: 4, level: 50, target: 85 });
-      addSubject({ name: 'Chemistry', prio: 3, level: 60, target: 85 });
-    }
-  }
-  window.ensureSubjectRows = ensureSubjectRows;
-
-  function loadPlan() {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) { ensureSubjectRows(); updateCountdown(); return; }
-      const p = JSON.parse(raw);
-      if (p.exam) el('pl-exam').value = p.exam;
-      if (p.hours) el('pl-hours').value = p.hours;
-      if (p.brk != null) el('pl-break').value = p.brk;
-      if (typeof p.revision === 'boolean') el('pl-revision').checked = p.revision;
-      if (Array.isArray(p.subjects) && p.subjects.length) {
-        el('pl-subjects').innerHTML = '';
-        p.subjects.forEach(addSubject);
-      } else ensureSubjectRows();
-      updateCountdown();
-    } catch (_) { ensureSubjectRows(); }
-  }
-  window.loadPlan = loadPlan;
-
-  el('pl-save').addEventListener('click', () => {
-    const p = {
-      exam: el('pl-exam').value,
-      hours: el('pl-hours').value,
-      brk: el('pl-break').value,
-      revision: el('pl-revision').checked,
-      subjects: readSubjects()
-    };
-    try { localStorage.setItem(KEY, JSON.stringify(p)); toast('Plan saved', 'ok'); }
-    catch (_) { toast('Could not save plan', 'info'); }
-  });
-
-  el('pl-build').addEventListener('click', () => {
-    const subs = readSubjects();
-    const exam = el('pl-exam').value;
-    const hours = parseInt(el('pl-hours').value, 10) || 3;
-    const brk = parseInt(el('pl-break').value, 10) || 0;
-    const rev = el('pl-revision').checked;
-    if (!subs.length) { toast('Add at least one subject.', 'info'); return; }
-    if (!exam) { toast('Pick an exam date.', 'info'); return; }
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const end = new Date(exam + 'T00:00:00');
-    const days = Math.round((end - today) / 86400000);
-    if (days < 1) { toast('Exam date must be in the future.', 'info'); return; }
-
-    const totalHours = days * hours;
-    const weights = subs.map((s) => Math.max(0.1, s.prio * (1 + (s.target - s.level) / 100)));
-    const sumW = weights.reduce((a, b) => a + b, 0);
-    const alloc = subs.map((s, i) => ({
-      ...s,
-      hrs: Math.round((weights[i] / sumW) * totalHours * 10) / 10
-    }));
-
-    const rotation = [];
-    alloc.forEach((s, i) => { const n = Math.max(1, Math.round(weights[i])); for (let k = 0; k < n; k++) rotation.push(s.name); });
-    if (!rotation.length) rotation.push(subs[0].name);
-
-    let html = '<div class="pl-stats">'
-      + '<div class="pl-stat"><b>' + days + '</b><span>days to exam</span></div>'
-      + '<div class="pl-stat"><b>' + hours + 'h</b><span>per day</span></div>'
-      + '<div class="pl-stat"><b>' + totalHours + '</b><span>total hours</span></div>'
-      + '<div class="pl-stat"><b>' + subs.length + '</b><span>subjects</span></div>'
-      + '</div>'
-      + '<div class="pl-exam-line">🎯 Target exam: <b>' + esc(exam) + '</b></div>';
-
-    html += '<div class="pl-alloc">';
-    alloc.forEach((s) => {
-      const gap = Math.max(0, s.target - s.level);
-      html += '<div class="pl-alloc-row"><div class="pl-alloc-top"><b>' + esc(s.name) + '</b><span>P' + s.prio + ' · ' + s.hrs + 'h</span></div>'
-        + '<div class="pl-bar"><div class="pl-bar-fill" style="width:' + s.level + '%"></div><div class="pl-bar-tgt" style="left:' + s.target + '%"></div></div>'
-        + '<div class="pl-alloc-meta">Level ' + s.level + ' → Target ' + s.target + ' (' + gap + ' pts gap)</div></div>';
-    });
-    html += '</div>';
-
-    html += '<div class="pl-week-head">📅 Day-by-day timetable</div>';
-    let week = 0;
-    for (let i = 0; i < days; i++) {
-      const d = new Date(today); d.setDate(d.getDate() + i);
-      const dow = d.getDay();
-      const isRev = rev && dow === 0;
-      const subj = isRev ? 'Revision & Mock Test' : rotation[i % rotation.length];
-      if (dow === 1 || i === 0) { html += '<div class="pl-week">Week ' + (++week) + '</div>'; }
-      const sessions = isRev ? 'Full-length mock + error analysis' : (hours + 'h focused · ' + (brk ? brk + 'm breaks' : 'steady pace'));
-      html += '<div class="pl-day"><span class="pl-date">' + d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) +
-        '</span><span class="pl-sub' + (isRev ? ' rev' : '') + '">' + esc(subj) + '</span><span class="pl-h">' + esc(sessions) + '</span></div>';
-    }
-    preview.innerHTML = html;
-    preview.style.display = 'block';
-    aiPlanInsights(subs, days, hours, exam, preview);
-    if (window.addNotification) window.addNotification('Study plan ready — ' + days + ' days, ' + totalHours + ' hours scheduled.', 'plan');
-  });
-
-  el('pl-pdf').addEventListener('click', () => {
-    if (!preview.innerHTML.trim()) { toast('Generate a plan first.', 'info'); return; }
-    printArea(preview);
-  });
-}
-
-function initScholarships() {
-  const listEl = el('sch-list');
-  if (!listEl) return;
-  const searchEl = el('sch-search');
-  const stateEl = el('sch-state');
-  const collegeEl = el('sch-college');
-  const tabsEl = el('sch-tabs');
-  const summaryEl = el('sch-summary');
-  const matchedEl = el('sch-matched');
-  const chipsEl = el('sch-chips');
-  let ALL = [];
-
-  let cat = 'All';
-  let q = '';
-  let state = '';
-  let college = '';
-  let collegeState = '';
-  const NE_STATES = ['assam', 'arunachal pradesh', 'manipur', 'meghalaya', 'mizoram', 'nagaland', 'tripura', 'sikkim'];
-
-  function isApplicable(s, lc, cs) {
-    const cols = s.colleges || [];
-    if (cols.includes('All')) {
-      const st = (s.state || '').toLowerCase();
-      if (st === 'central' || st === 'all india') return true;
-      if (st === 'north east') return NE_STATES.includes(cs);
-      return st === cs;
-    }
-    return cols.map((x) => String(x).toLowerCase()).includes(lc);
-  }
-
-  function load() {
-    listEl.innerHTML = '<div class="sch-loading">Loading scholarships…</div>';
-    api('/scholarships').then((d) => {
-      ALL = (d && d.scholarships) || [];
-      buildChips();
-      renderMatched();
-      populateStates();
-      render();
-    }).catch(() => {
-      toast('Failed to load scholarships', 'info');
-      listEl.innerHTML = '<div class="sch-empty">Could not load scholarships.</div>';
-    });
-  }
-  window.loadScholarships = load;
-
-  function matchReasons(s, u) {
-    const reasons = [];
-    const us = (u.state || '').toLowerCase();
-    const st = (s.state || '').toLowerCase();
-    if (us && (st === us || st === 'all india' || st === 'central' || (st === 'north east' && NE_STATES.includes(us)))) {
-      reasons.push('for ' + (u.state || 'your state'));
-    }
-    const elig = ((s.eligibility || '') + ' ' + (s.name || '')).toLowerCase();
-    const g = (u.gender || '').toLowerCase();
-    if (g === 'female' && /girl|women|womens|female/.test(elig)) reasons.push('for girls/women');
-    if (g === 'male' && /boy|men|male/.test(elig)) reasons.push('for boys/men');
-    if (u.board && elig.includes(u.board.toLowerCase())) reasons.push('for ' + u.board + ' students');
-    if (/(merit|topper|rank)/.test(elig)) reasons.push('merit-based');
-    return reasons;
-  }
-
-  function filtered() {
-    let data = ALL.slice();
-    const lc = college ? college.toLowerCase() : null;
-    const cs = collegeState ? collegeState.toLowerCase() : null;
-    if (cat !== 'All') data = data.filter((s) => (s.category || '').toLowerCase() === cat.toLowerCase());
-    if (state) data = data.filter((s) => (s.state || '').toLowerCase() === state.toLowerCase());
-    if (q) {
-      const qq = q.toLowerCase();
-      data = data.filter((s) => ((s.name || '') + ' ' + (s.eligibility || '') + ' ' + (s.state || '') + ' ' + (s.category || '') + ' ' + (s.amount || '')).toLowerCase().includes(qq));
-    }
-    if (lc) data = data.filter((s) => isApplicable(s, lc, cs));
-    return data;
-  }
-
-  function render() {
-    const data = filtered();
-    let html = '<span class="sch-count">' + data.length + ' scholarship' + (data.length === 1 ? '' : 's') + '</span>';
-    if (college) html += ' <span class="sch-filter">for ' + esc(college) + '</span>';
-    if (cat !== 'All') html += ' <span class="sch-filter">' + esc(cat) + '</span>';
-    if (state) html += ' <span class="sch-filter">' + esc(state) + '</span>';
-    if (q) html += ' <span class="sch-filter">“' + esc(q) + '”</span>';
-    summaryEl.innerHTML = html;
-
-    if (!data.length) {
-      listEl.innerHTML = '<div class="sch-empty">No scholarships match your filters. Try a suggestion below.</div>';
-      return;
-    }
-
-    const lc = college ? college.toLowerCase() : null;
-    const cs = collegeState ? collegeState.toLowerCase() : null;
-    listEl.innerHTML = data.map((s) => {
-      const avail = lc ? isApplicable(s, lc, cs) : null;
-      const docs = (s.documents || []).map((d) => '<span class="doc-chip">' + esc(d) + '</span>').join('');
-      return '<div class="sch-card cat-' + esc(String(s.category || '').toLowerCase()) + '">'
-        + '<div class="sch-top"><div class="sch-name">' + esc(s.name) + '</div>'
-        + (avail === true ? '<span class="sch-badge avail">✓ At your college</span>'
-            : avail === false ? '<span class="sch-badge na">Not listed for your college</span>' : '')
-        + '</div>'
-        + '<div class="sch-meta"><span class="tag tag-cat">' + esc(s.category || '') + '</span>'
-        + '<span class="tag tag-state">' + esc(s.state || '') + '</span></div>'
-        + '<div class="sch-amount"><b>' + esc(s.amount || '') + '</b></div>'
-        + '<div class="sch-elig"><span>Eligibility:</span> ' + esc(s.eligibility || '') + '</div>'
-        + '<div class="sch-deadline"><span>Deadline:</span> ' + esc(s.deadline || '') + '</div>'
-        + (docs ? '<div class="sch-docs"><span>Documents:</span> ' + docs + '</div>' : '')
-        + '</div>';
-    }).join('');
-    Array.from(listEl.querySelectorAll('.sch-card')).forEach((card, i) => {
-      card.classList.add('clickable');
-      card.addEventListener('click', () => window.openScholarshipModal(data[i]));
-    });
-  }
-
-  function renderMatched() {
-    if (!matchedEl) return;
-    const u = getUser() || {};
-    if (!u.state && !u.gender && !u.board && !u.target_exam) { matchedEl.innerHTML = ''; return; }
-    const scored = [];
-    ALL.forEach((s) => {
-      const reasons = matchReasons(s, u);
-      if (reasons.length) scored.push({ s, reasons: reasons.slice(0, 2) });
-    });
-    if (!scored.length) { matchedEl.innerHTML = ''; return; }
-    scored.sort((a, b) => b.reasons.length - a.reasons.length);
-    matchedEl.innerHTML = '<div class="sch-section-title">Matched for you</div>' +
-      scored.slice(0, 4).map(({ s, reasons }) =>
-        '<div class="sch-match" data-name="' + esc(s.name) + '"><div class="sch-match-name">' + esc(s.name) +
-        '</div><div class="sch-match-reason">Because ' + reasons.map(esc).join(' · ') + '</div></div>'
-      ).join('');
-    matchedEl.querySelectorAll('.sch-match').forEach((m) => {
-      m.addEventListener('click', () => {
-        const s = ALL.find((x) => x.name === m.dataset.name);
-        if (s) window.openScholarshipModal(s);
-      });
-    });
-  }
-
-  function buildChips() {
-    if (!chipsEl) return;
-    const u = getUser() || {};
-    const chips = [];
-    if (u.state) chips.push({ label: 'In ' + u.state, q: u.state });
-    if ((u.gender || '').toLowerCase() === 'female') chips.push({ label: 'For girls/women', q: 'girl women' });
-    if (u.board) chips.push({ label: u.board + ' students', q: u.board });
-    [
-      { label: 'Government', cat: 'Government' },
-      { label: 'State', cat: 'State' },
-      { label: 'Girls/Women', q: 'girl women' },
-      { label: 'SC/ST/OBC', q: 'sc st obc' },
-      { label: 'Minority', q: 'minority' },
-      { label: 'Merit-based', q: 'merit' },
-      { label: 'Engineering', q: 'engineering' },
-    ].forEach((c) => chips.push(c));
-    chipsEl.innerHTML = chips.map((c, i) => '<button class="sch-chip" data-i="' + i + '">' + esc(c.label) + '</button>').join('');
-    chipsEl.querySelectorAll('.sch-chip').forEach((b) => {
-      b.addEventListener('click', () => {
-        const c = chips[Number(b.dataset.i)];
-        q = c.q || ''; searchEl.value = q;
-        if (c.cat) {
-          cat = c.cat;
-          tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.toggle('active', x.dataset.cat === cat));
-        } else {
-          cat = 'All';
-          tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.toggle('active', x.dataset.cat === 'All'));
-        }
-        render();
-        matchedEl && matchedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-    });
-  }
-  searchEl.addEventListener('input', () => { q = searchEl.value.trim(); render(); });
-  stateEl.addEventListener('change', () => { state = stateEl.value; render(); });
-
-  tabsEl.querySelectorAll('.sch-tab').forEach((b) => b.addEventListener('click', () => {
-    tabsEl.querySelectorAll('.sch-tab').forEach((x) => x.classList.remove('active'));
-    b.classList.add('active');
-    cat = b.dataset.cat;
-    render();
-  }));
-
-  function populateStates() {
-    if (!stateEl) return;
-    const set = new Set();
-    ALL.forEach((s) => { if (s.state) set.add(String(s.state)); });
-    const opts = Array.from(set).sort((a, b) => a.localeCompare(b));
-    stateEl.innerHTML = '<option value="">All states</option>' + opts.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
-    stateEl.value = state;
-  }
-
-  // College autocomplete (43k colleges -> type-ahead, not a dropdown)
-  const suggestEl = el('sch-suggest');
-  let schTimer = null;
-  const collegeMap = {};
-  function applyCollege(name, state) {
-    college = name;
-    collegeState = state || collegeMap[name] || '';
-    collegeEl.value = name;
-    suggestEl.innerHTML = '';
-    suggestEl.style.display = 'none';
-    load();
-  }
-  collegeEl.addEventListener('input', () => {
-    const v = collegeEl.value.trim();
-    clearTimeout(schTimer);
-    if (v.length < 2) { suggestEl.innerHTML = ''; suggestEl.style.display = 'none'; return; }
-    schTimer = setTimeout(async () => {
-      try {
-        const d = await api('/colleges?q=' + encodeURIComponent(v) + '&limit=12');
-        const cs = (d && d.colleges) || [];
-        if (!cs.length) { suggestEl.innerHTML = ''; suggestEl.style.display = 'none'; return; }
-        cs.forEach((c) => { collegeMap[c.name] = c.state || ''; });
-        suggestEl.innerHTML = cs.map((c) =>
-          '<div class="sch-suggest-item" data-name="' + esc(c.name) + '" data-state="' + esc(c.state || '') + '">' + esc(c.name) +
-          (c.state ? ' <span class="sch-suggest-state">' + esc(c.state) + '</span>' : '') + '</div>'
-        ).join('');
-        suggestEl.style.display = 'block';
-      } catch (_) {}
-    }, 250);
-  });
-  collegeEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const v = collegeEl.value.trim();
-      applyCollege(v);
-    }
-  });
-  suggestEl.addEventListener('click', (e) => {
-    const it = e.target.closest('.sch-suggest-item');
-    if (it) applyCollege(it.dataset.name, it.dataset.state);
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.sch-college-wrap')) suggestEl.style.display = 'none';
-  });
-
-  // Live web search (Google Programmable Search Engine)
-  const liveQ = el('sch-live-q');
-  const liveGo = el('sch-live-go');
-  const liveRes = el('sch-live-results');
-  const liveMeta = el('sch-live-meta');
-  function runLive() {
-    const q = liveQ.value.trim();
-    if (!q) { toast('Type a query to search the web', 'info'); return; }
-    liveRes.innerHTML = '<div class="sch-loading">Searching the web…</div>';
-    api('/search?q=' + encodeURIComponent(q) + '&num=10').then((d) => {
-      const meta = (d && d.meta) || {};
-      if (meta.source === 'unconfigured') {
-        liveMeta.textContent = 'not configured';
-        liveRes.innerHTML = '<div class="sch-empty">Add GOOGLE_CSE_KEY + GOOGLE_CSE_CX in .env to enable live web search.</div>';
-        return;
-      }
-      liveMeta.textContent = (meta.source === 'live' ? 'live' : meta.source) +
-        (meta.remaining != null ? ' · ' + meta.remaining + ' queries left today' : '');
-      const results = (d && d.results) || [];
-      if (!results.length) { liveRes.innerHTML = '<div class="sch-empty">No live results. ' + (meta.note || '') + '</div>'; return; }
-      liveRes.innerHTML = results.map((r) =>
-        '<a class="sch-live-item" href="' + esc(r.link) + '" target="_blank" rel="noopener">' +
-        '<div class="sch-live-title">' + esc(r.title) + '</div>' +
-        '<div class="sch-live-src">' + esc(r.source || '') + '</div>' +
-        '<div class="sch-live-snippet">' + esc(r.snippet || '') + '</div></a>'
-      ).join('');
-    }).catch(() => { liveRes.innerHTML = '<div class="sch-empty">Live search failed.</div>'; });
-  }
-  liveGo.addEventListener('click', runLive);
-  liveQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') runLive(); });
-
-  load();
-}
-
-function initMisc() {
-  const vu = el('veda-upgrade');
-  if (vu) vu.addEventListener('click', (e) => { e.preventDefault(); openModal('premium-modal'); });
-
-  const avatar = el('top-avatar');
-  if (avatar) avatar.addEventListener('click', () => {
-    if (getToken()) openPage('profile');
-    else openLogin();
-  });
-
-  const map = {
-    'Resume Builder': 'resume',
-    'Calculator': 'calc-modal',
-    'Writing Enhancer': 'writing-modal',
-    'Veda AI': 'veda',
-    'College Search': 'career',
-    'Career Paths': 'career',
-    'Scholarships': 'scholarships',
-    'Study Planner': 'planner',
-  };
-  document.querySelectorAll('.foot a').forEach((a) => {
-    const t = a.textContent.trim();
-    if (map[t]) a.addEventListener('click', (e) => {
-      e.preventDefault();
-      const target = map[t];
-      if (target === 'resume' || target === 'planner' || target === 'scholarships') setView(target, true);
-      else if (target.endsWith('-modal')) openModal(target);
-      else setView(target, true);
-    });
-  });
-}
-
-function initSystem() {
-  const banner = el('offline-banner');
-  const update = () => { if (banner) banner.style.display = navigator.onLine ? 'none' : 'flex'; };
-  window.addEventListener('online', update);
-  window.addEventListener('offline', update);
-  update();
-  window.addEventListener('error', (e) => console.error('[learnify] error:', e.message));
-  window.addEventListener('unhandledrejection', (e) => console.error('[learnify] promise:', e.reason));
-}
-
-const LOANS = [
-  { bank: 'SBI Education Loan', rate: '8.15% p.a.', note: 'For studies in India & abroad. Moratorium = course + 1 yr.' },
-  { bank: 'BoB Education Loan', rate: '8.25% p.a.', note: 'Vidya Lakshmi portal; collateral waived up to ₹7.5L.' },
-  { bank: 'Canara Bank', rate: '8.0% p.a.', note: 'Interest subsidy under CSIS for income < ₹4.5L.' },
-  { bank: 'HDFC Credila', rate: '9%+ p.a.', note: 'NBFC; faster disbursal, India & overseas courses.' },
+// Learnify — SPA shell and hash router.
+//
+// One mount point (#view). Every route dynamically imports a feature module and
+// calls its handler with (root, params). Views get `ctx` from here so they never
+// have to re-read auth state or build navigation themselves.
+
+import { api, el, esc, getUser, setUser, getToken, clearToken, clearUser, toast }
+  from './utils.js?v=62';
+import { iconSvg } from './icons.js?v=62';
+import { logout } from './auth.js?v=62';
+
+export const V = 'v=62';
+
+export const ROLE_LABEL = {
+  ALPHA: 'Trainee (ALPHA)',
+  MASTER: 'Trainer (MASTER)',
+  SUPREME: 'Administrator (SUPREME)',
+};
+
+const ROLE_BY_PATH = { alpha: 'ALPHA', master: 'MASTER', supreme: 'SUPREME' };
+
+// What an account still awaiting approval may open: the waiting screen and
+// its own profile, where a name, department or password can be corrected
+// while it waits. Everything else is refused by the server anyway.
+const PENDING_OK = /^\/(pending|profile)$/;
+
+// ─── Route table ────────────────────────────────────────────────────────────
+// `file` is the module name; `$role` resolves at render time to the signed-in
+// user's dashboard. `pub` routes work signed-out; everything else is guarded.
+const ROUTES = [
+  // Public
+  { re: /^\/$/, file: 'landing', fn: 'home', pub: true },
+  { re: /^\/(?<role>alpha|master|supreme)$/, file: 'landing', fn: 'role', pub: true },
+  { re: /^\/(?<role>alpha|master|supreme)\/(?<mode>login|signup)$/,
+    file: 'auth_pages', fn: 'auth', pub: true },
+
+  // Signed-in
+  { re: /^\/home$/, file: '$role', fn: 'render' },
+  // Reachable by every account, including one still awaiting approval.
+  { re: /^\/pending$/, file: 'pending', fn: 'render' },
+  { re: /^\/feed$/, file: 'feed', fn: 'render' },
+  { re: /^\/courses$/, file: 'courses', fn: 'list' },
+  { re: /^\/courses\/(?<id>[\w-]+)$/, file: 'courses', fn: 'detail' },
+  { re: /^\/courses\/(?<id>[\w-]+)\/edit$/, file: 'course_wizard', fn: 'render',
+    roles: ['MASTER', 'SUPREME'] },
+  { re: /^\/learn\/(?<id>[\w-]+)(?:\/(?<slot>[\w-]+))?$/, file: 'player', fn: 'course' },
+
+  { re: /^\/tests$/, file: 'question_builder', fn: 'list' },
+  { re: /^\/tests\/(?<kind>[qa])\/(?<id>[\w-]+)$/, file: 'question_builder', fn: 'detail' },
+  { re: /^\/tests\/(?<kind>[qa])\/(?<id>[\w-]+)\/edit$/, file: 'question_builder', fn: 'edit',
+    roles: ['MASTER', 'SUPREME'] },
+  { re: /^\/drafts$/, file: 'question_builder', fn: 'drafts', roles: ['MASTER', 'SUPREME'] },
+  { re: /^\/take\/(?<kind>[qa])\/(?<id>[\w-]+)$/, file: 'player', fn: 'attempt' },
+
+  { re: /^\/reports$/, file: 'report', fn: 'list' },
+  { re: /^\/reports\/(?<id>[\w-]+)$/, file: 'report', fn: 'detail' },
+  { re: /^\/library$/, file: 'library', fn: 'render' },
+  { re: /^\/competency(?:\/(?<subject>[\w-]+))?$/, file: 'competency', fn: 'render' },
+  { re: /^\/feedback\/(?<kind>course|content)\/(?<id>[\w-]+)$/, file: 'feedback', fn: 'render' },
+  { re: /^\/profile$/, file: 'profile', fn: 'render' },
+  { re: /^\/notifications$/, file: 'notifications', fn: 'render' },
+
+  { re: /^\/admin(?:\/(?<page>[\w-]+))?$/, file: 'supreme', fn: 'render',
+    roles: ['SUPREME'] },
+  { re: /^\/trainers\/(?<subject>[\w-]+)$/, file: 'competency', fn: 'rank' },
 ];
 
-function askVeda(prompt) {
-  setView('veda', true);
-  const inp = el('chat-input');
-  if (inp) inp.value = prompt;
-  if (typeof window.sendMessage === 'function') window.sendMessage();
-}
+// ─── Navigation ─────────────────────────────────────────────────────────────
+const NAV = {
+  ALPHA: [
+    { href: '#/home', label: 'Home', icon: 'target' },
+    { href: '#/courses', label: 'Courses', icon: 'book' },
+    { href: '#/tests', label: 'Tests', icon: 'quiz' },
+    { href: '#/reports', label: 'Reports', icon: 'chart' },
+    { href: '#/library', label: 'Library', icon: 'graduation' },
+  ],
+  MASTER: [
+    { href: '#/home', label: 'Home', icon: 'target' },
+    { href: '#/courses', label: 'Courses', icon: 'book' },
+    { href: '#/tests', label: 'Tests', icon: 'quiz' },
+    { href: '#/drafts', label: 'AI drafts', icon: 'sparkles' },
+    { href: '#/library', label: 'Library', icon: 'graduation' },
+  ],
+  SUPREME: [
+    { href: '#/home', label: 'Home', icon: 'target' },
+    { href: '#/admin/content', label: 'Content', icon: 'shield' },
+    { href: '#/admin/users', label: 'Users', icon: 'briefcase' },
+    { href: '#/feed', label: 'Feed', icon: 'megaphone' },
+    { href: '#/admin/audit', label: 'Audit', icon: 'chart' },
+  ],
+};
 
-function openModalCard(html) {
-  const card = el('detail-card');
-  if (card) card.innerHTML = html;
-  openModal('detail-modal');
-}
+// Extra desktop-only links; the dock stays at five items.
+const TOP_EXTRA = {
+  ALPHA: [{ href: '#/feed', label: 'Feed', icon: 'megaphone' },
+          { href: '#/competency', label: 'Trainers', icon: 'award' }],
+  MASTER: [{ href: '#/feed', label: 'Feed', icon: 'megaphone' },
+           { href: '#/competency', label: 'Competency', icon: 'award' }],
+  SUPREME: [{ href: '#/reports', label: 'Reports', icon: 'chart' },
+            { href: '#/competency', label: 'Competency', icon: 'award' }],
+};
 
-window.askVeda = askVeda;
-window.setViewNav = setView;
-window.openPage = openPage;
-window.loadHomeSuggestions = loadHomeSuggestions;
+// ─── View lifecycle ─────────────────────────────────────────────────────────
+let active = null;   // { destroy } from the currently mounted module
 
-function renderReviews(list) {
-  if (!list || !list.length) {
-    return '<div class="dm-noreviews">No reviews yet. Be the first to share your experience!</div>';
+function teardown() {
+  if (active && typeof active.destroy === 'function') {
+    try { active.destroy(); } catch (_) { /* view cleanup must never block */ }
   }
-  return list.map((r) => {
-    const stars = '★'.repeat(Math.round(r.rating || 0)) + '☆'.repeat(5 - Math.round(r.rating || 0));
-    const pros = (r.pros || '').split('|').filter(Boolean).map((x) => '<li>' + esc(x.trim()) + '</li>').join('');
-    const cons = (r.cons || '').split('|').filter(Boolean).map((x) => '<li>' + esc(x.trim()) + '</li>').join('');
-    return '<div class="dm-review">' +
-      '<div class="dm-review-head"><b>' + esc(r.author || 'Anonymous') + '</b><span class="dm-stars">' + stars + '</span>' +
-      (r.created_at ? '<small>' + esc(r.created_at) + '</small>' : '') + '</div>' +
-      (r.text ? '<p>' + esc(r.text) + '</p>' : '') +
-      (pros ? '<div class="dm-pc-inline"><span class="ok">✓ ' + (pros ? 'Pros' : '') + '</span><ul>' + pros + '</ul></div>' : '') +
-      (cons ? '<div class="dm-pc-inline"><span class="bad">✕ ' + (cons ? 'Cons' : '') + '</span><ul>' + cons + '</ul></div>' : '') +
-      '</div>';
-  }).join('');
+  active = null;
 }
 
-function openCollegeModal(c) {
-  const id = c.id != null ? c.id : null;
-  const type = (c.type || '').toLowerCase();
-  const typeBadge = type
-    ? '<span class="dm-type ' + (type === 'private' ? 'type-priv' : 'type-govt') + '">' + (type === 'private' ? 'Private' : 'Government') + '</span>'
-    : '';
+export function go(path) {
+  const next = '#' + (path.startsWith('/') ? path : '/' + path);
+  if (location.hash === next) render();
+  else location.hash = next;
+}
 
-  const loc = c.address
-    ? c.address
-    : [c.district, c.city || c.location, c.state, c.pin_code].filter(Boolean).join(', ');
+export function currentPath() {
+  const h = location.hash || '#/';
+  return h.slice(1).split('?')[0] || '/';
+}
 
-  let mapHtml = '';
-  if (c.lat != null && c.lng != null) {
-    const lat = Number(c.lat), lng = Number(c.lng), b = 0.02;
-    mapHtml =
-      '<div class="dm-map"><iframe loading="lazy" title="Campus map" src="https://www.openstreetmap.org/export/embed.html?bbox=' +
-      (lng - b) + '%2C' + (lat - b) + '%2C' + (lng + b) + '%2C' + (lat + b) +
-      '&layer=mapnik&marker=' + lat + '%2C' + lng + '"></iframe>' +
-      '<a class="dm-link" href="https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=15/' + lat + '/' + lng + '" target="_blank" rel="noopener">📍 Open in Maps ↗</a></div>';
-  } else if (c.map_link) {
-    mapHtml = '<a class="dm-link" href="' + esc(c.map_link) + '" target="_blank" rel="noopener">📍 View on map ↗</a>';
-  }
+/** Signed-in user, refreshed from the API when the cached copy is stale. */
+export function currentUser() {
+  return getUser();
+}
 
-  const stats = [];
-  if (c.nirf_rank != null) stats.push('<div class="dm-stat"><small>NIRF ' + esc(c.nirf_year || '2024') + '</small><b>#' + esc(c.nirf_rank) + '</b></div>');
-  if (c.avg_package != null) stats.push('<div class="dm-stat"><small>Avg Package</small><b style="color:var(--green)">₹' + esc(c.avg_package) + ' LPA</b></div>');
-  if (c.highest_package != null) stats.push('<div class="dm-stat"><small>Highest Package</small><b style="color:var(--gold)">₹' + esc(c.highest_package) + ' LPA</b></div>');
-  if (c.placement_pct != null) stats.push('<div class="dm-stat"><small>Placement</small><b>' + esc(c.placement_pct) + '%</b></div>');
-  if (c.rating != null) stats.push('<div class="dm-stat"><small>Rating</small><b style="color:var(--gold)">' + esc(c.rating) + ' ★</b></div>');
+export function refreshUser() {
+  return api('/auth/me')
+    .then((d) => { if (d && d.user) { setUser(d.user); paintChrome(); } return d.user; })
+    .catch(() => { clearToken(); clearUser(); paintChrome(); return null; });
+}
 
-  const streams = (c.streams || []).map((s) => '<span class="dm-chip">' + esc(s) + '</span>').join('');
-  const recruiters = (c.top_recruiters || []).map((s) => '<span class="dm-chip rec">' + esc(s) + '</span>').join('');
-  const pros = (c.pros || []).map((s) => '<li>' + esc(s) + '</li>').join('');
-  const cons = (c.cons || []).map((s) => '<li>' + esc(s) + '</li>').join('');
-  const tags = (c.tags || []).map((s) => '<span class="dm-chip tag">' + esc(s) + '</span>').join('');
-  const schols = (c.scholarships_applicable || []).map((s) => '<span class="dm-chip sch">' + esc(s) + '</span>').join('');
-  const loans = LOANS.map((l) => '<div class="dm-loan"><b>' + esc(l.bank) + '</b> · <span style="color:var(--teal)">' + esc(l.rate) + '</span><small>' + esc(l.note) + '</small></div>').join('');
+export function signOut() {
+  logout();
+  toast('Signed out.');
+  go('/');
+}
 
-  const html =
-    '<div class="dm-hero">' + typeBadge + '<h2 class="dm-name">' + esc(c.name) + '</h2>' +
-      '<div class="dm-sub">' + esc(c.city || c.location || '') + (c.state ? ', ' + esc(c.state) : '') + '</div>' +
-      (tags ? '<div class="dm-chips">' + tags + '</div>' : '') +
-    '</div>' +
-    (stats.length ? '<div class="dm-stats">' + stats.join('') + '</div>' : '') +
-    (loc ? '<div class="dm-sec"><h4>📍 Location</h4><p>' + esc(loc) + '</p>' +
-        (c.website ? '<a class="dm-link" href="' + esc(siteUrl(c.website)) + '" target="_blank" rel="noopener">🌐 Official website ↗</a>' : '') +
-        (mapHtml ? mapHtml : '') + '</div>' : '') +
-    ((c.affiliation || c.founded) ? '<div class="dm-sec"><h4>🏛 Affiliation & Founding</h4><p>' +
-        (c.affiliation ? esc(c.affiliation) : '') +
-        (c.affiliation && c.founded ? ' · ' : '') +
-        (c.founded ? 'Founded ' + esc(c.founded) : '') + '</p></div>' : '') +
-    (streams ? '<div class="dm-sec"><h4>🎓 Streams / Courses</h4><div class="dm-chips">' + streams + '</div></div>' : '') +
-    (recruiters ? '<div class="dm-sec"><h4>🏢 Companies that visit (campus recruitment)</h4><div class="dm-chips">' + recruiters + '</div>' +
-        '<p class="dm-note">Exact shortlisting & interview-eligibility criteria (CGPA, backlog rules, branches allowed) vary by company and branch. Tap “Ask Veda” for specifics.</p></div>' : '') +
-    (c.description ? '<div class="dm-sec"><h4>About</h4><p>' + esc(c.description) + '</p></div>' : '') +
-    ((pros || cons) ? '<div class="dm-sec"><div class="dm-pc">' +
-        (pros ? '<div class="dm-pros"><h5>✓ Pros</h5><ul>' + pros + '</ul></div>' : '') +
-        (cons ? '<div class="dm-cons"><h5>✕ Cons</h5><ul>' + cons + '</ul></div>' : '') +
-      '</div></div>' : '') +
-    (schols ? '<div class="dm-sec"><h4>Scholarships you may qualify for</h4><div class="dm-chips">' + schols + '</div>' +
-        '<p class="dm-note">Eligibility depends on your category, state, and course. Open the Scholarships tab for full details, amounts, and deadlines.</p></div>' : '') +
-    '<div class="dm-sec"><h4>Education Loans</h4>' + loans + '</div>' +
-    '<div class="dm-sec"><h4>Student Reviews <span class="dm-live">live</span></h4>' +
-        '<div id="dm-review-list"><div class="dm-noreviews">Loading reviews…</div></div>' +
-        '<form id="dm-review-form" class="review-form">' +
-          '<div class="rf-row"><input id="rv-author" placeholder="Your name" maxlength="60">' +
-            '<select id="rv-rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select></div>' +
-          '<textarea id="rv-text" placeholder="Share your honest experience…" maxlength="2000"></textarea>' +
-          '<div class="rf-row"><input id="rv-pros" placeholder="Pros (comma separated)"><input id="rv-cons" placeholder="Cons (comma separated)"></div>' +
-          '<button type="submit" class="btn primary sm" id="rv-submit">Submit review</button>' +
-        '</form>' +
-    '</div>' +
-    '<button class="btn primary block" id="dm-ask">Ask Veda about this college</button>' +
-    '<button class="btn ghost block" id="dm-compare">' + (compareList.some((x) => x.id === c.id) ? '✓ Added to compare' : '➕ Add to compare') + '</button>';
+// ─── Modal helper (shared by views for confirms and quick forms) ────────────
+export function openAppModal(html) {
+  const body = el('app-modal-body');
+  if (body) body.innerHTML = html;
+  el('app-modal')?.classList.add('open');
+}
 
-  openModalCard(html);
-  renderCompareBar();
+export function closeAppModal() {
+  el('app-modal')?.classList.remove('open');
+}
 
-  const cmp = el('dm-compare');
-  if (cmp) cmp.addEventListener('click', () => toggleCompare(c));
-
-  const ask = el('dm-ask');
-  if (ask) ask.addEventListener('click', () => {
-    const facts = [
-      'College: ' + c.name + (c.type ? ' (' + c.type + ')' : ''),
-      c.avg_package != null ? 'Average package ~₹' + c.avg_package + ' LPA' + (c.highest_package != null ? ', highest ~₹' + c.highest_package + ' LPA' : '') : null,
-      'Top recruiters: ' + ((c.top_recruiters || []).slice(0, 6).join(', ') || 'n/a'),
-      'Scholarships often applicable: ' + ((c.scholarships_applicable || []).slice(0, 5).join(', ') || 'n/a'),
-      c.description ? 'About: ' + c.description : null,
-    ].filter(Boolean).join('. ');
-    askVeda(facts + '. Give a clear, practical overview: strengths, typical placement scenario, and what CGPA/backlog criteria companies usually apply for campus interviews there.');
+/** Promise-based confirm. Resolves true when the user accepts. */
+export function confirmAction(title, message, okLabel = 'Confirm') {
+  return new Promise((resolve) => {
+    openAppModal(`
+      <h3 class="modal-title">${esc(title)}</h3>
+      <p class="modal-sub">${esc(message)}</p>
+      <div class="row gap" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn ghost sm" data-act="cancel">Cancel</button>
+        <button class="btn primary sm" data-act="ok">${esc(okLabel)}</button>
+      </div>`);
+    const done = (v) => { closeAppModal(); resolve(v); };
+    el('app-modal-body')?.querySelector('[data-act="ok"]')
+      ?.addEventListener('click', () => done(true));
+    el('app-modal-body')?.querySelector('[data-act="cancel"]')
+      ?.addEventListener('click', () => done(false));
   });
-
-  const form = el('dm-review-form');
-  const list = el('dm-review-list');
-  async function loadReviews() {
-    if (id == null) { list.innerHTML = '<div class="dm-noreviews">Reviews available for listed institutions.</div>'; return; }
-    try {
-      const d = await api('/colleges/' + id + '/reviews');
-      list.innerHTML = renderReviews((d && d.reviews) || []);
-    } catch (e) {
-      list.innerHTML = '<div class="dm-noreviews">Could not load reviews.</div>';
-    }
-  }
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (id == null) { toast('Reviews available for listed institutions only.', 'info'); return; }
-      const payload = {
-        author: el('rv-author').value.trim() || 'Anonymous',
-        rating: parseFloat(el('rv-rating').value) || 0,
-        text: el('rv-text').value.trim(),
-        pros: el('rv-pros').value.trim(),
-        cons: el('rv-cons').value.trim(),
-      };
-      if (!payload.text && !payload.pros && !payload.cons) { toast('Write something before submitting.', 'info'); return; }
-      const btn = el('rv-submit');
-      btn.disabled = true; btn.textContent = 'Submitting…';
-      try {
-        await api('/colleges/' + id + '/reviews', { method: 'POST', body: JSON.stringify(payload) });
-        form.reset();
-        toast('Thanks! Your review is live.', 'ok');
-        await loadReviews();
-      } catch (err) {
-        toast('Failed to submit: ' + err.message, 'info');
-      } finally {
-        btn.disabled = false; btn.textContent = 'Submit review';
-      }
-    });
-  }
-  loadReviews();
 }
 
-function openScholarshipModal(s) {
-  const cat = String(s.category || '').toLowerCase().replace(/[^a-z]/g, '');
-  const html =
-    '<div class="dm-hero sch"><span class="dm-type type-' + esc(cat) + '">' + esc(s.category || '') + '</span>' +
-      '<h2 class="dm-name">' + esc(s.name) + '</h2>' +
-      '<div class="dm-sub">' + esc(s.state || 'All India') + (s.provider ? ' · ' + esc(s.provider) : '') + '</div>' +
-    '</div>' +
-    (s.amount ? '<div class="dm-amount">' + esc(s.amount) + '</div>' : '') +
-    (s.provider ? '<div class="dm-sec"><h4>Provider</h4><p>' + esc(s.provider) + '</p></div>' : '') +
-    (s.eligibility ? '<div class="dm-sec"><h4>Eligibility</h4><p>' + esc(s.eligibility) + '</p></div>' : '') +
-    (s.deadline ? '<div class="dm-sec"><h4>Deadline</h4><p>' + esc(s.deadline) + '</p></div>' : '') +
-    ((s.documents && s.documents.length) ? '<div class="dm-sec"><h4>Documents required</h4><div class="dm-chips">' + (s.documents || []).map((d) => '<span class="dm-chip">' + esc(d) + '</span>').join('') + '</div></div>' : '') +
-    (s.description ? '<div class="dm-sec"><h4>About</h4><p>' + esc(s.description) + '</p></div>' : '') +
-    (s.link ? '<a class="btn primary block" href="' + esc(s.link) + '" target="_blank" rel="noopener">Official site / Apply ↗</a>' : '') +
-    '<button class="btn ghost block" id="dm-sch-ask">Ask Veda about this scholarship</button>';
+// ─── Chrome (top bar, dock, footer) ─────────────────────────────────────────
+function paintChrome() {
+  const user = getUser();
+  const path = currentPath();
+  const isPublic = path === '/' || /^\/(alpha|master|supreme)(\/(login|signup))?$/.test(path);
 
-  openModalCard(html);
-  const ask = el('dm-sch-ask');
-  if (ask) ask.addEventListener('click', () => askVeda('Explain the scholarship "' + s.name + '" in simple terms: who can apply, key eligibility, documents needed, and the real application steps.'));
+  el('btn-signin').hidden = !!user;
+  el('top-avatar').hidden = !user;
+  el('btn-signout').hidden = !user;
+  el('btn-notif').hidden = !user;
+
+  // Footer belongs to the public pages — the app gets that screen space back.
+  el('site-foot').hidden = !isPublic;
+
+  const dock = el('tabbar');
+  const top = el('top-nav');
+  if (!user) {
+    dock.hidden = true;
+    top.innerHTML = '';
+    return;
+  }
+
+  const items = NAV[user.role] || NAV.ALPHA;
+  // An unapproved account has nowhere to navigate to yet — the dock and the
+  // top links would only lead to the guard bouncing them back here.
+  const waiting = user.status === 'PENDING';
+  dock.hidden = waiting;
+  if (waiting) {
+    top.innerHTML = '';
+    paintActive(path);
+    return;
+  }
+  dock.innerHTML = items.map((it) => `
+    <button class="tbtn" data-go="${it.href}">${iconSvg(it.icon)}<span>${esc(it.label)}</span></button>
+  `).join('');
+  dock.querySelectorAll('[data-go]').forEach((b) =>
+    b.addEventListener('click', () => go(b.dataset.go.slice(1))));
+
+  const all = items.concat(TOP_EXTRA[user.role] || []);
+  top.innerHTML = all.map((it) =>
+    `<a class="top-link" href="${it.href}">${esc(it.label)}</a>`).join('');
+
+  paintActive(path);
 }
 
-window.openCollegeModal = openCollegeModal;
-window.openScholarshipModal = openScholarshipModal;
+function paintActive(path) {
+  const cur = '#/' + path.replace(/^\//, '');
+  document.querySelectorAll('#tabbar .tbtn').forEach((b) => {
+    const href = b.dataset.go || '';
+    b.classList.toggle('active', href === cur || (href !== '#/home' && cur.startsWith(href)));
+  });
+  document.querySelectorAll('#top-nav .top-link').forEach((a) =>
+    a.classList.toggle('active', a.getAttribute('href') === cur));
+}
 
-// ---- College compare ----
-let compareList = [];
-try { compareList = JSON.parse(localStorage.getItem('learnify_compare') || '[]'); } catch (_) {}
-function saveCompare() { try { localStorage.setItem('learnify_compare', JSON.stringify(compareList)); } catch (_) {} }
-function renderCompareBar() {
-  let bar = el('compare-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'compare-bar';
-    bar.className = 'compare-bar';
-    document.body.appendChild(bar);
-  }
-  if (!compareList.length) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  bar.innerHTML =
-    '<span class="cb-title">Compare (' + compareList.length + '/3)</span>' +
-    '<div class="cb-chips">' + compareList.map((c, i) => '<span class="cb-chip">' + esc(c.name) + ' <b data-rm="' + i + '">&times;</b></span>').join('') + '</div>' +
-    '<button class="btn primary sm" id="cb-open">Compare</button>' +
-    '<button class="cb-clear" id="cb-clear">Clear</button>';
-  bar.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', (e) => {
+// ─── Notifications ──────────────────────────────────────────────────────────
+function initNotifications() {
+  el('btn-notif')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    compareList.splice(Number(b.dataset.rm), 1); saveCompare(); renderCompareBar();
-  }));
-  const open = el('cb-open'); if (open) open.addEventListener('click', openCompareModal);
-  const clr = el('cb-clear'); if (clr) clr.addEventListener('click', () => { compareList = []; saveCompare(); renderCompareBar(); });
-}
-function toggleCompare(c) {
-  const i = compareList.findIndex((x) => x.id === c.id);
-  if (i >= 0) { compareList.splice(i, 1); toast('Removed from compare', 'info'); }
-  else {
-    if (compareList.length >= 3) { toast('You can compare up to 3 colleges.', 'info'); return; }
-    compareList.push({ id: c.id, name: c.name, type: c.type, nirf_rank: c.nirf_rank, avg_package: c.avg_package, highest_package: c.highest_package, city: c.city, state: c.state, rating: c.rating, streams: c.streams });
-    toast('Added to compare', 'ok');
-  }
-  saveCompare(); renderCompareBar();
-  const btn = el('dm-compare'); if (btn) btn.textContent = compareList.some((x) => x.id === c.id) ? '✓ Added to compare' : '➕ Add to compare';
-}
-function openCompareModal() {
-  if (!compareList.length) { toast('Add colleges to compare first.', 'info'); return; }
-  const rows = [
-    ['Type', (c) => ((c.type || '').toString().replace(/^\w/, (m) => m.toUpperCase()) || '—')],
-    ['NIRF Rank', (c) => (c.nirf_rank != null ? '#' + c.nirf_rank : '—')],
-    ['Avg Package', (c) => (c.avg_package != null ? '₹' + c.avg_package + ' LPA' : '—')],
-    ['Highest Package', (c) => (c.highest_package != null ? '₹' + c.highest_package + ' LPA' : '—')],
-    ['Location', (c) => ([c.city, c.state].filter(Boolean).join(', ') || '—')],
-    ['Rating', (c) => (c.rating != null ? c.rating + ' ★' : '—')],
-    ['Streams', (c) => ((c.streams || []).join(', ') || '—')],
-  ];
-  const head = '<tr><th></th>' + compareList.map((c) => '<th>' + esc(c.name) + '</th>').join('') + '</tr>';
-  const body = rows.map(([label, fn]) => '<tr><td class="cmp-label">' + label + '</td>' + compareList.map((c) => '<td>' + esc(fn(c)) + '</td>').join('') + '</tr>').join('');
-  const html =
-    '<h3 class="modal-title">⚖️ Compare Colleges</h3>' +
-    '<div class="cmp-wrap"><table class="cmp-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
-    '<button class="btn ghost block" data-close>Close</button>';
-  openModalCard(html);
-}
-window.openCompareModal = openCompareModal;
-renderCompareBar();
-
-onReady(() => {
-  initSystem();
-  initAuth();
-  initVeda();
-  initCareer();
-  initCareers();
-  initProfile();
-  initPremium();
-  initTools();
-  initWriting();
-  initCalculator();
-  initResume();
-  initPlanner();
-  initScholarships();
-  initMisc();
-  initNotifications();
-  initStudyTools();
-  initSIH();
-  applyLanguage(getLang());
-  _restoreView();
-  initGlobalSearch();
-  syncTabbarHeight();
-  window.addEventListener('resize', syncTabbarHeight);
-  window.addEventListener('orientationchange', () => setTimeout(syncTabbarHeight, 200));
-  setTimeout(syncTabbarHeight, 400);
-});
-
-function syncTabbarHeight() {
-  const tb = document.querySelector('.tabbar');
-  if (tb) document.documentElement.style.setProperty('--tabbar-h', tb.offsetHeight + 'px');
-}
-
-/* ── Header global search (dropdown panel) ── */
-let _searchTimer = null;
-function initGlobalSearch() {
-  const gs = document.getElementById('global-search');
-  const overlay = document.getElementById('search-overlay');
-  const input = document.getElementById('search-input');
-  const closeBtn = document.getElementById('search-overlay-close');
-  const clearBtn = document.getElementById('search-clear');
-  const wrap = document.getElementById('top-search-wrap');
-  if (!overlay || !input) return;
-  const gsEl = () => document.getElementById('global-search');
-  let justOpened = false;
-
-  function openSearch() {
-    overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden', 'false');
-    const g = gsEl();
-    input.value = g ? g.value.trim() : '';
-    showSuggestions();
-    renderSuggestions();
-    setTimeout(() => input.focus(), 30);
-  }
-  function closeSearch() {
-    overlay.classList.remove('open');
-    overlay.setAttribute('aria-hidden', 'true');
-    const g = gsEl(); if (g) g.blur();
-  }
-  window.__closeSearch = closeSearch;
-
-  // Open via document-level delegation (capture phase): any mousedown that starts
-  // within the search bar / icon opens the overlay. Immune to the input node being
-  // replaced or the click target resolving to an ancestor.
-  document.addEventListener('mousedown', (e) => {
-    const t = e.target;
-    if (t && t.closest && t.closest('#top-search-wrap')) {
-      if (!overlay.classList.contains('open')) { e.preventDefault(); justOpened = true; openSearch(); }
-    }
-  }, true);
-  // Also open when the search input receives focus (keyboard / tap-to-focus).
-  document.addEventListener('focusin', (e) => {
-    const t = e.target;
-    if (t && t.id === 'global-search' && !overlay.classList.contains('open')) openSearch();
-  });
-
-  input.addEventListener('input', () => {
-    clearTimeout(_searchTimer);
-    const v = input.value.trim();
-    if (v.length < 2) { showSuggestions(); return; }
-    showResults();
-    const results = el('search-results');
-    if (results) results.innerHTML = skRows(8);
-    _searchTimer = setTimeout(() => doSearch(v), 250);
-  });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeSearch();
-    if (e.key === 'Enter') { e.preventDefault(); const v = input.value.trim(); if (v.length >= 2) doSearch(v); }
-  });
-  if (closeBtn) closeBtn.addEventListener('click', closeSearch);
-  if (clearBtn) clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); showSuggestions(); });
-
-  // Close only on a click that is truly outside both the overlay and the search bar.
-  // The opening click also bubbles a `click` whose target resolves to <body> (the
-  // overlay now covers the bar); ignore exactly that click so it never self-closes.
-  document.addEventListener('click', (e) => {
-    if (justOpened) { justOpened = false; return; }
-    if (!overlay.classList.contains('open')) return;
-    const t = e.target;
-    if (!t || !t.closest) return;
-    if (t.closest('#search-overlay')) return;
-    if (t.closest('#top-search-wrap')) return;
-    closeSearch();
-  });
-}
-
-function showSuggestions() {
-  const s = el('search-suggestions'), r = el('search-results');
-  if (s) s.style.display = 'block';
-  if (r) r.style.display = 'none';
-}
-function showResults() {
-  const s = el('search-suggestions'), r = el('search-results');
-  if (s) s.style.display = 'none';
-  if (r) r.style.display = 'block';
-}
-
-async function renderSuggestions() {
-  const s = el('search-suggestions');
-  if (!s) return;
-  s.innerHTML = '<div class="so-sec"><div class="so-sec-head">✨ Suggested for you</div><div class="so-skel-chips">' + skChips(6) + '</div></div>' +
-    '<div class="so-sec"><div class="so-sec-head">🔥 Popular searches</div><div class="so-skel-chips">' + skChips(6) + '</div></div>';
-  const popular = [
-    { q: 'Engineering', ic: '🎯' }, { q: 'Software companies', ic: '💼' },
-    { q: 'Government jobs', ic: '🎯' }, { q: 'Medical colleges', ic: '🎓' },
-    { q: 'IIT', ic: '🎓' }, { q: 'Design careers', ic: '🎯' },
-  ];
-  const popularHtml = '<div class="so-sec"><div class="so-sec-head">🔥 Popular searches</div><div class="so-chips">' +
-    popular.map((p) => '<button class="so-chip" data-q="' + esc(p.q) + '"><span class="ic">' + p.ic + '</span>' + esc(p.q) + '</button>').join('') +
-    '</div></div>';
-
-  let forYou = '';
-  try {
-    const a = await api('/documents/academic');
-    const grade = (a && a.grade) || '';
-    const stream = (a && a.stream) || '';
-    if (grade || stream) {
-      const d = await api('/careers?cls=' + encodeURIComponent(grade) + '&stream=' + encodeURIComponent(stream) + '&limit=5');
-      const list = (d && d.careers) || [];
-      if (list.length) {
-        forYou = '<div class="so-sec"><div class="so-sec-head">✨ Suggested for you · ' + esc(grade || stream) + '</div><div class="so-chips">' +
-          list.map((c) => '<button class="so-chip" data-gtype="career" data-gid="' + esc(c.id) + '"><span class="ic">🎯</span>' + esc(c.title) + ' <span class="sub">' + esc(c.category || '') + '</span></button>').join('') +
-          '</div></div>';
-      }
-    }
-  } catch (_) {}
-  if (!forYou) {
+    const panel = el('notif-panel');
+    if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+    panel.classList.add('open');
+    const list = el('notif-list');
+    list.innerHTML = '<div class="empty-state">Loading…</div>';
     try {
-      const d = await api('/careers?limit=6');
-      const list = (d && d.careers) || [];
-      if (list.length) {
-        forYou = '<div class="so-sec"><div class="so-sec-head">✨ Explore careers</div><div class="so-chips">' +
-          list.map((c) => '<button class="so-chip" data-gtype="career" data-gid="' + esc(c.id) + '"><span class="ic">🎯</span>' + esc(c.title) + '</button>').join('') +
-          '</div></div>';
-      }
-    } catch (_) {}
-  }
+      const d = await api('/v1/notifications/my?limit=30');
+      // This endpoint returns `{items:[...]}` bare (no success envelope), so
+      // unwrap every shape it might arrive in before testing for emptiness.
+      const rows = (d && Array.isArray(d.items) && d.items)
+        || (d && d.data && d.data.items)
+        || (Array.isArray(d) ? d : []);
+      if (!rows.length) { list.innerHTML = '<div class="empty-state">No notifications yet.</div>'; return; }
+      list.innerHTML = rows.map((n) => `
+        <div class="notif-item${n.read ? '' : ' unread'}">
+          <b>${esc(n.title)}</b>
+          <p>${esc(n.message || '')}</p>
+          ${n.link ? `<a href="#${esc(String(n.link).replace(/^#/, ''))}" data-close-panel>Open</a>` : ''}
+        </div>`).join('');
+      list.querySelectorAll('[data-close-panel]').forEach((a) =>
+        a.addEventListener('click', () => panel.classList.remove('open')));
+      api('/v1/notifications/mark-all-read', { method: 'POST' }).then(syncBadge).catch(() => {});
+    } catch (_) {
+      list.innerHTML = '<div class="empty-state">Could not load notifications.</div>';
+    }
+  });
 
-  s.innerHTML = forYou + popularHtml;
-  s.querySelectorAll('.so-chip[data-q]').forEach((b) => b.addEventListener('click', () => {
-    const inp = el('search-input');
-    inp.value = b.dataset.q; showResults(); doSearch(b.dataset.q); inp.focus();
-  }));
-  s.querySelectorAll('.so-chip[data-gtype]').forEach((b) => b.addEventListener('click', () => {
-    const type = b.dataset.gtype, id = b.dataset.gid;
-    window.__closeSearch();
-    navigateFromSearch(type, id);
-  }));
+  document.addEventListener('click', (e) => {
+    const panel = el('notif-panel');
+    if (panel && panel.classList.contains('open') && !panel.contains(e.target)
+        && !el('btn-notif').contains(e.target)) panel.classList.remove('open');
+  });
+
+  syncBadge();
 }
 
-function doSearch(q) {
-  q = (q || '').trim();
-  const results = el('search-results');
-  if (!results) return;
-  if (q.length < 2) { results.innerHTML = '<div class="so-empty">Type at least 2 characters to search.</div>'; return; }
-  results.innerHTML = skRows(8);
-  api('/search/global?q=' + encodeURIComponent(q) + '&num=10').then((d) => {
-    results.innerHTML = renderSearchResults(d || {});
-    results.querySelectorAll('.so-row[data-gtype]').forEach((b) => b.addEventListener('click', () => {
-      const type = b.dataset.gtype, id = b.dataset.gid;
-      if (window.__closeSearch) window.__closeSearch();
-      navigateFromSearch(type, id);
-    }));
-    const fix = results.querySelector('.so-dym-btn');
-    if (fix) fix.addEventListener('click', () => {
-      const q2 = fix.dataset.fix;
-      const inp = el('search-input');
-      inp.value = q2; showResults(); doSearch(q2); inp.focus();
-    });
-  }).catch(() => { results.innerHTML = '<div class="so-empty">Search failed. Try again.</div>'; });
+// Sign-out lives in the chrome (next to the avatar) and again on the profile
+// page — both are static markup bound exactly once at boot, so re-painting the
+// top bar can never stack a second handler on the same button.
+function initSignOut() {
+  const btn = el('btn-signout');
+  if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); signOut(); });
+  document.querySelectorAll('[data-signout]').forEach(bindSignOut);
 }
 
-function navigateFromSearch(type, id) {
-  if (type === 'career' && window.openCareer) window.openCareer(id);
-  else if (type === 'company' && window.openCompany) window.openCompany(id);
-  else if (type === 'college') openCollegeFromSearch(id);
+/** Wire up any sign-out control a view has just rendered. */
+export function bindSignOut(node) {
+  if (node && !node.dataset.bound) {
+    node.dataset.bound = '1';
+    node.addEventListener('click', (e) => { e.preventDefault(); signOut(); });
+  }
 }
 
-function renderSearchResults(d) {
-  const careers = d.careers || [];
-  const companies = d.companies || [];
-  const colleges = d.colleges || [];
-  const ai = d.ai_answer;
-  const suggestion = d.suggestion;
-  const web = d.web;
-  const hasDb = careers.length || companies.length || colleges.length;
-  if (!hasDb && !ai && !web)
-    return '<div class="so-empty">No matches found. Try a different search.</div>';
-  let html = '';
-  if (suggestion) {
-    html += '<div class="so-dym">Did you mean <button class="so-dym-btn" data-fix="' + esc(suggestion) + '">' + esc(suggestion) + '</button>?</div>';
+export function syncBadge() {
+  if (!getUser()) return;
+  api('/v1/notifications/unread-count')
+    .then((d) => {
+      // `{count: n}` bare — tolerate the envelope too in case it changes.
+      const n = Number((d && d.count) ?? (d && d.data && d.data.count)
+        ?? (d && d.data) ?? 0);
+      const b = el('notif-badge');
+      if (!b) return;
+      b.textContent = String(n);
+      b.style.display = n > 0 ? '' : 'none';
+    })
+    .catch(() => {});
+}
+setInterval(syncBadge, 60000);
+
+// ─── Router ─────────────────────────────────────────────────────────────────
+function match(path) {
+  for (const r of ROUTES) {
+    const m = r.re.exec(path);
+    if (m) return { route: r, params: (m && m.groups) || {} };
   }
-  if (web && web.title) {
-    html += '<div class="so-group"><div class="so-group-head">🌐 From the web</div>' +
-      '<a class="web-card" href="' + esc(web.url) + '" target="_blank" rel="noopener noreferrer">' +
-      '<div class="web-title">' + esc(web.title) + '</div>' +
-      '<div class="web-extract">' + esc(web.extract) + '</div>' +
-      '<div class="web-src">Source: Wikipedia ↗</div></a></div>';
-  }
-  const group = (title, icon, items, type, subFn) => {
-    if (!items.length) return '';
-    const rows = items.map((it) =>
-      '<button class="so-row" data-gtype="' + type + '" data-gid="' + esc(it.id) + '">' +
-        '<span class="so-row-ic ' + type + '">' + icon + '</span>' +
-        '<span class="so-row-info"><span class="so-row-name">' + esc(it.title || it.name) + '</span>' +
-        '<span class="so-row-sub">' + esc(subFn(it) || '') + '</span></span>' +
-        '<span class="so-row-arrow">›</span>' +
-      '</button>'
-    ).join('');
-    return '<div class="so-group"><div class="so-group-head">' + icon + ' ' + esc(title) + ' (' + items.length + ')</div>' + rows + '</div>';
-  };
-  if (hasDb) {
-    html += group('Careers', '🎯', careers, 'career', (c) => c.tagline || c.category) +
-            group('Companies', '💼', companies, 'company', (c) => [c.sector, c.headquarters].filter(Boolean).join(' · ')) +
-            group('Colleges', '🎓', colleges, 'college', (c) => [c.city, c.state].filter(Boolean).join(', '));
-  }
-  if (ai) {
-    html += '<div class="so-group"><div class="so-group-head">✨ Answer from Veda (AI)</div>' +
-            '<div class="ai-card">' + renderMarkdown(ai) + '</div></div>';
-  }
-  return html;
+  return null;
 }
 
-function openCollegeFromSearch(id) {
-  if (window.openCollegeModal) {
-    openModalCard('<div class="dm-skel"><div class="sk" style="height:24px;width:55%;border-radius:6px"></div>' +
-      '<div class="sk-box"></div><div class="sk" style="height:14px;width:80%"></div>' +
-      '<div class="sk" style="height:14px;width:70%"></div><div class="sk" style="height:14px;width:60%"></div></div>');
-    api('/colleges/' + encodeURIComponent(id)).then((c) => {
-      if (c) window.openCollegeModal(c);
-      else toast('College details unavailable', 'info');
-    }).catch(() => toast('College details unavailable', 'info'));
-  }
+/** Where to send a signed-out (or wrongly-roled) visitor for this route. */
+function landingFor(path, user) {
+  const pub = match(path);
+  if (pub && pub.route.pub) return null;
+  const m = /^\/(alpha|master|supreme)(\/(login|signup))?/.exec(path);
+  const role = m ? ROLE_BY_PATH[m[1]] : (user && user.role) || 'ALPHA';
+  const dest = (role || 'ALPHA').toLowerCase();
+  if (m && m[2]) return null;                     // already on an auth page
+  return `/${dest}/login`;
 }
+
+async function render() {
+  const path = currentPath();
+  const user = getUser();
+  const hit = match(path);
+
+  if (!hit) { renderNotFound(); return; }
+
+  // Role guard for authed routes.
+  if (!hit.route.pub) {
+    if (!user) { go(landingFor(path, null)); return; }
+    if (hit.route.roles && !hit.route.roles.includes(user.role)) {
+      toast('You do not have access to that page.', 'warn');
+      go('/home');
+      return;
+    }
+    // An unapproved account gets the waiting screen and nothing else. The
+    // server refuses these calls too — this only stops the app from painting
+    // a dashboard that is about to light up with errors.
+    if (user.status === 'PENDING' && !PENDING_OK.test(path)) {
+      go('/pending');
+      return;
+    }
+  }
+
+  const file = hit.route.file === '$role'
+    ? String(user ? user.role : 'ALPHA').toLowerCase()
+    : hit.route.file;
+
+  paintChrome();
+  teardown();
+
+  const root = el('view');
+  root.innerHTML = '<div class="empty-state">Loading…</div>';
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+
+  let mod;
+  try {
+    mod = await import(`./${file}.js?${V}`);
+  } catch (err) {
+    console.error('route module failed to load:', file, err);
+    root.innerHTML = `<div class="empty-state">
+      <b>This page could not be loaded.</b>
+      <p>The module "${esc(file)}" is missing or failed to compile.</p>
+      <p><a href="#/">Back to home</a></p></div>`;
+    return;
+  }
+
+  const ctx = { path, params: hit.params, user: getUser(), route: hit.route };
+
+  try {
+    const out = await mod[hit.route.fn](root, ctx);
+    if (out && typeof out.destroy === 'function') active = out;
+  } catch (err) {
+    console.error('route render failed:', file, err);
+    root.innerHTML = `<div class="empty-state">
+      <b>Something went wrong.</b>
+      <p>${esc(err && err.message ? err.message : 'Unexpected error.')}</p>
+      <p><a href="#/home">Back to home</a></p></div>`;
+  }
+
+  paintActive(path);
+}
+
+function renderNotFound() {
+  teardown();
+  el('view').innerHTML = `
+    <div class="empty-state">
+      <b>Page not found</b>
+      <p>The address you followed does not exist.</p>
+      <p><a href="#/">Back to home</a></p>
+    </div>`;
+}
+
+// ─── Boot ───────────────────────────────────────────────────────────────────
+async function boot() {
+  document.querySelectorAll('[data-close]').forEach((b) =>
+    b.addEventListener('click', closeAppModal));
+  el('app-modal')?.addEventListener('click', (e) => {
+    if (e.target === el('app-modal')) closeAppModal();
+  });
+
+  initNotifications();
+  initSignOut();
+
+  // Restore the session before the first paint so the guard sees a real role.
+  if (getToken()) {
+    try {
+      const d = await api('/auth/me');
+      if (d && d.user) setUser(d.user);
+      else { clearToken(); clearUser(); }
+    } catch (_) { clearToken(); clearUser(); }
+  }
+
+  window.addEventListener('hashchange', render);
+  await render();
+}
+
+boot();

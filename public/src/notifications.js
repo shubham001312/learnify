@@ -1,90 +1,143 @@
-const KEY = "learnify_notifs";
+// Learnify — the notifications inbox.
+// Route: `/notifications`
+//
+// The top-nav bell opens a 30-item panel; this is the full list with the
+// read/unread controls the panel deliberately leaves out. Writes are
+// individual (`PATCH …/read`) so reading one item does not silently clear
+// every other unread one the way `mark-all-read` would.
 
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[m]));
+import { api, esc, toast } from './utils.js?v=62';
+import * as ui from './ui.js?v=62';
+import { syncBadge, confirmAction } from './app.js?v=62';
+import { iconSvg } from './icons.js?v=62';
+
+// Server sends `type`; nothing outside this file needs to know the mapping.
+const TYPE_META = {
+  SYSTEM: { icon: 'bell', tone: 'info', label: 'System' },
+  ACHIEVEMENT: { icon: 'trophy', tone: 'ok', label: 'Achievement' },
+  RELEASE: { icon: 'send', tone: 'warn', label: 'Release' },
+  FEEDBACK: { icon: 'message', tone: 'info', label: 'Feedback' },
+  WARNING: { icon: 'ban', tone: 'bad', label: 'Warning' },
+};
+
+const state = { filter: 'all', items: [] };
+
+export async function render(root, ctx) {
+  root.innerHTML = ui.head({
+    title: 'Notifications',
+    sub: 'Everything the portal has told you, newest first.',
+    actions: '<button class="btn ghost sm" data-all-read>Mark all read</button>',
+  })
+    + `<div class="pillbar">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="unread">Unread</button>
+        <span class="pillbar-gap"></span>
+        <span data-count class="sm muted"></span>
+      </div>`
+    + `<div data-body class="stack">${ui.loading('notifications')}</div>`;
+
+  ui.click(root, '[data-filter]', (e, btn) => {
+    state.filter = btn.dataset.filter;
+    root.querySelectorAll('[data-filter]').forEach((b) =>
+      b.classList.toggle('active', b.dataset.filter === state.filter));
+    paint(root.querySelector('[data-body]'));
+  });
+
+  ui.click(root, '[data-all-read]', async (e, btn) => {
+    const unread = state.items.filter((n) => !n.read).length;
+    if (!unread) { toast('Nothing unread.'); return; }
+    const ok = await confirmAction('Mark everything read?',
+      `${unread} notification${unread === 1 ? '' : 's'} will be cleared.`, 'Mark all read');
+    if (!ok) return;
+    try {
+      await ui.busy(btn, 'Marking…', async () => {
+        await api('/v1/notifications/mark-all-read', { method: 'POST', body: '{}' });
+        state.items = state.items.map((n) => ({ ...n, read: true }));
+        paint(root.querySelector('[data-body]'));
+        syncBadge();
+        toast('All marked as read.');
+      });
+    } catch (err) { toast(err.message, 'warn'); }
+  });
+
+  await load(root);
+  return { destroy: () => {} };
 }
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (_) { return []; }
-}
-function save(arr) {
-  try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (_) {}
-}
-
-export function addNotification(text) {
-  const arr = load();
-  arr.unshift({ id: Date.now(), text, time: new Date().toISOString(), read: false });
-  if (arr.length > 25) arr.length = 25;
-  save(arr);
-  renderBell();
-}
-
-function unreadCount() {
-  return load().filter((n) => !n.read).length;
+async function load(root) {
+  const host = root.querySelector('[data-body]');
+  host.innerHTML = ui.loading('notifications');
+  try {
+    // Returned bare as `{items:[…}` — no success envelope on this route.
+    const res = await api('/v1/notifications/my?limit=200');
+    const items = (res && Array.isArray(res.items) && res.items)
+      || (res && res.data && res.data.items)
+      || (Array.isArray(res) ? res : []);
+    state.items = items;
+    paint(host);
+  } catch (err) {
+    host.innerHTML = ui.errorBlock(err.message);
+  }
 }
 
-export function renderBell() {
-  const badge = document.getElementById("notif-badge");
-  if (!badge) return;
-  const c = unreadCount();
-  badge.style.display = c ? "flex" : "none";
-  badge.textContent = c;
-}
+function paint(host) {
+  const shown = state.filter === 'unread'
+    ? state.items.filter((n) => !n.read) : state.items;
+  const unread = state.items.filter((n) => !n.read).length;
 
-export function renderPanel() {
-  const list = document.getElementById("notif-list");
-  if (!list) return;
-  const arr = load();
-  if (!arr.length) {
-    list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+  const counter = document.querySelector('[data-count]');
+  if (counter) {
+    counter.textContent = unread
+      ? `${unread} unread of ${state.items.length}`
+      : `${state.items.length} total`;
+  }
+
+  if (!shown.length) {
+    host.innerHTML = ui.blank({
+      title: state.filter === 'unread' ? 'You are all caught up' : 'No notifications',
+      body: state.filter === 'unread'
+        ? 'Nothing is waiting on you.'
+        : 'Course releases, certificates and account notices land here.',
+      action: 'Open the feed',
+      actionHref: '#/feed',
+    });
     return;
   }
-  list.innerHTML = arr
-    .map(
-      (n) =>
-        '<div class="notif-item ' + (n.read ? "read" : "") + '">' +
-        '<div class="notif-dot"></div><div class="notif-text">' + esc(n.text) + "</div></div>"
-    )
-    .join("");
+
+  host.innerHTML = shown.map(row).join('');
+
+  ui.click(host, '[data-read]', async (e, btn) => {
+    const id = btn.closest('[data-id]').dataset.id;
+    try {
+      await ui.busy(btn, '…', async () => {
+        await api(`/v1/notifications/${encodeURIComponent(id)}/read`,
+          { method: 'PATCH' });
+        state.items = state.items.map((n) => (n.id === id ? { ...n, read: true } : n));
+        paint(host);
+        syncBadge();
+      });
+    } catch (err) { toast(err.message, 'warn'); }
+  });
 }
 
-export function togglePanel() {
-  const p = document.getElementById("notif-panel");
-  if (!p) return;
-  const open = p.classList.toggle("open");
-  if (open) {
-    const arr = load();
-    arr.forEach((n) => (n.read = true));
-    save(arr);
-    renderBell();
-    renderPanel();
-  }
-}
-
-export function initNotifications() {
-  const bell = document.querySelector('.icon-btn[title="Notifications"]');
-  if (bell) bell.addEventListener("click", (e) => {
-    e.stopPropagation();
-    togglePanel();
-  });
-  document.addEventListener("click", (e) => {
-    const p = document.getElementById("notif-panel");
-    if (!p || !p.classList.contains("open")) return;
-    const t = e.target;
-    if (p.contains(t)) return;
-    if (t.closest && t.closest('.icon-btn[title="Notifications"]')) return;
-    p.classList.remove("open");
-  });
-
-  if (!localStorage.getItem("learnify_notifs_seeded")) {
-    save([
-      { id: Date.now() + 1, text: "Welcome to Learnify! 🎉 Explore colleges & ask Veda.", time: new Date().toISOString(), read: false },
-      { id: Date.now() + 2, text: "3 new scholarships match your profile — check Career.", time: new Date().toISOString(), read: false },
-    ]);
-    try { localStorage.setItem("learnify_notifs_seeded", "1"); } catch (_) {}
-  }
-  renderBell();
-  renderPanel();
+function row(n) {
+  const meta = TYPE_META[n.type] || TYPE_META.SYSTEM;
+  const link = n.link ? String(n.link).replace(/^#/, '') : '';
+  return `
+    <div class="notif-row${n.read ? '' : ' is-unread'}" data-id="${esc(n.id)}">
+      <span class="notif-ico">${iconSvg(meta.icon)}</span>
+      <div class="notif-main">
+        <div class="row gap">
+          <b>${esc(n.title)}</b>
+          ${n.read ? '' : '<span class="tag info">New</span>'}
+        </div>
+        ${n.message ? `<p>${esc(n.message)}</p>` : ''}
+        <div class="sm muted">${esc(ui.relTime(n.created_at))}
+          <span class="tag mute">${esc(meta.label)}</span></div>
+      </div>
+      <div class="notif-side">
+        ${link ? `<a class="btn ghost sm" href="#${esc(link)}">Open</a>` : ''}
+        ${n.read ? '' : '<button class="btn ghost sm" data-read>Mark read</button>'}
+      </div>
+    </div>`;
 }

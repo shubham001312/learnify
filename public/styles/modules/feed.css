@@ -1,0 +1,40 @@
+﻿/* feed — Learnify. Design tokens come from styles.css. */
+
+.post {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  transition: box-shadow .18s var(--ease);
+}
+.post:hover { box-shadow: var(--shadow-md); }
+.post.pinned { border-color: rgba(224,165,38,0.5); background: linear-gradient(180deg, rgba(224,165,38,0.06), var(--surface) 70%); }
+.post.draft { opacity: .78; border-style: dashed; }
+
+.post-head { display: flex; align-items: flex-start; gap: 12px; }
+.post-ico {
+  width: 34px; height: 34px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.post-ico svg { width: 17px; height: 17px; }
+.post-ico.tone-info { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+.post-ico.tone-warn { background: rgba(224,165,38,0.16); color: var(--gold-deep); }
+.post-ico.tone-ok   { background: rgba(14,165,164,0.14); color: #0f766e; }
+.post-ico.tone-mute { background: var(--surface-2); color: var(--muted); }
+
+.post-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.post-actions { display: flex; gap: 4px; flex: none; }
+.post-actions .icon-btn { width: 32px; height: 32px; border-radius: 9px; }
+.post-actions .icon-btn svg { width: 15px; height: 15px; }
+
+.post-title { font: 700 16px/1.35 var(--font-head); margin: 12px 0 0; }
+.post-body { margin: 8px 0 0; font-size: 13.5px; line-height: 1.7; color: var(--sub); white-space: pre-wrap; }
+.post-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--r-md); margin-top: 12px; }
+.post .link { display: inline-block; margin-top: 10px; word-break: break-all; }
+
+/* Checkbox labels used by the composer and filters */
+.chk {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer;
+}
+.chk input { accent-color: var(--gold); width: 15px; height: 15px; }

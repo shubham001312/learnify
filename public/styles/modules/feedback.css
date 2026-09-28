@@ -1,0 +1,44 @@
+﻿/* feedback — Learnify. Design tokens come from styles.css. */
+
+/* ── Summary card ── */
+.fb-avg {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin-bottom: 16px;
+}
+.fb-avg b { font: 800 32px/1 var(--font-head); color: var(--gold-deep); }
+
+/* 5 → 1 star distribution */
+.fb-dist { display: flex; flex-direction: column; gap: 8px; }
+.fb-dist-row {
+  display: grid; grid-template-columns: 54px 1fr 26px; gap: 8px;
+  align-items: center;
+}
+.fb-dist-label { text-align: right; }
+.fb-dist-n { text-align: right; font-variant-numeric: tabular-nums; }
+.fb-bar {
+  display: block; height: 8px; overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--pill);
+}
+.fb-bar i {
+  display: block; height: 100%; background: var(--gold);
+  border-radius: var(--pill);
+}
+
+/* ── Comment list ── */
+.fb-list { display: flex; flex-direction: column; }
+.fb-comment { padding: 14px 0; border-top: 1px solid var(--border); }
+.fb-comment:first-child { border-top: none; padding-top: 0; }
+.fb-comment:last-child { padding-bottom: 0; }
+.fb-comment-top {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.fb-comment-top .grow { flex: 1; }
+.fb-comment p {
+  margin: 9px 0 0; padding: 10px 12px;
+  font-size: 13.5px; line-height: 1.6; color: var(--text);
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.fb-comment.mine p { border-color: var(--gold); }
+.fb-comment .tag { margin-top: 9px; }

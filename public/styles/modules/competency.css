@@ -1,0 +1,90 @@
+﻿/* competency — Learnify. Design tokens come from styles.css. */
+
+/* ── Subject requirement list ───────────────────────────────────────────── */
+.cc-reqlist {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cc-reqlist li {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 11px 13px;
+}
+.cc-reqlist li b { font: 700 14px/1.35 var(--font-head); color: var(--text); }
+.cc-reqlist li p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; }
+.cc-req-w {
+  flex: none; min-width: 46px; text-align: center;
+  font: 800 13px/1.4 var(--font-head); color: var(--gold-deep);
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: var(--pill); padding: 4px 8px;
+}
+
+/* ── Subject picker card ────────────────────────────────────────────────── */
+.cc-card.subject h3 { flex: 1; }
+.cc-card.subject .link { margin-top: auto; font-weight: 700; }
+
+/* ── Declaration rows (mine + modal profile) ────────────────────────────── */
+.cc-dec {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.cc-dec:first-child { padding-top: 0; }
+.cc-dec:last-child { border-bottom: none; padding-bottom: 0; }
+.cc-dec-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cc-dec-body p { margin: 0; font-size: 13px; line-height: 1.55; }
+.cc-dec-body .row b { font: 700 14.5px var(--font-head); color: var(--text); }
+.cc-dec > .btn { flex: none; }
+.cc-ev {
+  background: var(--bg-soft); border-left: 2px solid var(--gold-soft);
+  border-radius: var(--r-sm); padding: 8px 10px; line-height: 1.55;
+}
+
+/* ── Ranked trainer results ─────────────────────────────────────────────── */
+.cc-rank {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 18px;
+  transition: box-shadow .2s var(--ease), border-color .2s var(--ease);
+}
+.cc-rank:hover { border-color: var(--border-2); box-shadow: var(--shadow-md); }
+.cc-rank-n {
+  flex: none; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  font: 800 16px var(--font-head); color: var(--gold-deep);
+  background: var(--surface-2); border: 1px solid var(--border-2);
+}
+.cc-rank:first-child .cc-rank-n {
+  color: var(--text); border-color: var(--gold);
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+}
+.cc-rank-main { flex: 1; min-width: 0; }
+.cc-rank-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cc-rank-top .who { flex: 1; min-width: 180px; }
+.cc-rank-tags { margin-top: 10px; }
+.cc-score { flex: none; text-align: right; margin-left: auto; }
+.cc-score b { display: block; font: 800 26px/1 var(--font-head); color: var(--gold-deep); }
+.cc-score small {
+  display: block; font: 700 10.5px var(--font-head); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); margin-top: 4px;
+}
+.cc-why {
+  margin-top: 14px; background: var(--bg-soft);
+  border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 15px;
+}
+.cc-why > b {
+  display: block; font: 700 11.5px var(--font-head); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); margin-bottom: 9px;
+}
+.cc-why ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.cc-why li { font-size: 13.5px; line-height: 1.6; color: var(--text); }
+.cc-why li::marker { color: var(--gold); }
+.cc-why p { margin: 0; }
+
+@media (max-width: 620px) {
+  .cc-rank { padding: 15px; gap: 12px; }
+  .cc-rank-n { width: 34px; height: 34px; font-size: 14px; }
+  .cc-score b { font-size: 22px; }
+}

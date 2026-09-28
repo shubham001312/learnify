@@ -2,8 +2,7 @@ fastapi
 supabase
 python-dotenv
 requests
-pyyaml
-razorpay
 python-multipart
-pypdf
 Pillow
+email-validator
+uvicorn

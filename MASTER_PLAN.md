@@ -1,5 +1,18 @@
 # Learnify — Master Plan (SIH 2026 · Problem SIH26044)
 
+> ## ⚠️ SUPERSEDED — historical reference only
+>
+> This is the original SIH brief (skill mapping, internships, placement,
+> industry roles). **None of it describes the current product.**
+>
+> Learnify today is an LMS / digital capacity building portal with three
+> roles — ALPHA (trainee), MASTER (trainer), SUPREME (administrator) —
+> covering courses, assessments, competency and reporting.
+>
+> See **`README.md`** for what actually exists and **`docs/LIVE_HANDOFF.md`**
+> for how to run, verify and deploy it. Do not implement anything from this
+> file.
+
 > **Academia–Industry Skill Mapping, Internship & Placement Platform**
 
 ---
